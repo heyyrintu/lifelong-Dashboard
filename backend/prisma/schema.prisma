@@ -1,0 +1,54 @@
+// This is your Prisma schema file
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model OutboundUpload {
+  id         String   @id @default(uuid())
+  fileName   String   @map("file_name")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  status     String   @default("processed") // processed, failed
+  source     String   @default("manual-upload")
+  rows       OutboundRow[]
+
+  @@map("outbound_uploads")
+}
+
+enum NormalizedCategory {
+  E_COMMERCE
+  OFFLINE
+  QUICK_COMMERCE
+  EBO
+  B2C
+  OTHERS
+}
+
+model OutboundRow {
+  id                  String             @id @default(uuid())
+  uploadId            String             @map("upload_id")
+  customerGroup       String?            @map("customer_group")
+  sourceWarehouse     String?            @map("source_warehouse")
+  soItem              String?            @map("so_item")
+  categoryRaw         String?            @map("category_raw")
+  salesOrderQty       Float              @default(0) @map("sales_order_qty")
+  soTotalCbm          Float              @default(0) @map("so_total_cbm")
+  deliveryNoteDate    DateTime?          @map("delivery_note_date")
+  deliveryNoteItem    String?            @map("delivery_note_item")
+  deliveryNoteQty     Float              @default(0) @map("delivery_note_qty")
+  dnTotalCbm          Float              @default(0) @map("dn_total_cbm")
+  transporter         String?
+  normalizedCategory  NormalizedCategory @map("normalized_category")
+  createdAt           DateTime           @default(now()) @map("created_at")
+
+  upload OutboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+  @@index([deliveryNoteDate])
+  @@index([normalizedCategory])
+  @@map("outbound_rows")
+}

@@ -1,0 +1,132 @@
+╔═══════════════════════════════════════════════════════════════╗
+║                                                               ║
+║              DRONA MIS V2 - INSTALLATION GUIDE                ║
+║                                                               ║
+║                    Quick Setup in 2 Steps                     ║
+║                                                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+
+STEP 1: INSTALL DEPENDENCIES
+─────────────────────────────────────────────────────────────────
+
+Open your terminal in this directory and run:
+
+    npm install
+
+This will install all required packages:
+  • Next.js 15
+  • React 18
+  • TypeScript 5
+  • Tailwind CSS 3
+  • Lucide React (icons)
+  • ESLint & Prettier
+
+Wait for installation to complete (1-2 minutes).
+
+
+STEP 2: START DEVELOPMENT SERVER
+─────────────────────────────────────────────────────────────────
+
+After installation completes, run:
+
+    npm run dev
+
+This starts the Next.js development server on port 3000.
+
+You should see output like:
+
+    ▲ Next.js 15.0.3
+    - Local:        http://localhost:3000
+    - Ready in 2.5s
+
+Open your browser and go to:
+
+    http://localhost:3000
+
+The app will automatically redirect to the Quick Summary page.
+
+
+THAT'S IT! 🎉
+─────────────────────────────────────────────────────────────────
+
+Your Drona MIS V2 dashboard is now running!
+
+
+WHAT TO DO NEXT
+─────────────────────────────────────────────────────────────────
+
+1. Read START_HERE.md for orientation
+2. Explore all 6 pages in the sidebar
+3. Test responsive design (resize browser)
+4. Try the file upload page (/upload)
+5. Read QUICKSTART.md for detailed guide
+
+
+TROUBLESHOOTING
+─────────────────────────────────────────────────────────────────
+
+Problem: "Port 3000 is already in use"
+Solution: 
+    Windows: netstat -ano | findstr :3000
+             taskkill /PID [PID] /F
+    Or use: npm run dev -- -p 3001
+
+Problem: "Module not found" errors
+Solution: 
+    rm -rf node_modules package-lock.json
+    npm install
+
+Problem: Styles not loading
+Solution:
+    1. Hard refresh browser (Ctrl + F5)
+    2. Check terminal for errors
+    3. Restart dev server
+
+
+OTHER COMMANDS
+─────────────────────────────────────────────────────────────────
+
+Build for production:     npm run build
+Run production server:    npm start
+Check for errors:         npm run lint
+Format code:              npm run format
+
+
+DOCUMENTATION
+─────────────────────────────────────────────────────────────────
+
+START_HERE.md          - Begin here (5 min)
+QUICKSTART.md          - Quick setup guide (5 min)
+README.md              - Complete documentation (15 min)
+FEATURES_OVERVIEW.md   - Visual guide to features (10 min)
+DEVELOPMENT.md         - Developer guidelines (20 min)
+PROJECT_STRUCTURE.md   - File organization (10 min)
+PROJECT_SUMMARY.txt    - Complete project summary
+
+
+SYSTEM REQUIREMENTS
+─────────────────────────────────────────────────────────────────
+
+✓ Node.js 18.x or higher
+✓ npm 9.x or higher
+✓ Modern browser (Chrome, Firefox, Safari, Edge)
+✓ 200MB free disk space
+
+
+VERSION INFO
+─────────────────────────────────────────────────────────────────
+
+Project:     Drona MIS V2
+Version:     2.0.0 (Phase 1)
+Status:      Production Ready
+Developer:   Rintu Mondal
+Date:        November 24, 2024
+
+
+═══════════════════════════════════════════════════════════════
+
+               Ready to explore? Run 'npm run dev'!
+
+═══════════════════════════════════════════════════════════════
+
