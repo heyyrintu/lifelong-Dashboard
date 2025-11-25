@@ -144,14 +144,52 @@ export default function OutboundPage() {
     }
   };
 
+  const fetchSummaryWithGranularity = async (granularity: 'month' | 'week' | 'day') => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      // Apply current filters
+      if (selectedMonth && selectedMonth !== 'ALL') {
+        params.append('month', selectedMonth);
+      } else {
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+      }
+      if (selectedProductCategory && selectedProductCategory !== 'ALL') {
+        params.append('productCategory', selectedProductCategory);
+      }
+      // Use the passed granularity instead of state
+      params.append('timeGranularity', granularity);
+
+      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('No data available. Please upload an Outbound Excel file first.');
+        }
+        throw new Error('Failed to fetch data from backend');
+      }
+
+      const result: SummaryResponse = await response.json();
+      setData(result);
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching data');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleFilter = () => {
     fetchSummary(true);
   };
 
   const handleTimeGranularityChange = (granularity: 'month' | 'week' | 'day') => {
     setTimeGranularity(granularity);
-    // Immediately fetch data with new granularity
-    fetchSummary(true);
+    // Immediately fetch data with new granularity by passing it directly
+    fetchSummaryWithGranularity(granularity);
   };
 
   const handleDownloadSummary = async () => {
@@ -531,11 +569,11 @@ export default function OutboundPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
           </div>
         ) : data?.summaryTotals ? (
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <table className="w-full">
-              <thead>
+              <thead className="sticky top-0 bg-white dark:bg-slate-800/50 z-10 shadow-sm">
                 <tr className="border-b border-gray-200 dark:border-slate-700">
-                  {timeGranularity === 'day' && data.summaryTotals.dayData ? (
+                  {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 ? (
                     <>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Days</th>
                       <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Total DN Qty</th>
@@ -554,9 +592,9 @@ export default function OutboundPage() {
                 </tr>
               </thead>
               <tbody>
-                {timeGranularity === 'day' && data.summaryTotals.dayData ? (
+                {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 ? (
                   data.summaryTotals.dayData.map((day, index) => (
-                    <tr key={day.date} className="border-b border-gray-100 dark:border-slate-800">
+                    <tr key={day.date} className="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
                       <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300 font-medium">
                         {day.label}
                       </td>

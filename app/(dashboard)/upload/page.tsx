@@ -10,6 +10,7 @@ interface UploadInfo {
   uploadedAt: string;
   rowsInserted: number;
   status: string;
+  type?: 'item-master' | 'inbound' | 'outbound';
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -60,14 +61,29 @@ export default function UploadPage() {
   const fetchUploads = async () => {
     try {
       setUploadsLoading(true);
-      const response = await fetch(`${BACKEND_URL}/outbound/uploads`);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch uploads');
+      // Fetch from both outbound and inbound endpoints
+      const [outboundResponse, inboundResponse] = await Promise.all([
+        fetch(`${BACKEND_URL}/outbound/uploads`),
+        fetch(`${BACKEND_URL}/inbound/uploads`),
+      ]);
+      
+      let allUploads: UploadInfo[] = [];
+      
+      if (outboundResponse.ok) {
+        const outboundUploads: UploadInfo[] = await outboundResponse.json();
+        allUploads = [...allUploads, ...outboundUploads.map(u => ({ ...u, type: 'outbound' as const }))];
       }
-
-      const result: UploadInfo[] = await response.json();
-      setUploads(result);
+      
+      if (inboundResponse.ok) {
+        const inboundUploads: UploadInfo[] = await inboundResponse.json();
+        allUploads = [...allUploads, ...inboundUploads];
+      }
+      
+      // Sort by upload date (newest first)
+      allUploads.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+      
+      setUploads(allUploads);
     } catch (err: any) {
       console.error('Failed to fetch uploads:', err.message);
     } finally {
@@ -97,43 +113,74 @@ export default function UploadPage() {
     }
   };
 
-  const handleViewUpload = (uploadId: string) => {
-    // Navigate to outbound page with upload filter
-    window.location.href = `/outbound?uploadId=${uploadId}`;
+  const handleViewUpload = (uploadId: string, uploadType?: string) => {
+    // Navigate to appropriate page based on upload type
+    if (uploadType === 'inbound') {
+      window.location.href = `/inbound?uploadId=${uploadId}`;
+    } else if (uploadType === 'item-master') {
+      // Item master doesn't have a dedicated view, show alert
+      alert('Item Master data is used for CBM calculations across the system.');
+    } else {
+      window.location.href = `/outbound?uploadId=${uploadId}`;
+    }
   };
 
   const handleProcess = async () => {
     if (!selectedFile || !fileType) return;
 
-    // For Phase 2, only handle outbound uploads
-    if (fileType !== 'outbound') {
-      setShowToast(true);
-      setTimeout(() => setShowToast(false), 3000);
-      return;
-    }
-
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/upload`, {
+      let endpoint = '';
+      let successMessage = '';
+
+      // Determine endpoint based on file type
+      switch (fileType) {
+        case 'item-master':
+          endpoint = `${BACKEND_URL}/inbound/item-master/upload`;
+          break;
+        case 'inbound':
+          endpoint = `${BACKEND_URL}/inbound/upload`;
+          break;
+        case 'outbound':
+          endpoint = `${BACKEND_URL}/outbound/upload`;
+          break;
+        default:
+          setShowToast(true);
+          setTimeout(() => setShowToast(false), 3000);
+          return;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });
 
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Upload failed');
       }
 
       const result = await response.json();
-      alert(`Upload successful! Rows inserted: ${result.rowsInserted}`);
+      
+      // Set success message based on file type
+      if (fileType === 'item-master') {
+        successMessage = `Item Master updated! Rows processed: ${result.rowsProcessed}`;
+      } else if (fileType === 'inbound') {
+        successMessage = `Inbound upload processed! Rows inserted: ${result.rowsInserted}`;
+      } else {
+        successMessage = `Upload successful! Rows inserted: ${result.rowsInserted}`;
+      }
+      
+      alert(successMessage);
       
       // Reset form and refresh uploads
       setSelectedFile(null);
       setFileType('');
       await fetchUploads();
-    } catch (error) {
-      alert('Upload failed. Please check the file format and try again.');
+    } catch (error: any) {
+      alert(`Upload failed: ${error.message || 'Please check the file format and try again.'}`);
       console.error('Upload error:', error);
     }
   };
@@ -150,10 +197,10 @@ export default function UploadPage() {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 mt-0.5" />
           <div>
-            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500">Phase 2 - Outbound Upload Available</h4>
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500">Phase 3 - Inbound with CBM Available</h4>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Outbound file uploads are now fully integrated with the backend.
-              Other file types (Inbound, Inventory, Billing) will be added in future phases.
+              Item Master, Inbound, and Outbound file uploads are now fully integrated with the backend.
+              Other file types (Inventory, Billing) will be added in future phases.
             </p>
           </div>
         </div>
@@ -235,7 +282,8 @@ export default function UploadPage() {
               </label>
               <div className="space-y-2">
                 {[
-                  { value: 'inbound', label: 'Inbound File', desc: 'Purchase orders and GRN data' },
+                  { value: 'item-master', label: 'Item Master File', desc: 'Item master data with CBM information' },
+                  { value: 'inbound', label: 'Inbound File', desc: 'Fresh Receipt and GRN data with CBM calculations' },
                   {
                     value: 'outbound',
                     label: 'Outbound File',
@@ -250,7 +298,11 @@ export default function UploadPage() {
                 ].map((type) => (
                   <label
                     key={type.value}
-                    className="flex items-start p-4 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-brandRed/50 dark:hover:border-slate-600 cursor-pointer transition-colors"
+                    className={`flex items-start p-4 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-brandRed/50 dark:hover:border-slate-600 cursor-pointer transition-colors ${
+                      (type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound') 
+                        ? 'bg-green-50 dark:bg-green-500/5 border-green-200 dark:border-green-500/20' 
+                        : ''
+                    }`}
                   >
                     <input
                       type="radio"
@@ -261,7 +313,14 @@ export default function UploadPage() {
                       className="mt-1 text-brandRed focus:ring-brandRed"
                     />
                     <div className="ml-3">
-                      <p className="text-sm font-medium text-gray-900 dark:text-slate-200">{type.label}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-slate-200">
+                        {type.label}
+                        {(type.value === 'item-master' || type.value === 'inbound') && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                            Available
+                          </span>
+                        )}
+                      </p>
                       <p className="text-xs text-gray-600 dark:text-slate-500">{type.desc}</p>
                     </div>
                   </label>
@@ -327,7 +386,7 @@ export default function UploadPage() {
                   <File className="w-8 h-8 text-gray-400 dark:text-slate-500" />
                 </div>
                 <h4 className="text-sm font-medium text-gray-900 dark:text-slate-200 mb-2">No files uploaded yet</h4>
-                <p className="text-xs text-gray-500 dark:text-slate-500">Upload your first outbound file to see it here</p>
+                <p className="text-xs text-gray-500 dark:text-slate-500">Upload your first file to see it here</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -345,7 +404,16 @@ export default function UploadPage() {
                           <p className="text-sm font-medium text-gray-900 dark:text-slate-200 truncate" title={upload.fileName}>
                             {upload.fileName}
                           </p>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
+                              upload.type === 'item-master' 
+                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                                : upload.type === 'inbound'
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                            }`}>
+                              {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : 'Outbound'}
+                            </span>
                             <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
                               {upload.status}
                             </span>
@@ -361,7 +429,7 @@ export default function UploadPage() {
                     </div>
                     <div className="flex items-center gap-2 ml-4">
                       <button
-                        onClick={() => handleViewUpload(upload.uploadId)}
+                        onClick={() => handleViewUpload(upload.uploadId, upload.type)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-md transition-colors"
                         title="View this upload's data"
                       >

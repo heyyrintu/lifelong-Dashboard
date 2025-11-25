@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { OutboundController } from './outbound.controller';
-import { OutboundService } from './outbound.service.mock';
-import { CategoryNormalizerService } from './category-normalizer.service';
+import { InboundController } from './inbound.controller';
+import { InboundServiceMock } from './inbound.service.mock';
 
 @Module({
   imports: [
@@ -35,7 +34,7 @@ import { CategoryNormalizerService } from './category-normalizer.service';
       },
     }),
   ],
-  controllers: [OutboundController],
-  providers: [OutboundService, CategoryNormalizerService],
+  controllers: [InboundController],
+  providers: [InboundServiceMock],
 })
-export class OutboundModule {}
+export class InboundModuleMock {}

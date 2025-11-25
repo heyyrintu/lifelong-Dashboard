@@ -116,9 +116,10 @@ export class OutboundController {
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
     @Query('productCategory') productCategory?: string,
+    @Query('timeGranularity') timeGranularity?: string,
   ) {
     try {
-      return await this.outboundService.getSummary(uploadId, fromDate, toDate, month, productCategory);
+      return await this.outboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
     } catch (error) {
       if (error.status === 404) {
         throw error;

@@ -167,7 +167,8 @@ export class OutboundService {
     fromDate?: string,
     toDate?: string,
     month?: string,
-    productCategory?: string
+    productCategory?: string,
+    timeGranularity?: string
   ): Promise<SummaryResponse> {
     // Filter data based on parameters
     let filteredData = this.mockData.filter(row => row.delivery_note_date);
@@ -314,22 +315,63 @@ export class OutboundService {
     // Product categories list
     const productCategories = ['ALL', ...PRODUCT_CATEGORY_ORDER.map(cat => PRODUCT_CATEGORY_LABELS[cat])];
 
-    // Generate time series data (always monthly)
-    const timeSeries = this.generateTimeSeries(productCategoryFilteredData, 'month');
+    // Generate time series data with specified granularity
+    // When month is selected, use filteredData (without product category filter) for charts
+    // Otherwise, use productCategoryFilteredData (with product category filter)
+    const granularity = (timeGranularity as 'month' | 'week' | 'day') || 'month';
+    const timeSeriesData = (month && month !== 'ALL') ? filteredData : productCategoryFilteredData;
+    const timeSeries = this.generateTimeSeries(timeSeriesData, granularity);
 
     // Calculate summary totals
+    // When month is selected, use filteredData (without product category filter)
+    // Otherwise, use productCategoryFilteredData (with product category filter)
+    const summaryDataForTotals = (month && month !== 'ALL') ? filteredData : productCategoryFilteredData;
+    
+    // Generate day-by-day data for summary totals
+    const dayDataMap: { [key: string]: any[] } = {};
+    summaryDataForTotals.forEach(row => {
+      if (row.delivery_note_date) {
+        const dateKey = new Date(row.delivery_note_date).toISOString().split('T')[0];
+        if (!dayDataMap[dateKey]) {
+          dayDataMap[dateKey] = [];
+        }
+        dayDataMap[dateKey].push(row);
+      }
+    });
+
+    // Create sorted day data array
+    const dayDataArray: DayData[] = Object.keys(dayDataMap)
+      .sort()
+      .map(dateKey => {
+        const rows = dayDataMap[dateKey];
+        const date = new Date(dateKey);
+        const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        
+        return {
+          date: dateKey,
+          label: `${date.getDate()} ${dayNames[date.getMonth()]}`,
+          dnQty: rows.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0),
+          dnCbm: rows.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0),
+          edelDnQty: rows
+            .filter(r => r.product_category === 'EDEL')
+            .reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0),
+          edelDnCbm: rows
+            .filter(r => r.product_category === 'EDEL')
+            .reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0),
+        };
+      });
+
     const summaryTotals: SummaryTotals = {
-      totalDnQty: productCategoryFilteredData.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0),
-      totalDnCbm: productCategoryFilteredData.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0),
-      totalEdelDnQty: productCategoryFilteredData
+      totalDnQty: summaryDataForTotals.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0),
+      totalDnCbm: summaryDataForTotals.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0),
+      totalEdelDnQty: summaryDataForTotals
         .filter(r => r.product_category === 'EDEL')
         .reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0),
-      totalEdelDnCbm: productCategoryFilteredData
+      totalEdelDnCbm: summaryDataForTotals
         .filter(r => r.product_category === 'EDEL')
         .reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0),
+      dayData: dayDataArray,
     };
-
-    // Remove day-by-day data logic - only show monthly data
 
     return {
       cards,

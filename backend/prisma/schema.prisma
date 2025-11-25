@@ -65,3 +65,48 @@ model OutboundRow {
   @@index([productCategory])
   @@map("outbound_rows")
 }
+
+model ItemMaster {
+  id           String   @id         // master ID (from column B)
+  itemGroup    String   @map("item_group") // Item Group (D)
+  cbmPerUnit   Float    @default(0) @map("cbm_per_unit") // CBM (H), default 0 if invalid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("item_master")
+}
+
+model InboundUpload {
+  id          String   @id @default(uuid())
+  fileName    String   @map("file_name")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+  status      String   @default("processed") // "processed" | "failed"
+  source      String   @default("manual-upload")
+  rows        InboundRow[]
+
+  @@map("inbound_uploads")
+}
+
+model InboundRow {
+  id             String        @id @default(uuid())
+  uploadId       String        @map("upload_id")
+  upload         InboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  dateOfUnload   DateTime?     @map("date_of_unload")
+  invoiceSku     String?       @map("invoice_sku")
+  receivedSku    String?       @map("received_sku")
+  invoiceQty     Float         @default(0) @map("invoice_qty")
+  receivedQty    Float         @default(0) @map("received_qty")
+  goodQty        Float         @default(0) @map("good_qty")
+
+  // joined from ItemMaster based on receivedSku == ItemMaster.id
+  itemGroup      String?       @map("item_group") // Item Group (D), or "Others" if not found
+  cbmPerUnit     Float         @default(0) @map("cbm_per_unit")
+  totalCbm       Float         @default(0) @map("total_cbm")
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([uploadId])
+  @@index([dateOfUnload])
+  @@index([itemGroup])
+  @@map("inbound_rows")
+}
