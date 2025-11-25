@@ -28,6 +28,17 @@ enum NormalizedCategory {
   OTHERS
 }
 
+enum ProductCategory {
+  EDEL
+  HOME_AND_KITCHEN
+  ELECTRONICS
+  HEALTH_AND_PERSONAL_CARE
+  AUTOMOTIVE_AND_TOOLS
+  TOYS_AND_GAMES
+  BRAND_PRIVATE_LABEL
+  OTHERS
+}
+
 model OutboundRow {
   id                  String             @id @default(uuid())
   uploadId            String             @map("upload_id")
@@ -43,6 +54,7 @@ model OutboundRow {
   dnTotalCbm          Float              @default(0) @map("dn_total_cbm")
   transporter         String?
   normalizedCategory  NormalizedCategory @map("normalized_category")
+  productCategory     ProductCategory    @default(OTHERS) @map("product_category")
   createdAt           DateTime           @default(now()) @map("created_at")
 
   upload OutboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
@@ -50,5 +62,6 @@ model OutboundRow {
   @@index([uploadId])
   @@index([deliveryNoteDate])
   @@index([normalizedCategory])
+  @@index([productCategory])
   @@map("outbound_rows")
 }
