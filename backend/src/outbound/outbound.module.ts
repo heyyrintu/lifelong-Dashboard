@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { OutboundController } from './outbound.controller';
-import { OutboundService } from './outbound.service.mock';
+import { OutboundService } from './outbound.service';
 import { CategoryNormalizerService } from './category-normalizer.service';
 
 @Module({

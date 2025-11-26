@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import * as path from 'path';
 
 export interface ItemMasterUploadResult {
   uploadId: string;
@@ -71,11 +72,133 @@ export interface InboundSummaryResponse {
   summaryTotals: SummaryTotals;
 }
 
+// Path to the static Item Master file
+const ITEM_MASTER_PATH = path.resolve(__dirname, '../../Item master.xlsx');
+
 @Injectable()
-export class InboundService {
+export class InboundService implements OnModuleInit {
   private cache = new Map<string, InboundSummaryResponse>();
 
   constructor(private prisma: PrismaService) {}
+
+  /**
+   * Auto-load Item Master on module initialization
+   */
+  async onModuleInit() {
+    await this.loadItemMasterFromFile();
+  }
+
+  /**
+   * Load Item Master from the static file if it exists and DB is empty
+   */
+  private async loadItemMasterFromFile(): Promise<void> {
+    try {
+      // Check if Item Master file exists
+      if (!fs.existsSync(ITEM_MASTER_PATH)) {
+        console.log(`Item Master file not found at: ${ITEM_MASTER_PATH}`);
+        return;
+      }
+
+      // Check if Item Master table already has data
+      const existingCount = await this.prisma.itemMaster.count();
+      if (existingCount > 0) {
+        console.log(`Item Master already loaded (${existingCount} items). Skipping auto-load.`);
+        return;
+      }
+
+      console.log('Loading Item Master from file...');
+      const result = await this.loadItemMasterInternal(ITEM_MASTER_PATH, false);
+      console.log(`Item Master auto-loaded: ${result.rowsProcessed} items`);
+    } catch (error) {
+      console.error('Failed to auto-load Item Master:', error.message);
+    }
+  }
+
+  /**
+   * Internal method to load Item Master (shared by auto-load and upload)
+   * @param filePath - Path to the Excel file
+   * @param deleteFile - Whether to delete the file after processing
+   */
+  private async loadItemMasterInternal(filePath: string, deleteFile: boolean): Promise<ItemMasterUploadResult> {
+    const startTime = Date.now();
+
+    // Read Excel file
+    const workbook = XLSX.readFile(filePath);
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+    // Skip header row (index 0), start from row 2
+    const dataRows = rawData.slice(1);
+
+    // Parse all rows into a batch
+    const itemMasterRecords: Array<{ id: string; itemGroup: string; cbmPerUnit: number }> = [];
+
+    for (const row of dataRows) {
+      // Skip empty rows
+      if (!row || row.length === 0) continue;
+
+      // Excel columns (0-indexed):
+      // ID=column B (1), Item Group=column D (3), CBM=column H (7)
+      const id = this.getCellValue(row[1]); // B
+      const itemGroup = this.getCellValue(row[3]); // D
+      const cbmPerUnit = this.parseNumber(row[7]); // H
+
+      if (!id) continue; // Skip rows without ID
+
+      itemMasterRecords.push({
+        id,
+        itemGroup: itemGroup || 'Others',
+        cbmPerUnit: cbmPerUnit || 0,
+      });
+    }
+
+    if (itemMasterRecords.length === 0) {
+      if (deleteFile) fs.unlinkSync(filePath);
+      return { uploadId: 'item-master-' + Date.now(), rowsProcessed: 0, message: 'No data found' };
+    }
+
+    // Batch upsert using raw SQL with ON CONFLICT DO UPDATE
+    const BATCH_SIZE = 1000;
+    
+    // Remove duplicates
+    const uniqueRecords = Array.from(
+      new Map(itemMasterRecords.map(record => [record.id, record])).values()
+    );
+    
+    for (let i = 0; i < uniqueRecords.length; i += BATCH_SIZE) {
+      const batch = uniqueRecords.slice(i, i + BATCH_SIZE);
+      
+      const values = batch.map((_, idx) => {
+        const offset = idx * 3;
+        return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
+      }).join(', ');
+
+      const params = batch.flatMap(r => [r.id, r.itemGroup, r.cbmPerUnit]);
+
+      await this.prisma.$executeRawUnsafe(`
+        INSERT INTO item_master (id, item_group, cbm_per_unit)
+        VALUES ${values}
+        ON CONFLICT (id) DO UPDATE SET
+          item_group = EXCLUDED.item_group,
+          cbm_per_unit = EXCLUDED.cbm_per_unit
+      `, ...params);
+    }
+
+    if (deleteFile) fs.unlinkSync(filePath);
+
+    // Clear cache
+    this.cache.clear();
+
+    const elapsed = Date.now() - startTime;
+    console.log(`ItemMaster loaded: ${uniqueRecords.length} rows in ${elapsed}ms`);
+
+    return { 
+      uploadId: 'item-master-' + Date.now(), 
+      rowsProcessed: uniqueRecords.length,
+      message: 'Item Master processed successfully',
+    };
+  }
 
   /**
    * Get all uploads (both item-master and inbound)
@@ -119,94 +242,12 @@ export class InboundService {
   }
 
   /**
-   * Parse and store Item Master Excel file
-   * 
-   * OPTIMIZATION: Replaced N individual upserts with batch SQL upsert
-   * Previous: O(N) upsert queries
-   * After: O(1) batch upsert using ON CONFLICT DO UPDATE
+   * Parse and store Item Master Excel file (manual upload)
+   * Delegates to internal method with deleteFile=true
    */
   async uploadItemMaster(filePath: string, fileName?: string): Promise<ItemMasterUploadResult> {
     try {
-      const startTime = Date.now();
-
-      // Read Excel file
-      const workbook = XLSX.readFile(filePath);
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-
-      // Skip header row (index 0), start from row 2
-      const dataRows = rawData.slice(1);
-
-      // Parse all rows into a batch
-      const itemMasterRecords: Array<{ id: string; itemGroup: string; cbmPerUnit: number }> = [];
-
-      for (const row of dataRows) {
-        // Skip empty rows
-        if (!row || row.length === 0) continue;
-
-        // Excel columns (0-indexed):
-        // ID=column B (1), Item Group=column D (3), CBM=column H (7)
-        const id = this.getCellValue(row[1]); // B
-        const itemGroup = this.getCellValue(row[3]); // D
-        const cbmPerUnit = this.parseNumber(row[7]); // H
-
-        if (!id) continue; // Skip rows without ID
-
-        itemMasterRecords.push({
-          id,
-          itemGroup: itemGroup || 'Others',
-          cbmPerUnit: cbmPerUnit || 0,
-        });
-      }
-
-      if (itemMasterRecords.length === 0) {
-        fs.unlinkSync(filePath);
-        return { uploadId: 'item-master-' + Date.now(), rowsProcessed: 0, message: 'No data found' };
-      }
-
-      // OPTIMIZATION: Batch upsert using raw SQL with ON CONFLICT DO UPDATE
-      // This replaces N individual upsert calls with a single SQL statement
-      // Process in batches to avoid parameter limit issues
-      const BATCH_SIZE = 1000;
-      
-      for (let i = 0; i < itemMasterRecords.length; i += BATCH_SIZE) {
-        const batch = itemMasterRecords.slice(i, i + BATCH_SIZE);
-        
-        // Build parameterized values for the batch
-        // Format: ($1, $2, $3), ($4, $5, $6), ...
-        const values = batch.map((_, idx) => {
-          const offset = idx * 3;
-          return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
-        }).join(', ');
-
-        // Flatten parameters: [id1, itemGroup1, cbm1, id2, itemGroup2, cbm2, ...]
-        const params = batch.flatMap(r => [r.id, r.itemGroup, r.cbmPerUnit]);
-
-        // Note: created_at uses database default, so not included in INSERT
-        await this.prisma.$executeRawUnsafe(`
-          INSERT INTO item_master (id, item_group, cbm_per_unit)
-          VALUES ${values}
-          ON CONFLICT (id) DO UPDATE SET
-            item_group = EXCLUDED.item_group,
-            cbm_per_unit = EXCLUDED.cbm_per_unit
-        `, ...params);
-      }
-
-      // Clean up file
-      fs.unlinkSync(filePath);
-
-      // Clear cache when item master is updated
-      this.cache.clear();
-
-      const elapsed = Date.now() - startTime;
-      console.log(`ItemMaster upload: ${itemMasterRecords.length} rows in ${elapsed}ms`);
-
-      return { 
-        uploadId: 'item-master-' + Date.now(), 
-        rowsProcessed: itemMasterRecords.length,
-        message: 'Item Master processed successfully',
-      };
+      return await this.loadItemMasterInternal(filePath, true);
     } catch (error) {
       console.error('Error processing Item Master Excel file:', error);
       throw new Error(`Failed to process Item Master Excel file: ${error.message}`);
@@ -218,6 +259,8 @@ export class InboundService {
    */
   async uploadInbound(filePath: string, fileName: string): Promise<InboundUploadResult> {
     try {
+      const startTime = Date.now();
+
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
@@ -304,6 +347,9 @@ export class InboundService {
 
       // Clear cache when new data is uploaded
       this.cache.clear();
+
+      const elapsed = Date.now() - startTime;
+      console.log(`Inbound upload: ${parsedRows.length} rows in ${elapsed}ms`);
 
       return {
         uploadId: upload.id,

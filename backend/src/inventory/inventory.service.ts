@@ -356,22 +356,6 @@ export class InventoryService {
       itemGroupFilter = ` AND ir.item_group = $${paramIdx}`;
     }
 
-    // Params for Query 2 (Total row - no itemGroup)
-    const paramsForTotalRow: any[] = [uploadId];
-    let dateFilterForTotalRow = '';
-    let paramIdxTotal = 1;
-
-    if (fromDate) {
-      paramIdxTotal++;
-      paramsForTotalRow.push(new Date(fromDate));
-      dateFilterForTotalRow += ` AND ids.stock_date >= $${paramIdxTotal}`;
-    }
-    if (toDate) {
-      paramIdxTotal++;
-      paramsForTotalRow.push(new Date(toDate));
-      dateFilterForTotalRow += ` AND ids.stock_date <= $${paramIdxTotal}`;
-    }
-
     // Run 3 parallel aggregation queries using $queryRawUnsafe with parameterized values
     const [inboundSkuResult, inventoryQtyResult, totalCbmResult] = await Promise.all([
       // Query 1: Inbound SKU Count
@@ -387,15 +371,21 @@ export class InventoryService {
           ${itemGroupFilter}
       `, ...paramsWithItemGroup),
 
-      // Query 2: Inventory QTY Total (from Total row) - only needs uploadId and date filters
-      this.prisma.$queryRawUnsafe<[{ avg_qty: number | null }]>(`
-        SELECT AVG(ids.quantity) as avg_qty
-        FROM inventory_rows ir
-        INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
-        WHERE ir.upload_id = $1
-          AND (ir.is_total_row = true OR LOWER(TRIM(ir.item)) = 'total')
-          ${dateFilterForTotalRow}
-      `, ...paramsForTotalRow),
+      // Query 2: Inventory QTY Total - sum of (average daily qty per SKU) across all SKUs
+      // Formula: Σ over all non-Total rows ( AVG over dates in range (qty_sku_day) )
+      this.prisma.$queryRawUnsafe<[{ total_qty: number | null }]>(`
+        SELECT SUM(avg_qty) as total_qty FROM (
+          SELECT AVG(ids.quantity) as avg_qty
+          FROM inventory_rows ir
+          INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
+          WHERE ir.upload_id = $1
+            AND ir.is_total_row = false
+            AND LOWER(TRIM(ir.item)) != 'total'
+            ${dateFilterWithItemGroup}
+            ${itemGroupFilter}
+          GROUP BY ir.id
+        ) subq
+      `, ...paramsWithItemGroup),
 
       // Query 3: Total CBM
       this.prisma.$queryRawUnsafe<[{ total_cbm: number | null }]>(`
@@ -417,7 +407,7 @@ export class InventoryService {
     ]);
 
     const inboundSkuCount = Number(inboundSkuResult[0]?.count || 0);
-    const inventoryQtyTotal = Number(inventoryQtyResult[0]?.avg_qty || 0);
+    const inventoryQtyTotal = Number(inventoryQtyResult[0]?.total_qty || 0);
     const totalCbm = Number(totalCbmResult[0]?.total_cbm || 0);
 
     return {

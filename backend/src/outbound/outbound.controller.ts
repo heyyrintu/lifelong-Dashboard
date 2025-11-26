@@ -13,7 +13,7 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { OutboundService } from './outbound.service.mock';
+import { OutboundService } from './outbound.service';
 
 @Controller('outbound')
 export class OutboundController {
@@ -115,11 +115,9 @@ export class OutboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
-    @Query('timeGranularity') timeGranularity?: string,
   ) {
     try {
-      return await this.outboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
+      return await this.outboundService.getSummary(uploadId, fromDate, toDate, month);
     } catch (error) {
       if (error.status === 404) {
         throw error;

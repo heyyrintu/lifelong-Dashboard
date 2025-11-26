@@ -53,6 +53,8 @@ export class OutboundService {
    */
   async uploadExcel(filePath: string, fileName: string): Promise<UploadResult> {
     try {
+      const startTime = Date.now();
+
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
@@ -77,18 +79,21 @@ export class OutboundService {
         if (!row || row.length === 0) continue;
 
         // Excel columns (0-indexed):
-        // C=2, K=10, L=11, M=12, N=13, P=15, S=18, U=20, V=21, W=22, X=23
-        const customerGroup = this.getCellValue(row[2]); // C
-        const sourceWarehouse = this.getCellValue(row[10]); // K
-        const soItem = this.getCellValue(row[11]); // L
-        const categoryRaw = this.getCellValue(row[12]); // M
-        const salesOrderQty = this.parseNumber(row[13]); // N
-        const soTotalCbm = this.parseNumber(row[15]); // P
-        const deliveryNoteDate = this.parseDate(row[18]); // S
-        const deliveryNoteItem = this.getCellValue(row[20]); // U
-        const deliveryNoteQty = this.parseNumber(row[21]); // V
-        const dnTotalCbm = this.parseNumber(row[22]); // W
-        const transporter = this.getCellValue(row[23]); // X
+        // Customer Group=column B (1), Source Warehouse=column C (2), SO Item=column D (3)
+        // Category Raw=column E (4), Sales Order Qty=column F (5), SO Total CBM=column G (6)
+        // Delivery Note Date=column H (7), Delivery Note Item=column I (8), Delivery Note Qty=column J (9)
+        // DN Total CBM=column K (10), Transporter=column L (11)
+        const customerGroup = this.getCellValue(row[1]); // B
+        const sourceWarehouse = this.getCellValue(row[2]); // C
+        const soItem = this.getCellValue(row[3]); // D
+        const categoryRaw = this.getCellValue(row[4]); // E
+        const salesOrderQty = this.parseNumber(row[5]); // F
+        const soTotalCbm = this.parseNumber(row[6]); // G
+        const deliveryNoteDate = this.parseDate(row[7]); // H
+        const deliveryNoteItem = this.getCellValue(row[8]); // I
+        const deliveryNoteQty = this.parseNumber(row[9]); // J
+        const dnTotalCbm = this.parseNumber(row[10]); // K
+        const transporter = this.getCellValue(row[11]); // L
 
         // Normalize category
         const normalizedCategory = this.categoryNormalizer.normalizeCategory(customerGroup);
@@ -117,11 +122,13 @@ export class OutboundService {
         });
       }
 
-      // Clean up file
       fs.unlinkSync(filePath);
 
       // Clear cache when new data is uploaded
       this.cache.clear();
+
+      const elapsed = Date.now() - startTime;
+      console.log(`Outbound upload: ${parsedRows.length} rows in ${elapsed}ms`);
 
       return {
         uploadId: upload.id,
@@ -405,6 +412,92 @@ export class OutboundService {
 
     const months = result.map(r => r.month_str).filter(Boolean);
     return ['ALL', ...months];
+  }
+
+  /**
+   * Get list of outbound uploads
+   */
+  async getUploads() {
+    const uploads = await this.prisma.outboundUpload.findMany({
+      orderBy: { uploadedAt: 'desc' },
+      include: {
+        _count: {
+          select: { rows: true },
+        },
+      },
+    });
+
+    return uploads.map((upload) => ({
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      uploadedAt: upload.uploadedAt.toISOString(),
+      rowsInserted: upload._count.rows,
+      status: upload.status,
+      type: 'outbound',
+    }));
+  }
+
+  /**
+   * Delete an outbound upload and all associated data
+   */
+  async deleteUpload(uploadId: string): Promise<void> {
+    const upload = await this.prisma.outboundUpload.findUnique({
+      where: { id: uploadId },
+    });
+
+    if (!upload) {
+      throw new NotFoundException(`Outbound upload with ID ${uploadId} not found`);
+    }
+
+    await this.prisma.outboundUpload.delete({
+      where: { id: uploadId },
+    });
+
+    this.cache.clear();
+  }
+
+  /**
+   * Upload file (wrapper for controller compatibility)
+   */
+  async uploadFile(file: Express.Multer.File): Promise<UploadResult> {
+    return this.uploadExcel(file.path, file.originalname);
+  }
+
+  /**
+   * Generate detailed Excel export (stub for now)
+   */
+  async generateDetailedExcel(
+    uploadId?: string,
+    fromDate?: string,
+    toDate?: string,
+    month?: string,
+    productCategory?: string,
+  ): Promise<Buffer> {
+    // Get summary data
+    const summary = await this.getSummary(uploadId, fromDate, toDate, month);
+    
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+    
+    // Add category table sheet
+    const wsData = [
+      ['Category', 'SO Count', 'SO Qty', 'SO CBM', 'DN Count', 'DN Qty', 'DN CBM', 'SO-DN Qty'],
+      ...summary.categoryTable.map(row => [
+        row.categoryLabel,
+        row.soCount,
+        row.soQty,
+        row.soTotalCbm,
+        row.dnCount,
+        row.dnQty,
+        row.dnTotalCbm,
+        row.soMinusDnQty,
+      ]),
+    ];
+    
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(workbook, ws, 'Summary');
+    
+    return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }
 
   // Helper methods
