@@ -10,7 +10,7 @@ interface UploadInfo {
   uploadedAt: string;
   rowsInserted: number;
   status: string;
-  type?: 'item-master' | 'inbound' | 'outbound';
+  type?: 'item-master' | 'inbound' | 'outbound' | 'inventory';
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -62,10 +62,11 @@ export default function UploadPage() {
     try {
       setUploadsLoading(true);
       
-      // Fetch from both outbound and inbound endpoints
-      const [outboundResponse, inboundResponse] = await Promise.all([
+      // Fetch from outbound, inbound, and inventory endpoints
+      const [outboundResponse, inboundResponse, inventoryResponse] = await Promise.all([
         fetch(`${BACKEND_URL}/outbound/uploads`),
         fetch(`${BACKEND_URL}/inbound/uploads`),
+        fetch(`${BACKEND_URL}/inventory/uploads`),
       ]);
       
       let allUploads: UploadInfo[] = [];
@@ -78,6 +79,11 @@ export default function UploadPage() {
       if (inboundResponse.ok) {
         const inboundUploads: UploadInfo[] = await inboundResponse.json();
         allUploads = [...allUploads, ...inboundUploads];
+      }
+      
+      if (inventoryResponse.ok) {
+        const inventoryUploads: UploadInfo[] = await inventoryResponse.json();
+        allUploads = [...allUploads, ...inventoryUploads];
       }
       
       // Sort by upload date (newest first)
@@ -120,6 +126,8 @@ export default function UploadPage() {
     } else if (uploadType === 'item-master') {
       // Item master doesn't have a dedicated view, show alert
       alert('Item Master data is used for CBM calculations across the system.');
+    } else if (uploadType === 'inventory') {
+      window.location.href = `/inventory?uploadId=${uploadId}`;
     } else {
       window.location.href = `/outbound?uploadId=${uploadId}`;
     }
@@ -146,6 +154,9 @@ export default function UploadPage() {
         case 'outbound':
           endpoint = `${BACKEND_URL}/outbound/upload`;
           break;
+        case 'inventory':
+          endpoint = `${BACKEND_URL}/inventory/upload`;
+          break;
         default:
           setShowToast(true);
           setTimeout(() => setShowToast(false), 3000);
@@ -169,6 +180,11 @@ export default function UploadPage() {
         successMessage = `Item Master updated! Rows processed: ${result.rowsProcessed}`;
       } else if (fileType === 'inbound') {
         successMessage = `Inbound upload processed! Rows inserted: ${result.rowsInserted}`;
+      } else if (fileType === 'inventory') {
+        const dateInfo = result.dateRange 
+          ? ` (Date range: ${result.dateRange.minDate || 'N/A'} to ${result.dateRange.maxDate || 'N/A'})`
+          : '';
+        successMessage = `Inventory upload processed! Rows inserted: ${result.rowsInserted}${dateInfo}`;
       } else {
         successMessage = `Upload successful! Rows inserted: ${result.rowsInserted}`;
       }
@@ -197,10 +213,10 @@ export default function UploadPage() {
         <div className="flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 mt-0.5" />
           <div>
-            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500">Phase 3 - Inbound with CBM Available</h4>
+            <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500">Phase 4 - Inventory Available</h4>
             <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-              Item Master, Inbound, and Outbound file uploads are now fully integrated with the backend.
-              Other file types (Inventory, Billing) will be added in future phases.
+              Item Master, Inbound, Outbound, and Inventory file uploads are now fully integrated with the backend.
+              Billing will be added in future phases.
             </p>
           </div>
         </div>
@@ -291,15 +307,15 @@ export default function UploadPage() {
                   },
                   {
                     value: 'inventory',
-                    label: 'Inventory File',
-                    desc: 'Stock levels and locations',
+                    label: 'Inventory File (Daily Stock Analytics)',
+                    desc: 'Daily stock data with date columns (H→KL)',
                   },
                   { value: 'billing', label: 'Billing File', desc: 'Invoice and billing data' },
                 ].map((type) => (
                   <label
                     key={type.value}
                     className={`flex items-start p-4 border border-gray-200 dark:border-slate-700 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-800 hover:border-brandRed/50 dark:hover:border-slate-600 cursor-pointer transition-colors ${
-                      (type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound') 
+                      (type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound' || type.value === 'inventory') 
                         ? 'bg-green-50 dark:bg-green-500/5 border-green-200 dark:border-green-500/20' 
                         : ''
                     }`}
@@ -315,7 +331,7 @@ export default function UploadPage() {
                     <div className="ml-3">
                       <p className="text-sm font-medium text-gray-900 dark:text-slate-200">
                         {type.label}
-                        {(type.value === 'item-master' || type.value === 'inbound') && (
+                        {(type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound' || type.value === 'inventory') && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
                             Available
                           </span>
@@ -410,9 +426,11 @@ export default function UploadPage() {
                                 ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                                 : upload.type === 'inbound'
                                 ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : upload.type === 'inventory'
+                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                                 : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                             }`}>
-                              {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : 'Outbound'}
+                              {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : upload.type === 'inventory' ? 'Inventory' : 'Outbound'}
                             </span>
                             <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
                               {upload.status}

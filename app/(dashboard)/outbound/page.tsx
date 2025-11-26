@@ -93,6 +93,8 @@ export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
+  const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
+  const [chartLoading, setChartLoading] = useState(true);
   
   // Filter states
   const [fromDate, setFromDate] = useState('');
@@ -103,7 +105,31 @@ export default function OutboundPage() {
 
   useEffect(() => {
     fetchSummary();
+    fetchChartData(timeGranularity);
   }, []);
+
+  const fetchChartData = async (granularity: 'month' | 'week' | 'day') => {
+    try {
+      setChartLoading(true);
+      const params = new URLSearchParams();
+      // Only send timeGranularity, no filters for chart data
+      params.append('timeGranularity', granularity);
+
+      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch chart data');
+      }
+
+      const result: SummaryResponse = await response.json();
+      setChartData(result.timeSeries);
+    } catch (err: any) {
+      console.error('Chart data fetch error:', err.message);
+      setChartData(null);
+    } finally {
+      setChartLoading(false);
+    }
+  };
 
   const fetchSummary = async (useFilters = false) => {
     try {
@@ -188,8 +214,10 @@ export default function OutboundPage() {
 
   const handleTimeGranularityChange = (granularity: 'month' | 'week' | 'day') => {
     setTimeGranularity(granularity);
-    // Immediately fetch data with new granularity by passing it directly
+    // Fetch filtered data with new granularity
     fetchSummaryWithGranularity(granularity);
+    // Fetch unfiltered chart data with new granularity
+    fetchChartData(granularity);
   };
 
   const handleDownloadSummary = async () => {
@@ -458,13 +486,13 @@ export default function OutboundPage() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">DN Qty Over Time</h3>
             </div>
-          {loading ? (
+          {chartLoading ? (
             <div className="h-64 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
-          ) : data?.timeSeries?.points && data.timeSeries.points.length > 0 ? (
+          ) : chartData?.points && chartData.points.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data.timeSeries.points}>
+              <BarChart data={chartData.points}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="label" 
@@ -506,13 +534,13 @@ export default function OutboundPage() {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">DN Total CBM Over Time</h3>
           </div>
-          {loading ? (
+          {chartLoading ? (
             <div className="h-64 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
-          ) : data?.timeSeries?.points && data.timeSeries.points.length > 0 ? (
+          ) : chartData?.points && chartData.points.length > 0 ? (
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data.timeSeries.points}>
+              <BarChart data={chartData.points}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="label" 

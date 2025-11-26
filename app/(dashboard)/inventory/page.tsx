@@ -1,186 +1,245 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
-import Table from '@/components/common/Table';
-import Badge from '@/components/common/Badge';
-import { Boxes, AlertTriangle, TrendingDown, Warehouse } from 'lucide-react';
+import { Boxes, Package, Box } from 'lucide-react';
+
+interface InventoryCardMetrics {
+  inboundSkuCount: number;
+  inventoryQtyTotal: number;
+  totalCbm: number;
+}
+
+interface InventoryFilters {
+  availableItemGroups: string[];
+  availableDateRange: {
+    minDate: string | null;
+    maxDate: string | null;
+  };
+}
+
+interface InventorySummaryResponse {
+  cards: InventoryCardMetrics;
+  filters: InventoryFilters;
+}
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export default function InventoryPage() {
-  const stats = [
-    {
-      title: 'Total SKUs',
-      value: '485',
-      subtitle: 'Active items',
-      icon: Boxes,
-    },
-    {
-      title: 'Total Units',
-      value: '45,890',
-      subtitle: 'In stock',
-      icon: Warehouse,
-      trend: { value: 5.2, isPositive: true },
-    },
-    {
-      title: 'Low Stock Items',
-      value: '12',
-      subtitle: 'Below threshold',
-      icon: AlertTriangle,
-    },
-    {
-      title: 'Ageing Inventory',
-      value: '3,245',
-      subtitle: '>90 days',
-      icon: TrendingDown,
-    },
-  ];
+  const searchParams = useSearchParams();
+  const uploadIdParam = searchParams.get('uploadId');
 
-  const columns = [
-    { header: 'SKU', accessor: 'sku' },
-    { header: 'Description', accessor: 'description' },
-    { header: 'Available Qty', accessor: 'available' },
-    { header: 'Reserved Qty', accessor: 'reserved' },
-    { header: 'Location', accessor: 'location' },
-    { header: 'Ageing (Days)', accessor: 'ageing' },
-    { header: 'Status', accessor: 'status' },
-  ];
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<InventorySummaryResponse | null>(null);
 
-  const tableData = [
-    {
-      sku: 'SKU-001234',
-      description: 'DEF 20L Container',
-      available: '2,450',
-      reserved: '150',
-      location: 'Warehouse A - Rack 12',
-      ageing: '15',
-      status: <Badge variant="success">Good</Badge>,
-    },
-    {
-      sku: 'SKU-001235',
-      description: 'DEF Pump Assembly',
-      available: '85',
-      reserved: '20',
-      location: 'Warehouse B - Rack 5',
-      ageing: '45',
-      status: <Badge variant="success">Good</Badge>,
-    },
-    {
-      sku: 'SKU-001236',
-      description: 'DEF Sensor Unit',
-      available: '15',
-      reserved: '5',
-      location: 'Warehouse A - Rack 8',
-      ageing: '120',
-      status: <Badge variant="warning">Low Stock</Badge>,
-    },
-    {
-      sku: 'SKU-001237',
-      description: 'DEF 5L Bottle',
-      available: '5,600',
-      reserved: '300',
-      location: 'Warehouse C - Rack 1',
-      ageing: '8',
-      status: <Badge variant="success">Good</Badge>,
-    },
-    {
-      sku: 'SKU-001238',
-      description: 'DEF Nozzle Kit',
-      available: '3',
-      reserved: '0',
-      location: 'Warehouse B - Rack 15',
-      ageing: '95',
-      status: <Badge variant="error">Critical</Badge>,
-    },
-    {
-      sku: 'SKU-001239',
-      description: 'DEF Tank 200L',
-      available: '125',
-      reserved: '25',
-      location: 'Warehouse A - Rack 20',
-      ageing: '30',
-      status: <Badge variant="success">Good</Badge>,
-    },
-  ];
+  // Filter states
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selectedItemGroup, setSelectedItemGroup] = useState('ALL');
+
+  useEffect(() => {
+    fetchSummary();
+  }, []);
+
+  const fetchSummary = async (useFilters = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const params = new URLSearchParams();
+      
+      // Use uploadId from URL if available
+      if (uploadIdParam) {
+        params.append('uploadId', uploadIdParam);
+      }
+
+      if (useFilters) {
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+        if (selectedItemGroup && selectedItemGroup !== 'ALL') {
+          params.append('itemGroup', selectedItemGroup);
+        }
+      }
+
+      const response = await fetch(`${BACKEND_URL}/inventory/summary?${params.toString()}`);
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('No inventory data available. Please upload a Daily Stock Analytics Excel file first.');
+        }
+        throw new Error('Failed to fetch inventory data from backend');
+      }
+
+      const result: InventorySummaryResponse = await response.json();
+      setData(result);
+
+      // Set initial date range from available dates if not already set
+      if (!useFilters && result.filters.availableDateRange) {
+        if (result.filters.availableDateRange.minDate && !fromDate) {
+          setFromDate(result.filters.availableDateRange.minDate);
+        }
+        if (result.filters.availableDateRange.maxDate && !toDate) {
+          setToDate(result.filters.availableDateRange.maxDate);
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching inventory data');
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleFilter = () => {
+    fetchSummary(true);
+  };
+
+  // Helper function to format numbers
+  const formatNumber = (num: number | undefined | null): string => {
+    if (num === undefined || num === null) return '0';
+    
+    // For large numbers, use thousand separators
+    if (Number.isInteger(num)) {
+      return num.toLocaleString();
+    } else {
+      return num.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  };
+
+  // Empty state / error state
+  if (!loading && error) {
+    return (
+      <div>
+        <PageHeader
+          title="Inventory Management"
+          description="Monitor daily stock levels and CBM across all warehouses"
+        />
+        <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-8 text-center">
+          <Boxes className="w-16 h-16 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-2">No Inventory Data Available</h3>
+          <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">{error}</p>
+          <a
+            href="/upload"
+            className="inline-block px-6 py-3 bg-brandRed hover:bg-red-700 text-white rounded-lg font-medium transition-colors"
+          >
+            Go to Upload Page
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
       <PageHeader
         title="Inventory Management"
-        description="Monitor stock levels, locations, and inventory ageing across all warehouses"
+        description="Monitor daily stock levels and CBM across all warehouses"
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        {stats.map((stat, index) => (
-          <StatCard
-            key={index}
-            title={stat.title}
-            value={stat.value}
-            subtitle={stat.subtitle}
-            icon={stat.icon}
-            trend={stat.trend}
-          />
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-6 shadow-sm dark:shadow-none">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-4">Filters & Search</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+      {/* Date & Category Filters */}
+      <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-8 shadow-sm dark:shadow-none">
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-4">Filters</h3>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4" suppressHydrationWarning={true}>
           <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Warehouse</label>
-            <select className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none">
-              <option>All Warehouses</option>
-              <option>Warehouse A</option>
-              <option>Warehouse B</option>
-              <option>Warehouse C</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Category</label>
-            <select className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none">
-              <option>All Categories</option>
-              <option>Containers</option>
-              <option>Components</option>
-              <option>Accessories</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Stock Status</label>
-            <select className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none">
-              <option>All</option>
-              <option>Good</option>
-              <option>Low Stock</option>
-              <option>Critical</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">SKU Search</label>
+            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">From Date</label>
             <input
-              type="text"
-              placeholder="Search SKU..."
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 placeholder-gray-500 dark:placeholder-slate-500 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
+              suppressHydrationWarning={true}
             />
           </div>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">To Date</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
+              suppressHydrationWarning={true}
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Category (Item Group)</label>
+            <select
+              value={selectedItemGroup}
+              onChange={(e) => setSelectedItemGroup(e.target.value)}
+              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
+              suppressHydrationWarning={true}
+            >
+              {(data?.filters.availableItemGroups || ['ALL']).map((group) => (
+                <option key={group} value={group}>
+                  {group}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex items-end">
-            <button className="w-full bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm">
-              Search
+            <button
+              onClick={handleFilter}
+              disabled={loading}
+              className="w-full bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 disabled:bg-gray-300 dark:disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              suppressHydrationWarning={true}
+            >
+              {loading ? 'Loading...' : 'Apply Filter'}
             </button>
           </div>
         </div>
+        
+        {/* Date range info */}
+        {data?.filters.availableDateRange && (
+          <p className="text-xs text-gray-500 dark:text-slate-500 mt-3">
+            Available date range: {data.filters.availableDateRange.minDate || 'N/A'} to {data.filters.availableDateRange.maxDate || 'N/A'}
+          </p>
+        )}
       </div>
 
-      {/* Inventory table */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Inventory Items</h3>
-          <button className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-slate-700 shadow-sm">
-            Export to Excel
-          </button>
+      {/* Metrics Cards */}
+      {loading ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 animate-pulse">
+              <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/2 mb-4"></div>
+              <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
+            </div>
+          ))}
         </div>
-        <Table columns={columns} data={tableData} />
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <StatCard
+            title="Inbound SKU"
+            value={formatNumber(data?.cards.inboundSkuCount)}
+            subtitle="Unique SKUs with CBM > 0"
+            icon={Boxes}
+          />
+          <StatCard
+            title="Inventory QTY"
+            value={formatNumber(data?.cards.inventoryQtyTotal)}
+            subtitle="Total stock quantity"
+            icon={Package}
+          />
+          <StatCard
+            title="Total CBM"
+            value={formatNumber(data?.cards.totalCbm)}
+            subtitle="Cubic meter volume"
+            icon={Box}
+          />
+        </div>
+      )}
 
-      <p className="text-xs text-gray-500 dark:text-slate-500 text-center mt-4">
-        ⚠ Placeholder data - Real inventory data will be integrated in Phase 2
-      </p>
+      {/* Info section */}
+      <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-4">
+        <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500 mb-2">Card Calculations</h4>
+        <ul className="text-xs text-blue-600 dark:text-blue-400 space-y-1">
+          <li><strong>Inbound SKU:</strong> Count of unique items with non-zero CBM per unit</li>
+          <li><strong>Inventory QTY:</strong> Sum of all daily stock quantities across all SKUs in the date range</li>
+          <li><strong>Total CBM:</strong> For each SKU: (average daily qty × CBM per unit), then sum across all SKUs</li>
+        </ul>
+      </div>
     </div>
   );
 }

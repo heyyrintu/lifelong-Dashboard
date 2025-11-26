@@ -110,3 +110,53 @@ model InboundRow {
   @@index([itemGroup])
   @@map("inbound_rows")
 }
+
+// ============================================
+// Phase 4 - Inventory Models
+// ============================================
+
+model InventoryUpload {
+  id          String           @id @default(uuid())
+  fileName    String           @map("file_name")
+  uploadedAt  DateTime         @default(now()) @map("uploaded_at")
+  status      String           @default("processing") // "processing" | "processed" | "failed"
+  source      String           @default("manual-upload")
+
+  rows        InventoryRow[]
+
+  @@map("inventory_uploads")
+}
+
+model InventoryRow {
+  id           String              @id @default(uuid())
+  uploadId     String              @map("upload_id")
+  upload       InventoryUpload     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  item         String              // A - Item name
+  warehouse    String              // C - Warehouse
+  itemGroup    String              @map("item_group") // D - Item Group
+  cbmPerUnit   Float               @default(0) @map("cbm_per_unit") // G - CBM per unit
+
+  dailyStocks  InventoryDailyStock[]
+
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@index([uploadId])
+  @@index([itemGroup])
+  @@map("inventory_rows")
+}
+
+model InventoryDailyStock {
+  id             String        @id @default(uuid())
+  inventoryRowId String        @map("inventory_row_id")
+  inventoryRow   InventoryRow  @relation(fields: [inventoryRowId], references: [id], onDelete: Cascade)
+
+  stockDate      DateTime      @map("stock_date")
+  quantity       Float         @default(0)
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([inventoryRowId])
+  @@index([stockDate])
+  @@map("inventory_daily_stock")
+}

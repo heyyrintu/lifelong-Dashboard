@@ -94,9 +94,12 @@ export class InboundController {
     @Query('uploadId') uploadId?: string,
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
+    @Query('month') month?: string,
+    @Query('productCategory') productCategory?: string,
+    @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
   ) {
     try {
-      return await this.inboundService.getSummary(uploadId, fromDate, toDate);
+      return await this.inboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
     } catch (error) {
       if (error.status === 404) {
         throw error;
