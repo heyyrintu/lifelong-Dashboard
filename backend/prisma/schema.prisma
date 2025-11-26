@@ -136,6 +136,7 @@ model InventoryRow {
   warehouse    String              // C - Warehouse
   itemGroup    String              @map("item_group") // D - Item Group
   cbmPerUnit   Float               @default(0) @map("cbm_per_unit") // G - CBM per unit
+  isTotalRow   Boolean             @default(false) @map("is_total_row") // True if this is the "Total" row
 
   dailyStocks  InventoryDailyStock[]
 

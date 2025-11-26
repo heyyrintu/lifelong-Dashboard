@@ -36,6 +36,7 @@ interface ParsedInventoryRow {
   warehouse: string;
   itemGroup: string;
   cbmPerUnit: number;
+  isTotalRow: boolean;
   dailyQuantities: Array<{ date: Date; qty: number }>;
 }
 
@@ -130,11 +131,15 @@ export class InventoryService {
           dailyQuantities.push({ date: dateCol.date, qty });
         }
 
+        // Detect if this is the "Total" row (case-insensitive)
+        const isTotalRow = item.trim().toLowerCase() === 'total';
+
         parsedRows.push({
           item,
           warehouse: warehouse || 'Unknown',
           itemGroup: itemGroup || 'Others',
-          cbmPerUnit,
+          cbmPerUnit: isTotalRow ? 0 : cbmPerUnit, // CBM not needed for Total row
+          isTotalRow,
           dailyQuantities,
         });
       }
@@ -158,6 +163,7 @@ export class InventoryService {
               warehouse: row.warehouse,
               itemGroup: row.itemGroup,
               cbmPerUnit: row.cbmPerUnit,
+              isTotalRow: row.isTotalRow,
             },
           });
 
@@ -268,15 +274,9 @@ export class InventoryService {
       filterToDate = new Date(availableDateRange.maxDate);
     }
 
-    // Build where clause for InventoryRow
-    const rowWhereClause: any = { uploadId: targetUploadId };
-    if (itemGroup && itemGroup !== 'ALL') {
-      rowWhereClause.itemGroup = itemGroup;
-    }
-
-    // Fetch filtered inventory rows with their daily stocks
-    const inventoryRows = await this.prisma.inventoryRow.findMany({
-      where: rowWhereClause,
+    // Fetch ALL inventory rows for this upload (we need Total row regardless of itemGroup)
+    const allInventoryRows = await this.prisma.inventoryRow.findMany({
+      where: { uploadId: targetUploadId },
       include: {
         dailyStocks: {
           where: {
@@ -289,8 +289,26 @@ export class InventoryService {
       },
     });
 
+    // Find the Total row (independent of itemGroup filter)
+    const totalRow = allInventoryRows.find(
+      (row) => row.isTotalRow || row.item.trim().toLowerCase() === 'total',
+    );
+
+    // Filter rows by itemGroup for other calculations (excluding Total row)
+    let filteredRows = allInventoryRows.filter(
+      (row) => !row.isTotalRow && row.item.trim().toLowerCase() !== 'total',
+    );
+    if (itemGroup && itemGroup !== 'ALL') {
+      filteredRows = filteredRows.filter((row) => row.itemGroup === itemGroup);
+    }
+
     // Calculate card metrics
-    const cards = this.calculateCardMetrics(inventoryRows, filterFromDate, filterToDate);
+    const cards = this.calculateCardMetrics(
+      filteredRows,
+      totalRow,
+      filterFromDate,
+      filterToDate,
+    );
 
     // Get available item groups
     const availableItemGroups = await this.getAvailableItemGroups(targetUploadId);
@@ -334,18 +352,30 @@ export class InventoryService {
 
   /**
    * Calculate card metrics from filtered inventory rows
+   * @param rows - Filtered SKU rows (excluding Total row)
+   * @param totalRow - The Total row (if found) for Inventory QTY calculation
+   * @param fromDate - Start date filter
+   * @param toDate - End date filter
    */
   private calculateCardMetrics(
     rows: Array<{
       item: string;
       cbmPerUnit: number;
+      isTotalRow: boolean;
       dailyStocks: Array<{ quantity: number; stockDate: Date }>;
     }>,
+    totalRow: {
+      item: string;
+      cbmPerUnit: number;
+      isTotalRow: boolean;
+      dailyStocks: Array<{ quantity: number; stockDate: Date }>;
+    } | undefined,
     fromDate?: Date,
     toDate?: Date,
   ): InventoryCardMetrics {
     // CARD #1: Inbound SKU Count
     // Count of unique items where cbmPerUnit > 0 and has at least one daily stock record
+    // Excludes Total row
     const inboundSkuSet = new Set<string>();
     for (const row of rows) {
       if (row.cbmPerUnit > 0 && row.dailyStocks.length > 0) {
@@ -355,47 +385,90 @@ export class InventoryService {
     const inboundSkuCount = inboundSkuSet.size;
 
     // CARD #2: Inventory QTY Total
-    // Sum of all daily stock quantities across all SKUs
+    // NEW: Use the Total row's average (AVERAGE of daily totals in date range)
     let inventoryQtyTotal = 0;
-    for (const row of rows) {
-      for (const stock of row.dailyStocks) {
-        inventoryQtyTotal += stock.quantity;
+
+    if (totalRow && totalRow.dailyStocks.length > 0) {
+      // Use Total row: compute average of daily totals within date range
+      let sumOfTotals = 0;
+      let daysCount = 0;
+
+      for (const stock of totalRow.dailyStocks) {
+        const stockDate = new Date(stock.stockDate);
+        // Date filtering is already done in the query, but double-check if needed
+        if (fromDate && stockDate < fromDate) continue;
+        if (toDate && stockDate > toDate) continue;
+
+        const qty = typeof stock.quantity === 'number' ? stock.quantity : Number(stock.quantity) || 0;
+        sumOfTotals += qty;
+        daysCount += 1;
+      }
+
+      inventoryQtyTotal = daysCount > 0 ? sumOfTotals / daysCount : 0;
+    } else {
+      // Fallback: old logic - sum of all daily stock quantities across all SKUs
+      for (const row of rows) {
+        for (const stock of row.dailyStocks) {
+          inventoryQtyTotal += stock.quantity;
+        }
       }
     }
 
     // CARD #3: Total CBM
-    // For each SKU: avg_qty = sum(daily_qty) / days_count, then sku_cbm = avg_qty * cbmPerUnit
-    // Sum all sku_cbm to get total
-    
-    // Calculate number of days in the date range
-    let daysCount = 1;
-    if (fromDate && toDate) {
-      const timeDiff = toDate.getTime() - fromDate.getTime();
-      daysCount = Math.max(1, Math.ceil(timeDiff / (1000 * 60 * 60 * 24)) + 1);
-    } else {
-      // Use distinct stock dates across all rows
-      const allDates = new Set<string>();
-      for (const row of rows) {
-        for (const stock of row.dailyStocks) {
-          allDates.add(stock.stockDate.toISOString().split('T')[0]);
-        }
-      }
-      daysCount = Math.max(1, allDates.size);
-    }
-
-    let totalCbm = 0;
-    for (const row of rows) {
-      const skuTotalQty = row.dailyStocks.reduce((sum, s) => sum + s.quantity, 0);
-      const avgQty = skuTotalQty / daysCount;
-      const skuTotalCbm = avgQty * row.cbmPerUnit;
-      totalCbm += skuTotalCbm;
-    }
+    // Sum over all SKUs: (avg_qty_in_range * cbmPerUnit)
+    // Skip rows with cbmPerUnit <= 0 or no daily stocks (they contribute 0 CBM)
+    const totalCbm = this.computeTotalCbm(rows);
 
     return {
       inboundSkuCount,
       inventoryQtyTotal: Math.round(inventoryQtyTotal * 100) / 100,
       totalCbm: Math.round(totalCbm * 100) / 100,
     };
+  }
+
+  /**
+   * Compute Total CBM across all SKU rows
+   * Total CBM = Σ (avg_qty_in_range * cbmPerUnit) for each SKU
+   * 
+   * Optimizations:
+   * - Skip rows with cbmPerUnit <= 0 (they contribute 0 CBM)
+   * - Skip rows with no dailyStocks (no data in range)
+   * - Use array length instead of manual counting
+   * 
+   * @param rows - Filtered SKU rows (Total row already excluded)
+   */
+  private computeTotalCbm(
+    rows: Array<{
+      cbmPerUnit: number;
+      dailyStocks: Array<{ quantity: number }>;
+    }>,
+  ): number {
+    let grandTotalCbm = 0;
+
+    for (const row of rows) {
+      // Fast path: skip rows that cannot contribute CBM
+      if (!row.cbmPerUnit || row.cbmPerUnit <= 0) continue;
+
+      const { dailyStocks } = row;
+      if (!dailyStocks || dailyStocks.length === 0) continue;
+
+      // Sum quantities across all daily stocks in range
+      // (date filtering already done in query)
+      let sumQty = 0;
+      for (const stock of dailyStocks) {
+        sumQty += stock.quantity;
+      }
+
+      // Calculate average and SKU's CBM contribution
+      const avgQty = sumQty / dailyStocks.length;
+      const skuCbm = avgQty * row.cbmPerUnit;
+
+      if (skuCbm > 0) {
+        grandTotalCbm += skuCbm;
+      }
+    }
+
+    return grandTotalCbm;
   }
 
   /**
