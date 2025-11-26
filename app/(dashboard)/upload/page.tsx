@@ -97,18 +97,27 @@ export default function UploadPage() {
     }
   };
 
-  const handleDeleteUpload = async (uploadId: string, fileName: string) => {
+  const handleDeleteUpload = async (uploadId: string, fileName: string, uploadType?: string) => {
     if (!window.confirm(`Are you sure you want to delete "${fileName}"? This will remove all data from this upload.`)) {
       return;
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/outbound/uploads/${uploadId}`, {
+      // Determine the correct endpoint based on upload type
+      let endpoint = `${BACKEND_URL}/outbound/uploads/${uploadId}`;
+      if (uploadType === 'inbound') {
+        endpoint = `${BACKEND_URL}/inbound/uploads/${uploadId}`;
+      } else if (uploadType === 'inventory') {
+        endpoint = `${BACKEND_URL}/inventory/uploads/${uploadId}`;
+      }
+
+      const response = await fetch(endpoint, {
         method: 'DELETE',
       });
       
       if (!response.ok) {
-        throw new Error('Failed to delete upload');
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to delete upload');
       }
 
       // Refresh uploads list
@@ -455,7 +464,7 @@ export default function UploadPage() {
                         View
                       </button>
                       <button
-                        onClick={() => handleDeleteUpload(upload.uploadId, upload.fileName)}
+                        onClick={() => handleDeleteUpload(upload.uploadId, upload.fileName, upload.type)}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
                         title="Delete this upload"
                       >
