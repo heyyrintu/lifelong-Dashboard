@@ -135,6 +135,9 @@ export class OutboundService {
 
   /**
    * Get summary data with filters
+   * 
+   * OPTIMIZATION: Use SQL aggregation for cards, keep category table for now
+   * (category table requires row-level grouping which is more complex to optimize)
    */
   async getSummary(
     uploadId?: string,
@@ -142,11 +145,12 @@ export class OutboundService {
     toDate?: string,
     month?: string,
   ): Promise<SummaryResponse> {
+    const startTime = Date.now();
+
     // Generate cache key
     const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}`;
     
     // Check cache
-    // TODO: Move to Redis in production
     if (this.cache.has(cacheKey)) {
       return this.cache.get(cacheKey);
     }
@@ -157,6 +161,7 @@ export class OutboundService {
       const latestUpload = await this.prisma.outboundUpload.findFirst({
         where: { status: 'processed' },
         orderBy: { uploadedAt: 'desc' },
+        select: { id: true }, // Only fetch id
       });
 
       if (!latestUpload) {
@@ -171,7 +176,6 @@ export class OutboundService {
     
     // Handle month filter
     if (month && month !== 'ALL') {
-      // Expecting month in format "2025-01" or "January 2025"
       const [year, monthNum] = month.includes('-') 
         ? month.split('-').map(Number)
         : this.parseMonthName(month);
@@ -183,7 +187,6 @@ export class OutboundService {
         dateFilter.lte = endDate;
       }
     } else {
-      // Handle from/to date range
       if (fromDate) {
         dateFilter.gte = new Date(fromDate);
       }
@@ -192,24 +195,12 @@ export class OutboundService {
       }
     }
 
-    const whereClause: any = { uploadId: targetUploadId };
-    if (Object.keys(dateFilter).length > 0) {
-      whereClause.deliveryNoteDate = dateFilter;
-    }
-
-    // Fetch filtered rows
-    const rows = await this.prisma.outboundRow.findMany({
-      where: whereClause,
-    });
-
-    // Calculate card metrics
-    const cards = this.calculateCardMetrics(rows);
-
-    // Calculate category table
-    const categoryTable = this.calculateCategoryTable(rows);
-
-    // Get available months from this upload
-    const availableMonths = await this.getAvailableMonths(targetUploadId);
+    // Run parallel queries for cards, category table, and available months
+    const [cards, categoryTable, availableMonths] = await Promise.all([
+      this.calculateCardMetricsOptimized(targetUploadId, dateFilter),
+      this.calculateCategoryTableOptimized(targetUploadId, dateFilter),
+      this.getAvailableMonthsOptimized(targetUploadId),
+    ]);
 
     const result = {
       cards,
@@ -218,33 +209,118 @@ export class OutboundService {
     };
 
     // Store in cache
-    // TODO: Move to Redis in production with TTL
     this.cache.set(cacheKey, result);
+
+    const elapsed = Date.now() - startTime;
+    console.log(`Outbound getSummary: ${elapsed}ms`);
 
     return result;
   }
 
-  private calculateCardMetrics(rows: any[]): CardMetrics {
-    const uniqueSoItems = new Set(rows.map((r) => r.soItem).filter(Boolean));
-    const uniqueDnItems = new Set(rows.map((r) => r.deliveryNoteItem).filter(Boolean));
+  /**
+   * OPTIMIZATION: Calculate card metrics using SQL aggregation
+   */
+  private async calculateCardMetricsOptimized(
+    uploadId: string,
+    dateFilter: { gte?: Date; lte?: Date },
+  ): Promise<CardMetrics> {
+    let dateCondition = '';
+    const params: any[] = [uploadId];
+    
+    if (dateFilter.gte) {
+      params.push(dateFilter.gte);
+      dateCondition += ` AND delivery_note_date >= $${params.length}`;
+    }
+    if (dateFilter.lte) {
+      params.push(dateFilter.lte);
+      dateCondition += ` AND delivery_note_date <= $${params.length}`;
+    }
 
-    const soQty = rows.reduce((sum, r) => sum + (r.salesOrderQty || 0), 0);
-    const soTotalCbm = rows.reduce((sum, r) => sum + (r.soTotalCbm || 0), 0);
-    const dnQty = rows.reduce((sum, r) => sum + (r.deliveryNoteQty || 0), 0);
-    const dnTotalCbm = rows.reduce((sum, r) => sum + (r.dnTotalCbm || 0), 0);
+    const result = await this.prisma.$queryRawUnsafe<[{
+      so_sku: bigint;
+      so_qty: number;
+      so_total_cbm: number;
+      dn_sku: bigint;
+      dn_qty: number;
+      dn_total_cbm: number;
+    }]>(`
+      SELECT 
+        COUNT(DISTINCT so_item) as so_sku,
+        COALESCE(SUM(sales_order_qty), 0) as so_qty,
+        COALESCE(SUM(so_total_cbm), 0) as so_total_cbm,
+        COUNT(DISTINCT delivery_note_item) as dn_sku,
+        COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
+        COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
+      FROM outbound_rows
+      WHERE upload_id = $1 ${dateCondition}
+    `, ...params);
+
+    const row = result[0];
+    const soQty = Number(row?.so_qty || 0);
+    const dnQty = Number(row?.dn_qty || 0);
 
     return {
-      soSku: uniqueSoItems.size,
+      soSku: Number(row?.so_sku || 0),
       soQty: Math.round(soQty),
-      soTotalCbm: Math.round(soTotalCbm * 100) / 100,
-      dnSku: uniqueDnItems.size,
+      soTotalCbm: Math.round(Number(row?.so_total_cbm || 0) * 100) / 100,
+      dnSku: Number(row?.dn_sku || 0),
       dnQty: Math.round(dnQty),
-      dnTotalCbm: Math.round(dnTotalCbm * 100) / 100,
+      dnTotalCbm: Math.round(Number(row?.dn_total_cbm || 0) * 100) / 100,
       soMinusDnQty: Math.round(soQty - dnQty),
     };
   }
 
-  private calculateCategoryTable(rows: any[]): CategoryRow[] {
+  /**
+   * OPTIMIZATION: Calculate category table using SQL GROUP BY
+   * Previous: Fetch all rows, filter and aggregate per category in JS
+   * After: Single SQL query with GROUP BY normalized_category
+   */
+  private async calculateCategoryTableOptimized(
+    uploadId: string,
+    dateFilter: { gte?: Date; lte?: Date },
+  ): Promise<CategoryRow[]> {
+    let dateCondition = '';
+    const params: any[] = [uploadId];
+    
+    if (dateFilter.gte) {
+      params.push(dateFilter.gte);
+      dateCondition += ` AND delivery_note_date >= $${params.length}`;
+    }
+    if (dateFilter.lte) {
+      params.push(dateFilter.lte);
+      dateCondition += ` AND delivery_note_date <= $${params.length}`;
+    }
+
+    // Query with GROUP BY for category aggregation
+    const categoryResults = await this.prisma.$queryRawUnsafe<Array<{
+      normalized_category: string;
+      so_count: bigint;
+      so_qty: number;
+      so_total_cbm: number;
+      dn_count: bigint;
+      dn_qty: number;
+      dn_total_cbm: number;
+    }>>(`
+      SELECT 
+        normalized_category,
+        COUNT(DISTINCT so_item) as so_count,
+        COALESCE(SUM(sales_order_qty), 0) as so_qty,
+        COALESCE(SUM(so_total_cbm), 0) as so_total_cbm,
+        COUNT(DISTINCT delivery_note_item) as dn_count,
+        COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
+        COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
+      FROM outbound_rows
+      WHERE upload_id = $1 ${dateCondition}
+      GROUP BY normalized_category
+    `, ...params);
+
+    // Build category map for quick lookup
+    const categoryMap = new Map<string, typeof categoryResults[0]>();
+    for (const row of categoryResults) {
+      categoryMap.set(row.normalized_category, row);
+    }
+
+    // Build category rows in expected order
     const categories = [
       NormalizedCategory.E_COMMERCE,
       NormalizedCategory.OFFLINE,
@@ -255,68 +331,79 @@ export class OutboundService {
     ];
 
     const categoryRows: CategoryRow[] = [];
+    let totalSoCount = 0, totalSoQty = 0, totalSoTotalCbm = 0;
+    let totalDnCount = 0, totalDnQty = 0, totalDnTotalCbm = 0;
 
     for (const category of categories) {
-      const categoryData = rows.filter((r) => r.normalizedCategory === category);
-      
-      const uniqueSoItems = new Set(categoryData.map((r) => r.soItem).filter(Boolean));
-      const uniqueDnItems = new Set(categoryData.map((r) => r.deliveryNoteItem).filter(Boolean));
-
-      const soQty = categoryData.reduce((sum, r) => sum + (r.salesOrderQty || 0), 0);
-      const soTotalCbm = categoryData.reduce((sum, r) => sum + (r.soTotalCbm || 0), 0);
-      const dnQty = categoryData.reduce((sum, r) => sum + (r.deliveryNoteQty || 0), 0);
-      const dnTotalCbm = categoryData.reduce((sum, r) => sum + (r.dnTotalCbm || 0), 0);
+      const data = categoryMap.get(category);
+      const soQty = Number(data?.so_qty || 0);
+      const dnQty = Number(data?.dn_qty || 0);
+      const soCount = Number(data?.so_count || 0);
+      const dnCount = Number(data?.dn_count || 0);
+      const soTotalCbm = Number(data?.so_total_cbm || 0);
+      const dnTotalCbm = Number(data?.dn_total_cbm || 0);
 
       categoryRows.push({
         categoryLabel: this.categoryNormalizer.getCategoryLabel(category),
-        soCount: uniqueSoItems.size,
+        soCount,
         soQty: Math.round(soQty),
         soTotalCbm: Math.round(soTotalCbm * 100) / 100,
-        dnCount: uniqueDnItems.size,
+        dnCount,
         dnQty: Math.round(dnQty),
         dnTotalCbm: Math.round(dnTotalCbm * 100) / 100,
         soMinusDnQty: Math.round(soQty - dnQty),
       });
+
+      // Accumulate totals (note: distinct counts need separate query for true accuracy)
+      totalSoQty += soQty;
+      totalDnQty += dnQty;
+      totalSoTotalCbm += soTotalCbm;
+      totalDnTotalCbm += dnTotalCbm;
     }
 
-    // Add TOTAL row
-    const totalRow: CategoryRow = {
-      categoryLabel: 'TOTAL',
-      soCount: new Set(rows.map((r) => r.soItem).filter(Boolean)).size,
-      soQty: Math.round(rows.reduce((sum, r) => sum + (r.salesOrderQty || 0), 0)),
-      soTotalCbm: Math.round(rows.reduce((sum, r) => sum + (r.soTotalCbm || 0), 0) * 100) / 100,
-      dnCount: new Set(rows.map((r) => r.deliveryNoteItem).filter(Boolean)).size,
-      dnQty: Math.round(rows.reduce((sum, r) => sum + (r.deliveryNoteQty || 0), 0)),
-      dnTotalCbm: Math.round(rows.reduce((sum, r) => sum + (r.dnTotalCbm || 0), 0) * 100) / 100,
-      soMinusDnQty: Math.round(
-        rows.reduce((sum, r) => sum + (r.salesOrderQty || 0), 0) -
-          rows.reduce((sum, r) => sum + (r.deliveryNoteQty || 0), 0)
-      ),
-    };
+    // Get accurate distinct counts for TOTAL row
+    const totalResult = await this.prisma.$queryRawUnsafe<[{
+      so_count: bigint;
+      dn_count: bigint;
+    }]>(`
+      SELECT 
+        COUNT(DISTINCT so_item) as so_count,
+        COUNT(DISTINCT delivery_note_item) as dn_count
+      FROM outbound_rows
+      WHERE upload_id = $1 ${dateCondition}
+    `, ...params);
 
-    categoryRows.push(totalRow);
+    // Add TOTAL row
+    categoryRows.push({
+      categoryLabel: 'TOTAL',
+      soCount: Number(totalResult[0]?.so_count || 0),
+      soQty: Math.round(totalSoQty),
+      soTotalCbm: Math.round(totalSoTotalCbm * 100) / 100,
+      dnCount: Number(totalResult[0]?.dn_count || 0),
+      dnQty: Math.round(totalDnQty),
+      dnTotalCbm: Math.round(totalDnTotalCbm * 100) / 100,
+      soMinusDnQty: Math.round(totalSoQty - totalDnQty),
+    });
 
     return categoryRows;
   }
 
-  private async getAvailableMonths(uploadId: string): Promise<string[]> {
-    const rows = await this.prisma.outboundRow.findMany({
-      where: { uploadId },
-      select: { deliveryNoteDate: true },
-      distinct: ['deliveryNoteDate'],
-    });
+  /**
+   * OPTIMIZATION: Get available months using SQL date extraction
+   * Previous: Fetch all distinct dates, process in JS
+   * After: Use SQL date_trunc/extract for direct month aggregation
+   */
+  private async getAvailableMonthsOptimized(uploadId: string): Promise<string[]> {
+    const result = await this.prisma.$queryRaw<Array<{ month_str: string }>>` 
+      SELECT DISTINCT 
+        TO_CHAR(delivery_note_date, 'YYYY-MM') as month_str
+      FROM outbound_rows
+      WHERE upload_id = ${uploadId}
+        AND delivery_note_date IS NOT NULL
+      ORDER BY month_str
+    `;
 
-    const monthsSet = new Set<string>();
-    
-    rows.forEach((row) => {
-      if (row.deliveryNoteDate) {
-        const date = new Date(row.deliveryNoteDate);
-        const monthStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        monthsSet.add(monthStr);
-      }
-    });
-
-    const months = Array.from(monthsSet).sort();
+    const months = result.map(r => r.month_str).filter(Boolean);
     return ['ALL', ...months];
   }
 

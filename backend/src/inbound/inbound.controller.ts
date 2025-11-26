@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
+  Param,
   UseInterceptors,
   UploadedFile,
   Query,
@@ -9,11 +11,11 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { InboundServiceMock } from './inbound.service.mock';
+import { InboundService } from './inbound.service';
 
 @Controller('inbound')
 export class InboundController {
-  constructor(private readonly inboundService: InboundServiceMock) {}
+  constructor(private readonly inboundService: InboundService) {}
 
   /**
    * POST /inbound/item-master/upload
@@ -106,6 +108,26 @@ export class InboundController {
       }
       throw new HttpException(
         error.message || 'Failed to fetch inbound summary',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * DELETE /inbound/uploads/:uploadId
+   * Delete an inbound upload and all associated data
+   */
+  @Delete('uploads/:uploadId')
+  async deleteUpload(@Param('uploadId') uploadId: string) {
+    try {
+      await this.inboundService.deleteUpload(uploadId);
+      return { message: 'Inbound upload deleted successfully' };
+    } catch (error) {
+      if (error.status === 404) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to delete inbound upload',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

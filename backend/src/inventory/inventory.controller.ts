@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Delete,
+  Param,
   UseInterceptors,
   UploadedFile,
   Query,
@@ -88,6 +90,26 @@ export class InventoryController {
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to fetch inventory uploads',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * DELETE /inventory/uploads/:uploadId
+   * Delete an inventory upload and all associated data
+   */
+  @Delete('uploads/:uploadId')
+  async deleteUpload(@Param('uploadId') uploadId: string) {
+    try {
+      await this.inventoryService.deleteUpload(uploadId);
+      return { message: 'Inventory upload deleted successfully' };
+    } catch (error) {
+      if (error.status === 404) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to delete inventory upload',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

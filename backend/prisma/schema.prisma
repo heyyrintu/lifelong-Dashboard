@@ -63,6 +63,10 @@ model OutboundRow {
   @@index([deliveryNoteDate])
   @@index([normalizedCategory])
   @@index([productCategory])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND deliveryNoteDate BETWEEN ? AND ?
+  @@index([uploadId, deliveryNoteDate])
+  // Composite index for category filtering: WHERE uploadId = ? AND normalizedCategory = ?
+  @@index([uploadId, normalizedCategory])
   @@map("outbound_rows")
 }
 
@@ -108,6 +112,8 @@ model InboundRow {
   @@index([uploadId])
   @@index([dateOfUnload])
   @@index([itemGroup])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND dateOfUnload BETWEEN ? AND ?
+  @@index([uploadId, dateOfUnload])
   @@map("inbound_rows")
 }
 
@@ -144,6 +150,10 @@ model InventoryRow {
 
   @@index([uploadId])
   @@index([itemGroup])
+  // Composite index for getSummary filter: WHERE uploadId = ? AND itemGroup = ?
+  @@index([uploadId, itemGroup])
+  // Composite index for Total row lookup: WHERE uploadId = ? AND isTotalRow = true
+  @@index([uploadId, isTotalRow])
   @@map("inventory_rows")
 }
 
@@ -159,5 +169,8 @@ model InventoryDailyStock {
 
   @@index([inventoryRowId])
   @@index([stockDate])
+  // Composite index for date-range queries filtering by inventoryRowId + stockDate
+  // Covers WHERE inventoryRowId = ? AND stockDate BETWEEN ? AND ? (getSummary hot path)
+  @@index([inventoryRowId, stockDate])
   @@map("inventory_daily_stock")
 }
