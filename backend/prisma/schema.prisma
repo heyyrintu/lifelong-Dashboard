@@ -107,11 +107,14 @@ model InboundRow {
   cbmPerUnit     Float         @default(0) @map("cbm_per_unit")
   totalCbm       Float         @default(0) @map("total_cbm")
 
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
   createdAt      DateTime      @default(now()) @map("created_at")
 
   @@index([uploadId])
   @@index([dateOfUnload])
   @@index([itemGroup])
+  @@index([productCategory])
   // Composite index for getSummary date filtering: WHERE uploadId = ? AND dateOfUnload BETWEEN ? AND ?
   @@index([uploadId, dateOfUnload])
   @@map("inbound_rows")
@@ -144,12 +147,15 @@ model InventoryRow {
   cbmPerUnit   Float               @default(0) @map("cbm_per_unit") // G - CBM per unit
   isTotalRow   Boolean             @default(false) @map("is_total_row") // True if this is the "Total" row
 
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
   dailyStocks  InventoryDailyStock[]
 
   createdAt    DateTime            @default(now()) @map("created_at")
 
   @@index([uploadId])
   @@index([itemGroup])
+  @@index([productCategory])
   // Composite index for getSummary filter: WHERE uploadId = ? AND itemGroup = ?
   @@index([uploadId, itemGroup])
   // Composite index for Total row lookup: WHERE uploadId = ? AND isTotalRow = true

@@ -58,6 +58,7 @@ export class InventoryController {
    * - fromDate: start date filter (YYYY-MM-DD)
    * - toDate: end date filter (YYYY-MM-DD)
    * - itemGroup: item group/category filter (optional, "ALL" or specific group)
+   * - productCategory: product category filter (optional, can be array for multi-select)
    */
   @Get('summary')
   async getSummary(
@@ -65,9 +66,13 @@ export class InventoryController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('itemGroup') itemGroup?: string,
+    @Query('productCategory') productCategory?: string | string[],
   ) {
     try {
-      return await this.inventoryService.getSummary(uploadId, fromDate, toDate, itemGroup);
+      const categories = productCategory
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      return await this.inventoryService.getSummary(uploadId, fromDate, toDate, itemGroup, categories);
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;

@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
 import Table from '@/components/common/Table';
-import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine } from 'lucide-react';
+import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search } from 'lucide-react';
+import { Particles } from '@/components/ui/particles';
+import { useTheme } from '@/components/theme-provider';
 import {
   BarChart,
   Bar,
@@ -94,17 +96,37 @@ interface UploadInfo {
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export default function OutboundPage() {
+  const { theme } = useTheme();
+  const [particleColor, setParticleColor] = useState('#ffffff');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
+
+  useEffect(() => {
+    setParticleColor(theme === 'dark' ? '#ffffff' : '#000000');
+  }, [theme]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
   
   // Filter states
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
-  const [selectedProductCategory, setSelectedProductCategory] = useState('ALL');
+  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
 
   useEffect(() => {
@@ -148,8 +170,8 @@ export default function OutboundPage() {
           if (fromDate) params.append('fromDate', fromDate);
           if (toDate) params.append('toDate', toDate);
         }
-        if (selectedProductCategory && selectedProductCategory !== 'ALL') {
-          params.append('productCategory', selectedProductCategory);
+        if (selectedProductCategories.length > 0) {
+          selectedProductCategories.forEach(cat => params.append('productCategory', cat));
         }
       }
       // Always send timeGranularity
@@ -187,8 +209,8 @@ export default function OutboundPage() {
         if (fromDate) params.append('fromDate', fromDate);
         if (toDate) params.append('toDate', toDate);
       }
-      if (selectedProductCategory && selectedProductCategory !== 'ALL') {
-        params.append('productCategory', selectedProductCategory);
+      if (selectedProductCategories.length > 0) {
+        selectedProductCategories.forEach(cat => params.append('productCategory', cat));
       }
       // Use the passed granularity instead of state
       params.append('timeGranularity', granularity);
@@ -216,6 +238,31 @@ export default function OutboundPage() {
     fetchSummary(true);
   };
 
+  const toggleProductCategory = (category: string) => {
+    setSelectedProductCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
+  };
+
+  const clearAllCategories = () => {
+    setSelectedProductCategories([]);
+  };
+
+  const selectAllCategories = () => {
+    const allCategories = (data?.productCategories || []).filter(c => c !== 'ALL');
+    setSelectedProductCategories(allCategories);
+  };
+
+  const getSelectedCategoriesLabel = () => {
+    if (selectedProductCategories.length === 0) return 'All Categories';
+    if (selectedProductCategories.length === 1) return formatProductCategory(selectedProductCategories[0]);
+    return `${selectedProductCategories.length} selected`;
+  };
+
   const handleTimeGranularityChange = (granularity: 'month' | 'week' | 'day') => {
     setTimeGranularity(granularity);
     // Fetch filtered data with new granularity
@@ -234,8 +281,8 @@ export default function OutboundPage() {
         if (fromDate) params.append('fromDate', fromDate);
         if (toDate) params.append('toDate', toDate);
       }
-      if (selectedProductCategory && selectedProductCategory !== 'ALL') {
-        params.append('productCategory', selectedProductCategory);
+      if (selectedProductCategories.length > 0) {
+        selectedProductCategories.forEach(cat => params.append('productCategory', cat));
       }
       params.append('timeGranularity', timeGranularity);
 
@@ -378,7 +425,14 @@ export default function OutboundPage() {
   // Empty state
   if (!loading && error) {
     return (
-      <div>
+      <div className="relative min-h-screen">
+        <Particles
+          className="absolute inset-0 -z-10"
+          quantity={100}
+          ease={80}
+          color={particleColor}
+          refresh
+        />
         <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-8 text-center">
           <Package className="w-16 h-16 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-2">No Data Available</h3>
@@ -395,73 +449,210 @@ export default function OutboundPage() {
   }
 
   return (
-    <div>
-      {/* Date & Category Filters - Moved to Top */}
-      <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-8 shadow-sm dark:shadow-none">
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-4">Filters</h3>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4" suppressHydrationWarning={true}>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">From Date</label>
-            <input
-              type="date"
-              value={fromDate}
-              onChange={(e) => setFromDate(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
-              suppressHydrationWarning={true}
-            />
+    <div className="relative min-h-screen">
+      <Particles
+        className="absolute inset-0 -z-10"
+        quantity={100}
+        ease={80}
+        color={particleColor}
+        refresh
+      />
+      {/* Date & Category Filters - Redesigned */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 mb-8 shadow-xl shadow-gray-200/20 dark:shadow-black/20"
+      >
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-brandRed/10 rounded-xl">
+              <Filter className="w-5 h-5 text-brandRed" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Smart Filters</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">Refine your data view</p>
+            </div>
           </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">To Date</label>
-            <input
-              type="date"
-              value={toDate}
-              onChange={(e) => setToDate(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
-              suppressHydrationWarning={true}
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Month</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
-              suppressHydrationWarning={true}
-            >
-              {(data?.availableMonths || ['ALL']).map((month) => (
-                <option key={month} value={month}>
-                  {month === 'ALL' ? 'ALL MONTH' : month}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Product Category</label>
-            <select
-              value={selectedProductCategory}
-              onChange={(e) => setSelectedProductCategory(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
-              suppressHydrationWarning={true}
-            >
-              {(data?.productCategories || ['ALL']).map((category) => (
-                <option key={category} value={category}>
-                  {formatProductCategory(category)}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end">
+          {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0) && (
             <button
+              onClick={() => {
+                setFromDate('');
+                setToDate('');
+                setSelectedMonth('ALL');
+                setSelectedProductCategories([]);
+                fetchSummary(false);
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Reset Filters
+            </button>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6" suppressHydrationWarning={true}>
+          {/* Date Range */}
+          <div className="md:col-span-4 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <Calendar className="w-3.5 h-3.5" /> Date Range
+            </label>
+            <div className="flex items-center gap-3 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/50 rounded-xl p-1.5 transition-all focus-within:border-brandRed/50 focus-within:ring-2 focus-within:ring-brandRed/10">
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => setFromDate(e.target.value)}
+                  className="w-full pl-3 pr-1 py-2 bg-transparent text-sm font-medium text-gray-900 dark:text-slate-200 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
+                  suppressHydrationWarning={true}
+                />
+              </div>
+              <span className="text-gray-400 font-medium">to</span>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => setToDate(e.target.value)}
+                  className="w-full pl-3 pr-1 py-2 bg-transparent text-sm font-medium text-gray-900 dark:text-slate-200 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
+                  suppressHydrationWarning={true}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Month Selector */}
+          <div className="md:col-span-3 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <Calendar className="w-3.5 h-3.5" /> Quick Select
+            </label>
+            <div className="relative group">
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(e.target.value)}
+                className="w-full pl-4 pr-10 py-3.5 bg-gray-50 dark:bg-slate-900/50 border border-gray-200 dark:border-slate-700/50 rounded-xl text-sm font-medium text-gray-900 dark:text-slate-200 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed outline-none appearance-none transition-all cursor-pointer hover:bg-white dark:hover:bg-slate-800"
+                suppressHydrationWarning={true}
+              >
+                {(data?.availableMonths || ['ALL']).map((month) => (
+                  <option key={month} value={month}>
+                    {month === 'ALL' ? 'All Months' : month}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+                <ChevronDown className="h-4 w-4" />
+              </div>
+            </div>
+          </div>
+
+          {/* Product Category */}
+          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
+            <label className="flex items-center gap-2 text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <Package className="w-3.5 h-3.5" /> Category
+            </label>
+            <button
+              type="button"
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              className={`w-full pl-4 pr-10 py-3.5 text-left border rounded-xl text-sm font-medium outline-none transition-all duration-200 flex items-center justify-between ${
+                categoryDropdownOpen 
+                  ? 'bg-white dark:bg-slate-800 border-brandRed ring-2 ring-brandRed/10 z-20' 
+                  : 'bg-gray-50 dark:bg-slate-900/50 border-gray-200 dark:border-slate-700/50 hover:bg-white dark:hover:bg-slate-800 hover:border-brandRed/30'
+              } text-gray-900 dark:text-slate-200`}
+              suppressHydrationWarning={true}
+            >
+              <span className="truncate block">
+                {getSelectedCategoriesLabel()}
+              </span>
+              <div className={`absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none transition-transform duration-300 ${categoryDropdownOpen ? 'rotate-180' : ''}`}>
+                <ChevronDown className={`h-4 w-4 ${categoryDropdownOpen ? 'text-brandRed' : 'text-gray-400'}`} />
+              </div>
+            </button>
+            
+            {categoryDropdownOpen && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="absolute z-50 top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-xl shadow-gray-200/50 dark:shadow-black/50 overflow-hidden ring-1 ring-black/5"
+              >
+                <div className="flex border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50">
+                  <button
+                    type="button"
+                    onClick={selectAllCategories}
+                    className="flex-1 px-3 py-2.5 text-xs font-semibold text-brandRed hover:bg-brandRed/5 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <div className="w-px bg-gray-200 dark:bg-slate-700"></div>
+                  <button
+                    type="button"
+                    onClick={clearAllCategories}
+                    className="flex-1 px-3 py-2.5 text-xs font-semibold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+                
+                <div className="max-h-64 overflow-y-auto custom-scrollbar p-1">
+                  {(data?.productCategories || []).filter(c => c !== 'ALL').map((category) => (
+                    <label
+                      key={category}
+                      className="flex items-center px-3 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group"
+                    >
+                      <div className={`w-4 h-4 rounded border mr-3 flex items-center justify-center transition-all duration-200 ${
+                        selectedProductCategories.includes(category)
+                          ? 'bg-brandRed border-brandRed shadow-sm shadow-brandRed/30 scale-105'
+                          : 'border-gray-300 dark:border-slate-600 group-hover:border-brandRed/50 bg-white dark:bg-slate-900'
+                      }`}>
+                        {selectedProductCategories.includes(category) && (
+                          <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
+                        )}
+                      </div>
+                      <span className={`text-sm transition-colors ${
+                        selectedProductCategories.includes(category)
+                          ? 'text-gray-900 dark:text-slate-100 font-medium'
+                          : 'text-gray-600 dark:text-slate-400'
+                      }`}>
+                        {formatProductCategory(category)}
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={selectedProductCategories.includes(category)}
+                        onChange={() => toggleProductCategory(category)}
+                        className="sr-only"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </div>
+          
+          {/* Apply Button */}
+          <div className="md:col-span-2 flex items-end">
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: "0 4px 12px rgba(220, 38, 38, 0.25)" }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleFilter}
               disabled={loading}
-              className="w-full bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 disabled:bg-gray-300 dark:disabled:bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              className="w-full h-[48px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-sm font-bold tracking-wide shadow-lg shadow-brandRed/20 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all"
               suppressHydrationWarning={true}
             >
-              {loading ? 'Loading...' : 'Apply Filter'}
-            </button>
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Updating...</span>
+                </>
+              ) : (
+                <>
+                  <Search className="w-4 h-4" />
+                  <span>Apply</span>
+                </>
+              )}
+            </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Metrics Cards - Now respond to filters */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

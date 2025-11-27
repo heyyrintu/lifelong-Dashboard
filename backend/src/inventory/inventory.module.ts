@@ -3,6 +3,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
+import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
 
 @Module({
   imports: [
@@ -35,7 +36,7 @@ import { InventoryService } from './inventory.service';
     }),
   ],
   controllers: [InventoryController],
-  providers: [InventoryService],
+  providers: [InventoryService, CategoryNormalizerService],
   exports: [InventoryService],
 })
 export class InventoryModule {}

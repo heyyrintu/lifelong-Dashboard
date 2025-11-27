@@ -192,13 +192,13 @@ export class OutboundService {
     fromDate?: string,
     toDate?: string,
     month?: string,
-    productCategory?: string,
+    productCategories?: string[],
     timeGranularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<SummaryResponse> {
     const startTime = Date.now();
 
     // Generate cache key (include all filter parameters)
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${productCategory || 'ALL'}-${timeGranularity}`;
+    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${timeGranularity}`;
     
     // Check cache
     if (this.cache.has(cacheKey)) {
@@ -248,13 +248,13 @@ export class OutboundService {
       }
     }
 
-    // Build product category filter
-    const productCategoryFilter = productCategory && productCategory !== 'ALL' 
-      ? productCategory as ProductCategory 
+    // Build product category filter (now supports multiple categories)
+    const productCategoryFilter = productCategories && productCategories.length > 0
+      ? productCategories.filter(c => c !== 'ALL') as ProductCategory[]
       : undefined;
 
     // Run parallel queries for all data
-    const [cards, categoryTable, productCategoryTable, availableMonths, productCategories, timeSeries, summaryTotals] = await Promise.all([
+    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
       this.calculateCardMetricsOptimized(targetUploadId, dateFilter, productCategoryFilter),
       this.calculateCategoryTableOptimized(targetUploadId, dateFilter, productCategoryFilter),
       this.calculateProductCategoryTable(targetUploadId, dateFilter),
@@ -269,7 +269,7 @@ export class OutboundService {
       categoryTable,
       productCategoryTable,
       availableMonths,
-      productCategories,
+      productCategories: productCategoriesList,
       timeSeries,
       summaryTotals,
     };
@@ -305,7 +305,7 @@ export class OutboundService {
   private async calculateCardMetricsOptimized(
     uploadId: string,
     dateFilter: { gte?: Date; lte?: Date },
-    productCategoryFilter?: ProductCategory,
+    productCategoryFilter?: ProductCategory[],
   ): Promise<CardMetrics> {
     let dateCondition = '';
     const params: any[] = [uploadId];
@@ -318,9 +318,10 @@ export class OutboundService {
       params.push(dateFilter.lte);
       dateCondition += ` AND delivery_note_date <= $${params.length}`;
     }
-    if (productCategoryFilter) {
-      params.push(productCategoryFilter);
-      dateCondition += ` AND product_category = $${params.length}::"ProductCategory"`;
+    if (productCategoryFilter && productCategoryFilter.length > 0) {
+      const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategoryFilter);
+      dateCondition += ` AND product_category IN (${placeholders})`;
     }
 
     const result = await this.prisma.$queryRawUnsafe<[{
@@ -365,7 +366,7 @@ export class OutboundService {
   private async calculateCategoryTableOptimized(
     uploadId: string,
     dateFilter: { gte?: Date; lte?: Date },
-    productCategoryFilter?: ProductCategory,
+    productCategoryFilter?: ProductCategory[],
   ): Promise<CategoryRow[]> {
     let dateCondition = '';
     const params: any[] = [uploadId];
@@ -378,9 +379,10 @@ export class OutboundService {
       params.push(dateFilter.lte);
       dateCondition += ` AND delivery_note_date <= $${params.length}`;
     }
-    if (productCategoryFilter) {
-      params.push(productCategoryFilter);
-      dateCondition += ` AND product_category = $${params.length}::"ProductCategory"`;
+    if (productCategoryFilter && productCategoryFilter.length > 0) {
+      const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategoryFilter);
+      dateCondition += ` AND product_category IN (${placeholders})`;
     }
 
     // Query with GROUP BY for category aggregation
@@ -750,7 +752,7 @@ export class OutboundService {
   private async calculateSummaryTotals(
     uploadId: string,
     dateFilter: { gte?: Date; lte?: Date },
-    productCategoryFilter?: ProductCategory,
+    productCategoryFilter?: ProductCategory[],
   ): Promise<SummaryTotals> {
     let dateCondition = '';
     const params: any[] = [uploadId];
@@ -763,9 +765,10 @@ export class OutboundService {
       params.push(dateFilter.lte);
       dateCondition += ` AND delivery_note_date <= $${params.length}`;
     }
-    if (productCategoryFilter) {
-      params.push(productCategoryFilter);
-      dateCondition += ` AND product_category = $${params.length}::"ProductCategory"`;
+    if (productCategoryFilter && productCategoryFilter.length > 0) {
+      const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategoryFilter);
+      dateCondition += ` AND product_category IN (${placeholders})`;
     }
 
     // Get day-by-day breakdown
@@ -873,10 +876,10 @@ export class OutboundService {
     fromDate?: string,
     toDate?: string,
     month?: string,
-    productCategory?: string,
+    productCategories?: string[],
   ): Promise<Buffer> {
     // Get summary data
-    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategory, 'month');
+    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month');
     
     // Create workbook
     const workbook = XLSX.utils.book_new();

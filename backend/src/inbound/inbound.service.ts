@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
+import { ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -83,7 +85,10 @@ const ITEM_MASTER_PATH = path.resolve(__dirname, '../../Item master.xlsx');
 export class InboundService implements OnModuleInit {
   private cache = new Map<string, InboundSummaryResponse>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private categoryNormalizer: CategoryNormalizerService,
+  ) {}
 
   /**
    * Auto-load Item Master on module initialization
@@ -330,6 +335,8 @@ export class InboundService implements OnModuleInit {
 
         totalCbm = receivedQty * cbmPerUnit;
 
+        const productCategory = this.categoryNormalizer.normalizeProductCategory(itemGroup);
+
         parsedRows.push({
           uploadId: upload.id,
           dateOfUnload,
@@ -341,6 +348,7 @@ export class InboundService implements OnModuleInit {
           itemGroup,
           cbmPerUnit,
           totalCbm,
+          productCategory,
         });
       }
 
@@ -399,14 +407,14 @@ export class InboundService implements OnModuleInit {
     fromDate?: string,
     toDate?: string,
     month?: string,
-    productCategory?: string,
+    productCategories?: string[],
     timeGranularity?: 'month' | 'week' | 'day',
   ): Promise<InboundSummaryResponse> {
     const startTime = Date.now();
 
     // Generate cache key
     const granularity = timeGranularity || 'month';
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${productCategory || ''}-${granularity}`;
+    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
     
     // Check cache
     const cached = this.cache.get(cacheKey);
@@ -440,21 +448,26 @@ export class InboundService implements OnModuleInit {
       effectiveToDate = `${year}-${String(monthNum).padStart(2, '0')}-${lastDay}`;
     }
 
+    // Filter out 'ALL' from categories
+    const productCategoryFilter = productCategories && productCategories.length > 0
+      ? productCategories.filter(c => c !== 'ALL')
+      : undefined;
+
     // Run parallel queries for metrics, dates, months, categories, and time series
-    const [cards, availableDates, availableMonths, productCategories, timeSeries, summaryTotals] = await Promise.all([
-      this.calculateCardMetricsOptimized(targetUploadId, effectiveFromDate, effectiveToDate, productCategory),
+    const [cards, availableDates, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
+      this.calculateCardMetricsOptimized(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
       this.getAvailableDates(targetUploadId),
       this.getAvailableMonths(targetUploadId),
       this.getProductCategories(targetUploadId),
-      this.generateTimeSeries(targetUploadId, effectiveFromDate, effectiveToDate, productCategory, granularity),
-      this.getSummaryTotals(targetUploadId, effectiveFromDate, effectiveToDate, productCategory),
+      this.generateTimeSeries(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
+      this.getSummaryTotals(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
     ]);
 
     const result: InboundSummaryResponse = {
       cards,
       availableDates,
       availableMonths: ['ALL', ...availableMonths],
-      productCategories: ['ALL', ...productCategories],
+      productCategories: ['ALL', ...productCategoriesList],
       timeSeries,
       summaryTotals,
     };
@@ -476,7 +489,7 @@ export class InboundService implements OnModuleInit {
     uploadId: string,
     fromDate?: string,
     toDate?: string,
-    productCategory?: string,
+    productCategories?: string[],
   ): Promise<InboundCardMetrics> {
     // Build date filter
     let dateCondition = '';
@@ -490,9 +503,10 @@ export class InboundService implements OnModuleInit {
       params.push(new Date(toDate));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
-    if (productCategory && productCategory !== 'ALL') {
-      params.push(productCategory);
-      dateCondition += ` AND item_group = $${params.length}`;
+    if (productCategories && productCategories.length > 0) {
+      const placeholders = productCategories.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategories);
+      dateCondition += ` AND product_category IN (${placeholders})`;
     }
 
     // Single query with all aggregations
@@ -560,13 +574,14 @@ export class InboundService implements OnModuleInit {
   private async getProductCategories(uploadId: string): Promise<string[]> {
     const rows = await this.prisma.inboundRow.findMany({
       where: { uploadId },
-      select: { itemGroup: true },
-      distinct: ['itemGroup'],
+      select: { productCategory: true },
+      distinct: ['productCategory'],
     });
 
     return rows
-      .map(r => r.itemGroup)
-      .filter((g): g is string => g !== null)
+      .map((r) => r.productCategory)
+      .filter((c): c is ProductCategory => c !== null)
+      .map((c) => c.toString())
       .sort();
   }
 
@@ -574,7 +589,7 @@ export class InboundService implements OnModuleInit {
     uploadId: string,
     fromDate?: string,
     toDate?: string,
-    productCategory?: string,
+    productCategories?: string[],
     granularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<TimeSeriesData> {
     // Build where clause
@@ -585,16 +600,16 @@ export class InboundService implements OnModuleInit {
     if (toDate) {
       where.dateOfUnload = { ...where.dateOfUnload, lte: new Date(toDate) };
     }
-    if (productCategory && productCategory !== 'ALL') {
-      where.itemGroup = productCategory;
+    if (productCategories && productCategories.length > 0) {
+      where.productCategory = { in: productCategories as ProductCategory[] };
     }
 
     const rows = await this.prisma.inboundRow.findMany({
       where,
-      select: { dateOfUnload: true, receivedQty: true, totalCbm: true },
+      select: { dateOfUnload: true, productCategory: true, receivedQty: true, totalCbm: true },
     });
 
-    const groupedData: { [key: string]: { receivedQty: number; totalCbm: number; dates: string[] } } = {};
+    const groupedData: { [key: string]: { edelReceivedQty: number; edelTotalCbm: number; receivedQty: number; totalCbm: number; dates: string[] } } = {};
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     rows.forEach(row => {
@@ -616,10 +631,16 @@ export class InboundService implements OnModuleInit {
       }
 
       if (!groupedData[bucketKey]) {
-        groupedData[bucketKey] = { receivedQty: 0, totalCbm: 0, dates: [] };
+        groupedData[bucketKey] = { edelReceivedQty: 0, edelTotalCbm: 0, receivedQty: 0, totalCbm: 0, dates: [] };
       }
-      groupedData[bucketKey].receivedQty += row.receivedQty || 0;
-      groupedData[bucketKey].totalCbm += row.totalCbm || 0;
+      const received = row.receivedQty || 0;
+      const cbm = row.totalCbm || 0;
+      groupedData[bucketKey].receivedQty += received;
+      groupedData[bucketKey].totalCbm += cbm;
+      if (row.productCategory === ProductCategory.EDEL) {
+        groupedData[bucketKey].edelReceivedQty += received;
+        groupedData[bucketKey].edelTotalCbm += cbm;
+      }
       groupedData[bucketKey].dates.push(date.toISOString().split('T')[0]);
     });
 
@@ -650,8 +671,10 @@ export class InboundService implements OnModuleInit {
       return {
         key: bucketKey,
         label,
+        edelReceivedQty: Math.round(data.edelReceivedQty * 100) / 100,
         receivedQty: Math.round(data.receivedQty * 100) / 100,
         totalCbm: Math.round(data.totalCbm * 100) / 100,
+        edelTotalCbm: Math.round(data.edelTotalCbm * 100) / 100,
         startDate,
         endDate,
       };
@@ -664,7 +687,7 @@ export class InboundService implements OnModuleInit {
     uploadId: string,
     fromDate?: string,
     toDate?: string,
-    productCategory?: string,
+    productCategories?: string[],
   ): Promise<SummaryTotals> {
     // Build SQL conditions similar to outbound summary totals
     let dateCondition = '';
@@ -678,9 +701,10 @@ export class InboundService implements OnModuleInit {
       params.push(new Date(toDate));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
-    if (productCategory && productCategory !== 'ALL') {
-      params.push(productCategory);
-      dateCondition += ` AND item_group = $${params.length}`;
+    if (productCategories && productCategories.length > 0) {
+      const placeholders = productCategories.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategories);
+      dateCondition += ` AND product_category IN (${placeholders})`;
     }
 
     // Get day-by-day breakdown using a single aggregated query
@@ -697,8 +721,8 @@ export class InboundService implements OnModuleInit {
         TO_CHAR(date_of_unload, 'YYYY-MM-DD') as day_label,
         COALESCE(SUM(received_qty), 0) as received_qty,
         COALESCE(SUM(total_cbm), 0) as total_cbm,
-        COALESCE(SUM(CASE WHEN UPPER(item_group) LIKE '%EDEL%' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
-        COALESCE(SUM(CASE WHEN UPPER(item_group) LIKE '%EDEL%' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
+        COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
+        COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
       FROM inbound_rows
       WHERE upload_id = $1 
         AND date_of_unload IS NOT NULL
@@ -743,10 +767,10 @@ export class InboundService implements OnModuleInit {
     fromDate?: string,
     toDate?: string,
     month?: string,
-    productCategory?: string,
+    productCategories?: string[],
   ): Promise<Buffer> {
     // Reuse existing summary pipeline (month filter handled inside getSummary)
-    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategory, 'month');
+    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month');
 
     const workbook = XLSX.utils.book_new();
 

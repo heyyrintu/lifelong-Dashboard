@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
+import { ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 
@@ -24,11 +26,26 @@ export interface InventoryFilters {
     minDate: string | null;
     maxDate: string | null;
   };
+  availableProductCategories?: string[];
+}
+
+export interface InventoryTimeSeriesPoint {
+  date: string;
+  label: string;
+  inventoryQty: number;
+  edelInventoryQty: number;
+  totalCbm: number;
+  edelTotalCbm: number;
+}
+
+export interface InventoryTimeSeriesData {
+  points: InventoryTimeSeriesPoint[];
 }
 
 export interface InventorySummaryResponse {
   cards: InventoryCardMetrics;
   filters: InventoryFilters;
+  timeSeries: InventoryTimeSeriesData;
 }
 
 interface ParsedInventoryRow {
@@ -49,7 +66,10 @@ interface DateColumn {
 export class InventoryService {
   private cache = new Map<string, InventorySummaryResponse>();
 
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private categoryNormalizer: CategoryNormalizerService,
+  ) {}
 
   /**
    * Parse and store Inventory (Daily Stock Analytics) Excel file
@@ -135,10 +155,12 @@ export class InventoryService {
         // Detect if this is the "Total" row (case-insensitive)
         const isTotalRow = item.trim().toLowerCase() === 'total';
 
+        const normalizedItemGroup = itemGroup || 'Others';
+
         parsedRows.push({
           item,
           warehouse: warehouse || 'Unknown',
-          itemGroup: itemGroup || 'Others',
+          itemGroup: normalizedItemGroup,
           cbmPerUnit: isTotalRow ? 0 : cbmPerUnit, // CBM not needed for Total row
           isTotalRow,
           dailyQuantities,
@@ -171,6 +193,7 @@ export class InventoryService {
             itemGroup: row.itemGroup,
             cbmPerUnit: row.cbmPerUnit,
             isTotalRow: row.isTotalRow,
+            productCategory: this.categoryNormalizer.normalizeProductCategory(row.itemGroup),
           }));
 
           await tx.inventoryRow.createMany({
@@ -265,11 +288,12 @@ export class InventoryService {
     fromDate?: string,
     toDate?: string,
     itemGroup?: string,
+    productCategories?: string[],
   ): Promise<InventorySummaryResponse> {
     const startTime = Date.now();
 
     // Generate cache key
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${itemGroup || 'ALL'}`;
+    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${itemGroup || 'ALL'}-${(productCategories || []).sort().join(',') || 'ALL'}`;
     
     // Check cache
     const cached = this.cache.get(cacheKey);
@@ -293,12 +317,19 @@ export class InventoryService {
       targetUploadId = latestUpload.id;
     }
 
+    // Filter out 'ALL' from categories
+    const productCategoryFilter = productCategories && productCategories.length > 0
+      ? productCategories.filter(c => c !== 'ALL')
+      : undefined;
+
     // Run parallel queries for filters and metrics
     // This reduces latency by not waiting for sequential queries
-    const [availableDateRange, availableItemGroups, cards] = await Promise.all([
+    const [availableDateRange, availableItemGroups, availableProductCategories, cards, timeSeries] = await Promise.all([
       this.getAvailableDateRange(targetUploadId),
       this.getAvailableItemGroups(targetUploadId),
-      this.calculateCardMetricsOptimized(targetUploadId, fromDate, toDate, itemGroup),
+      this.getAvailableProductCategories(targetUploadId),
+      this.calculateCardMetricsOptimized(targetUploadId, fromDate, toDate, itemGroup, productCategoryFilter),
+      this.generateTimeSeries(targetUploadId, fromDate, toDate, productCategoryFilter),
     ]);
 
     const result: InventorySummaryResponse = {
@@ -306,7 +337,9 @@ export class InventoryService {
       filters: {
         availableItemGroups,
         availableDateRange,
+        availableProductCategories: ['ALL', ...availableProductCategories],
       },
+      timeSeries,
     };
 
     // Store in cache
@@ -347,9 +380,10 @@ export class InventoryService {
     fromDate?: string,
     toDate?: string,
     itemGroup?: string,
+    productCategories?: string[],
   ): Promise<InventoryCardMetrics> {
     // Build separate parameter arrays for each query type
-    // Query 1 & 3: uploadId, fromDate?, toDate?, itemGroup?
+    // Query 1 & 3: uploadId, fromDate?, toDate?, itemGroup?, productCategories?
     // Query 2: uploadId, fromDate?, toDate? (no itemGroup - it's for Total row)
 
     // Params for queries with itemGroup filter (Query 1 & 3)
@@ -357,6 +391,7 @@ export class InventoryService {
     let paramIdx = 1;
     let dateFilterWithItemGroup = '';
     let itemGroupFilter = '';
+    let productCategoryFilter = '';
 
     if (fromDate) {
       paramIdx++;
@@ -373,6 +408,11 @@ export class InventoryService {
       paramsWithItemGroup.push(itemGroup);
       itemGroupFilter = ` AND ir.item_group = $${paramIdx}`;
     }
+    if (productCategories && productCategories.length > 0) {
+      const placeholders = productCategories.map((_, i) => `$${paramIdx + i + 1}::"ProductCategory"`).join(', ');
+      paramsWithItemGroup.push(...productCategories);
+      productCategoryFilter = ` AND ir.product_category IN (${placeholders})`;
+    }
 
     // Run 3 parallel aggregation queries using $queryRawUnsafe with parameterized values
     const [inboundSkuResult, inventoryQtyResult, totalCbmResult] = await Promise.all([
@@ -387,6 +427,7 @@ export class InventoryService {
           AND ir.cbm_per_unit > 0
           ${dateFilterWithItemGroup}
           ${itemGroupFilter}
+          ${productCategoryFilter}
       `, ...paramsWithItemGroup),
 
       // Query 2: Inventory QTY Total - sum of (average daily qty per SKU) across all SKUs
@@ -401,6 +442,7 @@ export class InventoryService {
             AND LOWER(TRIM(ir.item)) != 'total'
             ${dateFilterWithItemGroup}
             ${itemGroupFilter}
+            ${productCategoryFilter}
           GROUP BY ir.id
         ) subq
       `, ...paramsWithItemGroup),
@@ -418,6 +460,7 @@ export class InventoryService {
             AND ir.cbm_per_unit > 0
             ${dateFilterWithItemGroup}
             ${itemGroupFilter}
+            ${productCategoryFilter}
           GROUP BY ir.id, ir.cbm_per_unit
           HAVING AVG(ids.quantity) > 0
         ) subq
@@ -602,6 +645,100 @@ export class InventoryService {
   }
 
   /**
+   * Generate simple daily time series for inventory qty and CBM
+   */
+  private async generateTimeSeries(
+    uploadId: string,
+    fromDate?: string,
+    toDate?: string,
+    productCategories?: string[],
+  ): Promise<InventoryTimeSeriesData> {
+    const where: any = {
+      inventoryRow: {
+        uploadId,
+        isTotalRow: false,
+      },
+    };
+
+    if (fromDate) {
+      where.stockDate = { ...where.stockDate, gte: new Date(fromDate) };
+    }
+    if (toDate) {
+      where.stockDate = { ...where.stockDate, lte: new Date(toDate) };
+    }
+
+    const filterByCategory = productCategories && productCategories.length > 0;
+
+    const dailyStocks = await this.prisma.inventoryDailyStock.findMany({
+      where,
+      include: {
+        inventoryRow: {
+          select: {
+            productCategory: true,
+            cbmPerUnit: true,
+          },
+        },
+      },
+    });
+
+    const groups: Record<string, {
+      inventoryQty: number;
+      edelInventoryQty: number;
+      totalCbm: number;
+      edelTotalCbm: number;
+    }> = {};
+
+    for (const row of dailyStocks) {
+      const dateKey = row.stockDate.toISOString().split('T')[0];
+      const category = row.inventoryRow.productCategory as ProductCategory | null;
+
+      if (filterByCategory && category && !productCategories!.includes(category)) {
+        continue;
+      }
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = {
+          inventoryQty: 0,
+          edelInventoryQty: 0,
+          totalCbm: 0,
+          edelTotalCbm: 0,
+        };
+      }
+
+      const qty = Number(row.quantity) || 0;
+      const cbmPerUnit = Number(row.inventoryRow.cbmPerUnit) || 0;
+      const cbm = qty * cbmPerUnit;
+
+      groups[dateKey].inventoryQty += qty;
+      groups[dateKey].totalCbm += cbm;
+
+      if (category === ProductCategory.EDEL) {
+        groups[dateKey].edelInventoryQty += qty;
+        groups[dateKey].edelTotalCbm += cbm;
+      }
+    }
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const points: InventoryTimeSeriesPoint[] = Object.keys(groups)
+      .sort()
+      .map((dateKey) => {
+        const date = new Date(dateKey);
+        const g = groups[dateKey];
+        return {
+          date: dateKey,
+          label: `${date.getDate()} ${monthNames[date.getMonth()]}`,
+          inventoryQty: Math.round(g.inventoryQty * 100) / 100,
+          edelInventoryQty: Math.round(g.edelInventoryQty * 100) / 100,
+          totalCbm: Math.round(g.totalCbm * 100) / 100,
+          edelTotalCbm: Math.round(g.edelTotalCbm * 100) / 100,
+        };
+      });
+
+    return { points };
+  }
+
+  /**
    * Get available date range for an upload
    */
   private async getAvailableDateRange(uploadId: string): Promise<{ minDate: string | null; maxDate: string | null }> {
@@ -633,6 +770,23 @@ export class InventoryService {
 
     const itemGroups = rows.map((r) => r.itemGroup).filter(Boolean).sort();
     return ['ALL', ...itemGroups];
+  }
+
+  /**
+   * Get available product categories for an upload
+   */
+  private async getAvailableProductCategories(uploadId: string): Promise<string[]> {
+    const rows = await this.prisma.inventoryRow.findMany({
+      where: { uploadId },
+      select: { productCategory: true },
+      distinct: ['productCategory'],
+    });
+
+    return rows
+      .map((r) => r.productCategory)
+      .filter((c): c is ProductCategory => c !== null)
+      .map((c) => c.toString())
+      .sort();
   }
 
   // Helper methods

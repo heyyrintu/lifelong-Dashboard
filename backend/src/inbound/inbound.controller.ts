@@ -50,15 +50,18 @@ export class InboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
+    @Query('productCategory') productCategory?: string | string[],
   ) {
     try {
+      const categories = productCategory
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
       const excelBuffer = await this.inboundService.generateSummaryExcel(
         uploadId,
         fromDate,
         toDate,
         month,
-        productCategory || 'ALL',
+        categories,
       );
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -127,11 +130,14 @@ export class InboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
+    @Query('productCategory') productCategory?: string | string[],
     @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
   ) {
     try {
-      return await this.inboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
+      const categories = productCategory
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      return await this.inboundService.getSummary(uploadId, fromDate, toDate, month, categories, timeGranularity);
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;

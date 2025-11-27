@@ -86,10 +86,14 @@ export class OutboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
+    @Query('productCategory') productCategory?: string | string[],
   ) {
     try {
-      const excelBuffer = await this.outboundService.generateDetailedExcel(uploadId, fromDate, toDate, month, productCategory || 'ALL');
+      // Normalize productCategory to array
+      const categories = productCategory 
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      const excelBuffer = await this.outboundService.generateDetailedExcel(uploadId, fromDate, toDate, month, categories);
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=outbound-detailed-data.xlsx');
@@ -115,16 +119,20 @@ export class OutboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
+    @Query('productCategory') productCategory?: string | string[],
     @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
   ) {
     try {
+      // Normalize productCategory to array
+      const categories = productCategory 
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
       return await this.outboundService.getSummary(
         uploadId, 
         fromDate, 
         toDate, 
         month, 
-        productCategory,
+        categories,
         timeGranularity || 'month',
       );
     } catch (error) {

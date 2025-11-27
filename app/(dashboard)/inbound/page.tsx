@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import StatCard from '@/components/common/StatCard';
-import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download } from 'lucide-react';
+import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -13,6 +13,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   LabelList,
+  Legend,
 } from 'recharts';
 
 interface InboundCardMetrics {
@@ -27,8 +28,10 @@ interface InboundCardMetrics {
 interface TimeSeriesPoint {
   key: string;
   label: string;
+  edelReceivedQty: number;
   receivedQty: number;
   totalCbm: number;
+  edelTotalCbm: number;
   startDate: string;
   endDate: string;
 }
@@ -75,7 +78,9 @@ export default function InboundPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
-  const [selectedProductCategory, setSelectedProductCategory] = useState('ALL');
+  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
@@ -83,6 +88,18 @@ export default function InboundPage() {
   useEffect(() => {
     fetchSummary();
     fetchChartData(timeGranularity);
+  }, []);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target as Node)) {
+        setCategoryDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchChartData = async (granularity: 'month' | 'week' | 'day') => {
@@ -119,8 +136,8 @@ export default function InboundPage() {
           if (fromDate) params.append('fromDate', fromDate);
           if (toDate) params.append('toDate', toDate);
         }
-        if (selectedProductCategory && selectedProductCategory !== 'ALL') {
-          params.append('productCategory', selectedProductCategory);
+        if (selectedProductCategories.length > 0) {
+          selectedProductCategories.forEach(cat => params.append('productCategory', cat));
         }
       }
       params.append('timeGranularity', timeGranularity);
@@ -155,8 +172,48 @@ export default function InboundPage() {
     setFromDate('');
     setToDate('');
     setSelectedMonth('ALL');
-    setSelectedProductCategory('ALL');
+    setSelectedProductCategories([]);
     fetchSummary();
+  };
+
+  const toggleProductCategory = (category: string) => {
+    setSelectedProductCategories(prev => {
+      if (prev.includes(category)) {
+        return prev.filter(c => c !== category);
+      } else {
+        return [...prev, category];
+      }
+    });
+  };
+
+  const clearAllCategories = () => {
+    setSelectedProductCategories([]);
+  };
+
+  const selectAllCategories = () => {
+    const allCategories = (summaryData?.productCategories || []).filter(c => c !== 'ALL');
+    setSelectedProductCategories(allCategories);
+  };
+
+  const getSelectedCategoriesLabel = () => {
+    if (selectedProductCategories.length === 0) return 'All Categories';
+    if (selectedProductCategories.length === 1) return formatProductCategory(selectedProductCategories[0]);
+    return `${selectedProductCategories.length} selected`;
+  };
+
+  const formatProductCategory = (category: string): string => {
+    const labelMap: Record<string, string> = {
+      'ALL': 'All Categories',
+      'EDEL': 'EDEL',
+      'HOME_AND_KITCHEN': 'Home & Kitchen',
+      'ELECTRONICS': 'Electronics',
+      'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
+      'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
+      'TOYS_AND_GAMES': 'Toys & Games',
+      'BRAND_PRIVATE_LABEL': 'Brand Private Label',
+      'OTHERS': 'Others',
+    };
+    return labelMap[category] || category;
   };
 
   const handleTimeGranularityChange = (granularity: 'month' | 'week' | 'day') => {
@@ -174,8 +231,8 @@ export default function InboundPage() {
         if (fromDate) params.append('fromDate', fromDate);
         if (toDate) params.append('toDate', toDate);
       }
-      if (selectedProductCategory && selectedProductCategory !== 'ALL') {
-        params.append('productCategory', selectedProductCategory);
+      if (selectedProductCategories.length > 0) {
+        selectedProductCategories.forEach(cat => params.append('productCategory', cat));
       }
       params.append('timeGranularity', timeGranularity);
 
@@ -205,6 +262,24 @@ export default function InboundPage() {
       minimumFractionDigits: decimals,
       maximumFractionDigits: decimals,
     }).format(num);
+  };
+
+  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0';
+    const value = Number(num);
+    if (isNaN(value)) return '0';
+    const lakhs = value / 100000;
+    return lakhs.toFixed(decimals);
+  };
+
+  const formatAxisLabel = (label: string) => {
+    // Convert labels like "Aug 2025" -> "Aug'25"
+    const match = label.match(/^([A-Za-z]{3}) (\d{4})$/);
+    if (match) {
+      const [, month, year] = match;
+      return `${month}'${year.slice(2)}`;
+    }
+    return label;
   };
 
   const stats = summaryData ? [
@@ -245,6 +320,64 @@ export default function InboundPage() {
       icon: Clock,
     },
   ] : [];
+
+  const QtyLegend = () => (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            backgroundColor: '#3b82f6',
+            borderRadius: 2,
+            display: 'inline-block',
+          }}
+        />
+        <span>EDEL Received Qty</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            backgroundColor: '#dc2626',
+            borderRadius: 2,
+            display: 'inline-block',
+          }}
+        />
+        <span>Received Qty</span>
+      </div>
+    </div>
+  );
+
+  const CbmLegend = () => (
+    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 16, fontSize: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            backgroundColor: '#3b82f6',
+            borderRadius: 2,
+            display: 'inline-block',
+          }}
+        />
+        <span>EDEL CBM</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <span
+          style={{
+            width: 12,
+            height: 12,
+            backgroundColor: '#f59e0b',
+            borderRadius: 2,
+            display: 'inline-block',
+          }}
+        />
+        <span>Total CBM</span>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -298,20 +431,66 @@ export default function InboundPage() {
               ))}
             </select>
           </div>
-          <div>
+          <div className="relative" ref={categoryDropdownRef}>
             <label className="block text-xs text-gray-600 dark:text-slate-400 mb-2">Product Category</label>
-            <select
-              value={selectedProductCategory}
-              onChange={(e) => setSelectedProductCategory(e.target.value)}
-              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none"
+            <button
+              type="button"
+              onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
+              className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-slate-300 focus:ring-2 focus:ring-brandRed focus:border-brandRed outline-none flex items-center justify-between"
               suppressHydrationWarning={true}
             >
-              {(summaryData?.productCategories || ['ALL']).map((category: string) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
+              <span className="truncate">{getSelectedCategoriesLabel()}</span>
+              <ChevronDown className={`w-4 h-4 ml-2 transition-transform ${categoryDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {categoryDropdownOpen && (
+              <div className="absolute z-50 mt-1 w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-auto">
+                {/* Select All / Clear All buttons */}
+                <div className="flex border-b border-gray-200 dark:border-slate-700">
+                  <button
+                    type="button"
+                    onClick={selectAllCategories}
+                    className="flex-1 px-3 py-2 text-xs text-brandRed hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearAllCategories}
+                    className="flex-1 px-3 py-2 text-xs text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors border-l border-gray-200 dark:border-slate-700"
+                  >
+                    Clear All
+                  </button>
+                </div>
+                
+                {/* Category options */}
+                {(summaryData?.productCategories || []).filter(c => c !== 'ALL').map((category) => (
+                  <label
+                    key={category}
+                    className="flex items-center px-3 py-2 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+                  >
+                    <div className={`w-4 h-4 rounded border mr-3 flex items-center justify-center transition-colors ${
+                      selectedProductCategories.includes(category)
+                        ? 'bg-brandRed border-brandRed'
+                        : 'border-gray-300 dark:border-slate-600'
+                    }`}>
+                      {selectedProductCategories.includes(category) && (
+                        <Check className="w-3 h-3 text-white" />
+                      )}
+                    </div>
+                    <span className="text-sm text-gray-900 dark:text-slate-300">
+                      {formatProductCategory(category)}
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={selectedProductCategories.includes(category)}
+                      onChange={() => toggleProductCategory(category)}
+                    />
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
           <div className="flex items-end gap-2">
             <button
@@ -411,10 +590,10 @@ export default function InboundPage() {
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Received Qty Chart */}
+            {/* EDEL vs Total Received Qty Chart */}
             <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Received Qty Over Time</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">EDEL vs Total Received Qty Over Time</h3>
               </div>
               {chartLoading ? (
                 <div className="h-64 flex items-center justify-center">
@@ -427,11 +606,12 @@ export default function InboundPage() {
                     <XAxis 
                       dataKey="label" 
                       tick={{ fontSize: 12 }}
-                      angle={-30}
-                      textAnchor="end"
-                      height={60}
+                      tickFormatter={formatAxisLabel}
                     />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <YAxis 
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value: number) => `${formatInLakhs(value)} L`}
+                    />
                     <Tooltip 
                       contentStyle={{ 
                         backgroundColor: '#1f2937', 
@@ -440,13 +620,29 @@ export default function InboundPage() {
                       }}
                       labelStyle={{ color: '#f3f4f6' }}
                       itemStyle={{ color: '#f3f4f6' }}
-                      formatter={(value: number) => formatNumber(value)}
+                      formatter={(value: number, name: string) => [
+                        formatNumber(value),
+                        name === 'edelReceivedQty' ? 'EDEL Received Qty' : 'Received Qty',
+                      ]}
                     />
-                    <Bar dataKey="receivedQty" fill="#dc2626" radius={[4, 4, 0, 0]}>
+                    <Legend 
+                      verticalAlign="top"
+                      align="right"
+                      content={<QtyLegend />}
+                    />
+                    <Bar dataKey="edelReceivedQty" fill="#3b82f6" radius={[4, 4, 0, 0]} name="EDEL Received Qty">
+                      <LabelList 
+                        dataKey="edelReceivedQty" 
+                        position="top" 
+                        formatter={(value: any) => formatInLakhs(value)}
+                        style={{ fontSize: 11, fill: '#6b7280' }}
+                      />
+                    </Bar>
+                    <Bar dataKey="receivedQty" fill="#dc2626" radius={[4, 4, 0, 0]} name="Received Qty">
                       <LabelList 
                         dataKey="receivedQty" 
                         position="top" 
-                        formatter={(value: any) => formatNumber(value)}
+                        formatter={(value: any) => formatInLakhs(value)}
                         style={{ fontSize: 11, fill: '#6b7280' }}
                       />
                     </Bar>
@@ -459,10 +655,10 @@ export default function InboundPage() {
               )}
             </div>
 
-            {/* Total CBM Chart */}
+            {/* EDEL vs Total CBM Chart */}
             <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm dark:shadow-none">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Total CBM Over Time</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">EDEL vs Total CBM Over Time</h3>
               </div>
               {chartLoading ? (
                 <div className="h-64 flex items-center justify-center">
@@ -475,9 +671,7 @@ export default function InboundPage() {
                     <XAxis 
                       dataKey="label" 
                       tick={{ fontSize: 12 }}
-                      angle={-30}
-                      textAnchor="end"
-                      height={60}
+                      tickFormatter={formatAxisLabel}
                     />
                     <YAxis tick={{ fontSize: 12 }} />
                     <Tooltip 
@@ -488,13 +682,29 @@ export default function InboundPage() {
                       }}
                       labelStyle={{ color: '#f3f4f6' }}
                       itemStyle={{ color: '#f3f4f6' }}
-                      formatter={(value: number) => formatNumber(value)}
+                      formatter={(value: number, name: string) => [
+                        formatNumber(value, 2),
+                        name === 'edelTotalCbm' ? 'EDEL CBM' : 'Total CBM',
+                      ]}
                     />
-                    <Bar dataKey="totalCbm" fill="#f59e0b" radius={[4, 4, 0, 0]}>
+                    <Legend 
+                      verticalAlign="top"
+                      align="right"
+                      content={<CbmLegend />}
+                    />
+                    <Bar dataKey="edelTotalCbm" fill="#3b82f6" radius={[4, 4, 0, 0]} name="EDEL CBM">
+                      <LabelList 
+                        dataKey="edelTotalCbm" 
+                        position="top" 
+                        formatter={(value: any) => formatNumber(value, 2)}
+                        style={{ fontSize: 11, fill: '#6b7280' }}
+                      />
+                    </Bar>
+                    <Bar dataKey="totalCbm" fill="#f59e0b" radius={[4, 4, 0, 0]} name="Total CBM">
                       <LabelList 
                         dataKey="totalCbm" 
                         position="top" 
-                        formatter={(value: any) => formatNumber(value)}
+                        formatter={(value: any) => formatNumber(value, 2)}
                         style={{ fontSize: 11, fill: '#6b7280' }}
                       />
                     </Bar>
@@ -546,9 +756,9 @@ export default function InboundPage() {
                   <div className="col-span-2">EDEL CBM</div>
                 </div>
 
-                {/* Scrollable Data Rows - Max 7 visible */}
+                {/* Scrollable Data Rows - Max ~5 visible */}
                 <motion.div
-                  className="space-y-2 max-h-[490px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent"
+                  className="space-y-2 max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent"
                   variants={{
                     visible: {
                       transition: {
@@ -655,13 +865,15 @@ export default function InboundPage() {
 
                           {/* EDEL Received Qty */}
                           <div className="col-span-2 flex justify-center">
-                            <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
-                              {formatNumber(day.edelReceivedQty)}
-                            </span>
+                            <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                              <span className="text-purple-600 dark:text-purple-400 text-sm font-medium">
+                                {formatNumber(day.edelReceivedQty)}
+                              </span>
+                            </div>
                           </div>
 
                           {/* EDEL CBM */}
-                          <div className="col-span-2">
+                          <div className="col-span-2 flex justify-center">
                             <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
                               <span className="text-purple-600 dark:text-purple-400 text-sm font-medium">
                                 {formatNumber(day.edelTotalCbm, 2)} CBM
@@ -727,21 +939,6 @@ export default function InboundPage() {
         </div>
       )}
 
-      {/* Info Section */}
-      {!loading && summaryData && (
-        <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-4 mb-8">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-blue-600 dark:text-blue-500 mt-0.5" />
-            <div>
-              <h4 className="text-sm font-semibold text-blue-700 dark:text-blue-500">Phase 3 - Inbound with CBM</h4>
-              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                This dashboard shows inbound metrics calculated from uploaded Item Master and Inbound Fresh Receipt files.
-                CBM values are automatically calculated by joining received SKUs with the Item Master data.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { diskStorage } from 'multer';
 import { InboundController } from './inbound.controller';
 import { InboundService } from './inbound.service';
 import { PrismaModule } from '../prisma/prisma.module';
+import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
 
 @Module({
   imports: [
@@ -37,6 +38,6 @@ import { PrismaModule } from '../prisma/prisma.module';
     }),
   ],
   controllers: [InboundController],
-  providers: [InboundService],
+  providers: [InboundService, CategoryNormalizerService],
 })
 export class InboundModule {}
