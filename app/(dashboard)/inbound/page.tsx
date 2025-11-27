@@ -107,7 +107,7 @@ export default function InboundPage() {
     }
   };
 
-  const fetchSummary = async (useFilters = false) => {
+  const fetchSummary = async (useFilters = false, granularity: 'month' | 'week' | 'day' = timeGranularity) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -123,7 +123,7 @@ export default function InboundPage() {
           params.append('productCategory', selectedProductCategory);
         }
       }
-      params.append('timeGranularity', timeGranularity);
+      params.append('timeGranularity', granularity);
 
       const url = `${BACKEND_URL}/inbound/summary${params.toString() ? '?' + params.toString() : ''}`;
       const response = await fetch(url);
@@ -161,7 +161,15 @@ export default function InboundPage() {
 
   const handleTimeGranularityChange = (granularity: 'month' | 'week' | 'day') => {
     setTimeGranularity(granularity);
+
+    const hasFilters =
+      (selectedMonth && selectedMonth !== 'ALL') ||
+      !!fromDate ||
+      !!toDate ||
+      (selectedProductCategory && selectedProductCategory !== 'ALL');
+
     fetchChartData(granularity);
+    fetchSummary(hasFilters, granularity);
   };
 
   const handleDownloadSummary = async () => {
