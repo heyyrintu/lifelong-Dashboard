@@ -43,11 +43,15 @@ export interface DayData {
   label: string;
   receivedQty: number;
   totalCbm: number;
+  edelReceivedQty: number;
+  edelTotalCbm: number;
 }
 
 export interface SummaryTotals {
   totalReceivedQty: number;
   totalCbm: number;
+  totalEdelReceivedQty: number;
+  totalEdelTotalCbm: number;
   dayData: DayData[];
 }
 
@@ -639,58 +643,120 @@ export class InboundService implements OnModuleInit {
     toDate?: string,
     productCategory?: string,
   ): Promise<SummaryTotals> {
-    // Build where clause
-    const where: any = { uploadId };
+    // Build SQL conditions similar to outbound summary totals
+    let dateCondition = '';
+    const params: any[] = [uploadId];
+
     if (fromDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, gte: new Date(fromDate) };
+      params.push(new Date(fromDate));
+      dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, lte: new Date(toDate) };
+      params.push(new Date(toDate));
+      dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategory && productCategory !== 'ALL') {
-      where.itemGroup = productCategory;
+      params.push(productCategory);
+      dateCondition += ` AND item_group = $${params.length}`;
     }
 
-    const rows = await this.prisma.inboundRow.findMany({
-      where,
-      select: { dateOfUnload: true, receivedQty: true, totalCbm: true },
-    });
+    // Get day-by-day breakdown using a single aggregated query
+    const dayResults = await this.prisma.$queryRawUnsafe<Array<{
+      day_date: Date;
+      day_label: string;
+      received_qty: number;
+      total_cbm: number;
+      edel_received_qty: number;
+      edel_total_cbm: number;
+    }>>(`
+      SELECT 
+        DATE(date_of_unload) as day_date,
+        TO_CHAR(date_of_unload, 'YYYY-MM-DD') as day_label,
+        COALESCE(SUM(received_qty), 0) as received_qty,
+        COALESCE(SUM(total_cbm), 0) as total_cbm,
+        COALESCE(SUM(CASE WHEN UPPER(item_group) LIKE '%EDEL%' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
+        COALESCE(SUM(CASE WHEN UPPER(item_group) LIKE '%EDEL%' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
+      FROM inbound_rows
+      WHERE upload_id = $1 
+        AND date_of_unload IS NOT NULL
+        ${dateCondition}
+      GROUP BY DATE(date_of_unload), TO_CHAR(date_of_unload, 'YYYY-MM-DD')
+      ORDER BY day_date
+    `, ...params);
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const dayDataMap: { [key: string]: { receivedQty: number; totalCbm: number } } = {};
 
-    let totalReceivedQty = 0;
-    let totalCbm = 0;
-
-    rows.forEach(row => {
-      totalReceivedQty += row.receivedQty || 0;
-      totalCbm += row.totalCbm || 0;
-
-      if (row.dateOfUnload) {
-        const dateKey = row.dateOfUnload.toISOString().split('T')[0];
-        if (!dayDataMap[dateKey]) {
-          dayDataMap[dateKey] = { receivedQty: 0, totalCbm: 0 };
-        }
-        dayDataMap[dateKey].receivedQty += row.receivedQty || 0;
-        dayDataMap[dateKey].totalCbm += row.totalCbm || 0;
-      }
-    });
-
-    const dayData: DayData[] = Object.keys(dayDataMap).sort().map(dateKey => {
-      const date = new Date(dateKey);
+    const dayData: DayData[] = dayResults.map(row => {
+      const date = new Date(row.day_label);
       return {
-        date: dateKey,
+        date: row.day_label,
         label: `${date.getDate()} ${monthNames[date.getMonth()]}`,
-        receivedQty: Math.round(dayDataMap[dateKey].receivedQty * 100) / 100,
-        totalCbm: Math.round(dayDataMap[dateKey].totalCbm * 100) / 100,
+        receivedQty: Math.round(Number(row.received_qty) * 100) / 100,
+        totalCbm: Math.round(Number(row.total_cbm) * 100) / 100,
+        edelReceivedQty: Math.round(Number(row.edel_received_qty) * 100) / 100,
+        edelTotalCbm: Math.round(Number(row.edel_total_cbm) * 100) / 100,
       };
     });
+
+    const totalReceivedQty = dayData.reduce((sum, d) => sum + d.receivedQty, 0);
+    const totalCbm = dayData.reduce((sum, d) => sum + d.totalCbm, 0);
+    const totalEdelReceivedQty = dayData.reduce((sum, d) => sum + d.edelReceivedQty, 0);
+    const totalEdelTotalCbm = dayData.reduce((sum, d) => sum + d.edelTotalCbm, 0);
 
     return {
       totalReceivedQty: Math.round(totalReceivedQty * 100) / 100,
       totalCbm: Math.round(totalCbm * 100) / 100,
+      totalEdelReceivedQty: Math.round(totalEdelReceivedQty * 100) / 100,
+      totalEdelTotalCbm: Math.round(totalEdelTotalCbm * 100) / 100,
       dayData,
     };
+  }
+
+  /**
+   * Generate inbound summary Excel export
+   */
+  async generateSummaryExcel(
+    uploadId?: string,
+    fromDate?: string,
+    toDate?: string,
+    month?: string,
+    productCategory?: string,
+  ): Promise<Buffer> {
+    // Reuse existing summary pipeline (month filter handled inside getSummary)
+    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategory, 'month');
+
+    const workbook = XLSX.utils.book_new();
+
+    // Daily breakdown sheet
+    const dayHeader = ['Date', 'Received Qty', 'Total CBM', 'EDEL Received Qty', 'EDEL CBM'];
+    const dayRows = summary.summaryTotals.dayData.map((d) => [
+      d.date,
+      d.receivedQty,
+      d.totalCbm,
+      d.edelReceivedQty,
+      d.edelTotalCbm,
+    ]);
+
+    const dayWs = XLSX.utils.aoa_to_sheet([
+      dayHeader,
+      ...dayRows,
+    ]);
+    XLSX.utils.book_append_sheet(workbook, dayWs, 'Daily Breakdown');
+
+    // Overall totals sheet
+    const totals = summary.summaryTotals;
+    const totalsWsData = [
+      ['Metric', 'Value'],
+      ['Total Received Qty', totals.totalReceivedQty],
+      ['Total CBM', totals.totalCbm],
+      ['Total EDEL Received Qty', totals.totalEdelReceivedQty],
+      ['Total EDEL CBM', totals.totalEdelTotalCbm],
+    ];
+
+    const totalsWs = XLSX.utils.aoa_to_sheet(totalsWsData);
+    XLSX.utils.book_append_sheet(workbook, totalsWs, 'Summary Totals');
+
+    return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }
 
   private getISOWeek(date: Date): number {

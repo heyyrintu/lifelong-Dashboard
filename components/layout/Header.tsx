@@ -35,38 +35,16 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5 text-gray-700 dark:text-slate-300" />
           </button>
           <div className="relative">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Drona MIS V2</h1>
-            <p className="text-xs text-gray-600 dark:text-slate-400">MIS V2</p>
-            <div className="absolute bottom-0 left-0 w-12 h-0.5 bg-brandRed"></div>
-          </div>
-          <div className="hidden md:block">
-            <span className="text-gray-400 dark:text-slate-500 mx-3">/</span>
-            <span className="text-sm text-gray-700 dark:text-slate-300">{getPageName()}</span>
+            <h1 className="flex items-baseline gap-1 font-bold text-gray-900 dark:text-slate-100">
+              <span className="text-2xl">Drona 🤝🏼 Lifelong /</span>
+              <span className="text-xl text-gray-600">{getPageName()}</span>
+            </h1>
+            <div className="absolute bottom-0 left-0 h-1 w-16 rounded-full bg-gradient-to-r from-amber-400 via-amber-300/80 to-transparent opacity-90"></div>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          
-          <div className="hidden sm:flex items-center gap-3">
-            <div className="text-right">
-              <p className="text-sm font-medium text-gray-900 dark:text-slate-200">Rintu Mondal</p>
-              <p className="text-xs text-gray-600 dark:text-slate-500">rintu@drona.com</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-gray-200 dark:bg-primary-500 rounded-full flex items-center justify-center text-gray-700 dark:text-white font-semibold">
-                RM
-              </div>
-              <span className="px-2.5 py-1 bg-brandRed/10 dark:bg-brandRed/20 text-brandRed dark:text-brandRed text-xs font-medium rounded-md border border-brandRed/20 dark:border-brandRed/30">
-                Admin
-              </span>
-            </div>
-          </div>
-          <div className="sm:hidden">
-            <div className="w-10 h-10 bg-gray-200 dark:bg-primary-500 rounded-full flex items-center justify-center text-gray-700 dark:text-white font-semibold">
-              RM
-            </div>
-          </div>
         </div>
       </div>
     </header>

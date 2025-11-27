@@ -212,10 +212,6 @@ export default function UploadPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Upload Excel Files"
-        description="Manual file upload for inbound, outbound, and inventory data. Automatic data fetching from Google Drive is NOT integrated in this phase."
-      />
 
       {/* Info alert */}
       <div className="bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 rounded-lg p-4 mb-8">

@@ -9,7 +9,9 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InboundService } from './inbound.service';
 
@@ -34,6 +36,42 @@ export class InboundController {
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to process Item Master file',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /inbound/download-summary
+   * Download inbound summary totals as Excel file
+   */
+  @Get('download-summary')
+  async downloadSummary(
+    @Res() res: Response,
+    @Query('uploadId') uploadId?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('month') month?: string,
+    @Query('productCategory') productCategory?: string,
+  ) {
+    try {
+      const excelBuffer = await this.inboundService.generateSummaryExcel(
+        uploadId,
+        fromDate,
+        toDate,
+        month,
+        productCategory || 'ALL',
+      );
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=inbound-summary.xlsx');
+      res.send(excelBuffer);
+    } catch (error) {
+      if ((error as any).status === 404) {
+        throw error;
+      }
+      throw new HttpException(
+        (error as any).message || 'Failed to download inbound summary',
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -113,10 +113,6 @@ export default function InventoryPage() {
   if (!loading && error) {
     return (
       <div>
-        <PageHeader
-          title="Inventory Management"
-          description="Monitor daily stock levels and CBM across all warehouses"
-        />
         <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-8 text-center">
           <Boxes className="w-16 h-16 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-2">No Inventory Data Available</h3>
@@ -134,11 +130,6 @@ export default function InventoryPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Inventory Management"
-        description="Monitor daily stock levels and CBM across all warehouses"
-      />
-
       {/* Date & Category Filters */}
       <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-8 shadow-sm dark:shadow-none">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-4">Filters</h3>

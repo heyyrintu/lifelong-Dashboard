@@ -8,13 +8,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-slate-950 overflow-hidden">
+    <div className="flex h-screen bg-gradient-to-br from-slate-50 via-rose-50/60 to-slate-100 dark:bg-slate-950 overflow-hidden">
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-        <main className="flex-1 overflow-y-auto bg-gray-50 dark:bg-slate-950">
+        <main className="flex-1 overflow-y-auto bg-transparent">
           <div className="container mx-auto px-6 py-8 max-w-7xl">{children}</div>
         </main>
       </div>

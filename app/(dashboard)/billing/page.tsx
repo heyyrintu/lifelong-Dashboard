@@ -1,6 +1,8 @@
+'use client';
+
+import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
-import Table from '@/components/common/Table';
 import Badge from '@/components/common/Badge';
 import { FileText, DollarSign, AlertCircle, TrendingUp } from 'lucide-react';
 
@@ -199,20 +201,154 @@ export default function BillingPage() {
         </div>
       </div>
 
-      {/* Billing table */}
-      <div className="mb-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Invoices</h3>
-          <div className="flex gap-2">
-            <button className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-slate-700 shadow-sm">
-              Export to Excel
-            </button>
-            <button className="px-4 py-2 bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
-              Generate Report
-            </button>
+      {/* Billing table - Server Management Style */}
+      <div className="w-full mb-6">
+        <div className="relative border border-gray-200 dark:border-slate-700/30 rounded-2xl p-6 bg-white dark:bg-slate-800/50">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Invoices</h3>
+              </div>
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                {tableData.length} Records
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button className="px-4 py-2 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-lg text-sm font-medium transition-colors border border-gray-300 dark:border-slate-700 shadow-sm">
+                Export to Excel
+              </button>
+              <button className="px-4 py-2 bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 text-white rounded-lg text-sm font-medium transition-colors shadow-sm">
+                Generate Report
+              </button>
+            </div>
           </div>
+
+          <motion.div
+            className="space-y-2"
+            variants={{
+              visible: {
+                transition: {
+                  staggerChildren: 0.08,
+                  delayChildren: 0.1,
+                }
+              }
+            }}
+            initial="hidden"
+            animate="visible"
+          >
+            {/* Headers */}
+            <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              <div className="col-span-1">No</div>
+              <div className="col-span-2">Invoice No</div>
+              <div className="col-span-2">Customer</div>
+              <div className="col-span-2">Amount</div>
+              <div className="col-span-2">Status</div>
+              <div className="col-span-2">Date</div>
+              <div className="col-span-1">Due</div>
+            </div>
+
+            {/* Data Rows */}
+            {tableData.map((row, index) => (
+              <motion.div
+                key={row.invoiceNo}
+                variants={{
+                  hidden: { 
+                    opacity: 0, 
+                    x: -25,
+                    scale: 0.95,
+                    filter: "blur(4px)" 
+                  },
+                  visible: {
+                    opacity: 1,
+                    x: 0,
+                    scale: 1,
+                    filter: "blur(0px)",
+                    transition: {
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 28,
+                      mass: 0.6,
+                    },
+                  },
+                }}
+                className="relative"
+              >
+                <motion.div
+                  className="relative bg-gray-50 dark:bg-slate-700/50 border border-gray-100 dark:border-slate-600/50 rounded-xl p-4 overflow-hidden"
+                  whileHover={{
+                    y: -1,
+                    transition: { type: "spring", stiffness: 400, damping: 25 }
+                  }}
+                >
+                  {/* Status gradient overlay */}
+                  <div 
+                    className="absolute inset-0 bg-gradient-to-l from-purple-500/10 to-transparent pointer-events-none"
+                    style={{ 
+                      backgroundSize: "30% 100%", 
+                      backgroundPosition: "right",
+                      backgroundRepeat: "no-repeat"
+                    }} 
+                  />
+                  
+                  {/* Grid Content */}
+                  <div className="relative grid grid-cols-12 gap-4 items-center">
+                    {/* Number */}
+                    <div className="col-span-1">
+                      <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                    </div>
+
+                    {/* Invoice No */}
+                    <div className="col-span-2 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                        <FileText className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-gray-900 dark:text-slate-200 font-medium font-mono text-sm">
+                        {row.invoiceNo}
+                      </span>
+                    </div>
+
+                    {/* Customer */}
+                    <div className="col-span-2">
+                      <span className="text-sm text-gray-900 dark:text-slate-200 font-medium truncate block">
+                        {row.customer}
+                      </span>
+                    </div>
+
+                    {/* Amount */}
+                    <div className="col-span-2">
+                      <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-bold">
+                        {row.amount}
+                      </span>
+                    </div>
+
+                    {/* Status */}
+                    <div className="col-span-2">
+                      {row.status}
+                    </div>
+
+                    {/* Date */}
+                    <div className="col-span-2">
+                      <span className="text-sm text-gray-600 dark:text-slate-400">
+                        {row.date}
+                      </span>
+                    </div>
+
+                    {/* Due Date */}
+                    <div className="col-span-1">
+                      <span className="text-xs text-gray-500 dark:text-slate-500">
+                        {row.dueDate}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
-        <Table columns={columns} data={tableData} />
       </div>
 
       {/* Discrepancies alert */}

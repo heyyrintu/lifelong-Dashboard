@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { NormalizedCategory } from '@prisma/client';
+import { NormalizedCategory, ProductCategory } from '@prisma/client';
 
 @Injectable()
 export class CategoryNormalizerService {
@@ -77,5 +77,61 @@ export class CategoryNormalizerService {
       [NormalizedCategory.OTHERS]: 'Others',
     };
     return labelMap[category] || 'Others';
+  }
+
+  /**
+   * Normalize categoryRaw (Item Group) to ProductCategory enum
+   * Based on the product type/item group from the Excel file
+   */
+  normalizeProductCategory(categoryRaw: string | null | undefined): ProductCategory {
+    if (!categoryRaw) {
+      return ProductCategory.OTHERS;
+    }
+
+    const normalized = categoryRaw.toLowerCase().trim();
+
+    // EDEL - Edel products
+    if (normalized.includes('edel') || normalized.includes('e-del')) {
+      return ProductCategory.EDEL;
+    }
+
+    // HOME_AND_KITCHEN
+    const homeKitchenPatterns = ['home', 'kitchen', 'cookware', 'appliance', 'mixer', 'grinder', 'blender', 'juicer', 'cooker', 'induction', 'kettle', 'toaster', 'iron', 'fan', 'heater', 'cooler'];
+    if (homeKitchenPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.HOME_AND_KITCHEN;
+    }
+
+    // ELECTRONICS
+    const electronicsPatterns = ['electronic', 'gadget', 'charger', 'cable', 'adapter', 'power bank', 'speaker', 'headphone', 'earphone'];
+    if (electronicsPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.ELECTRONICS;
+    }
+
+    // HEALTH_AND_PERSONAL_CARE
+    const healthPatterns = ['health', 'personal care', 'grooming', 'trimmer', 'shaver', 'massager', 'weighing', 'thermometer'];
+    if (healthPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.HEALTH_AND_PERSONAL_CARE;
+    }
+
+    // AUTOMOTIVE_AND_TOOLS
+    const autoToolsPatterns = ['auto', 'car', 'bike', 'tool', 'drill', 'screwdriver', 'wrench', 'hammer'];
+    if (autoToolsPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.AUTOMOTIVE_AND_TOOLS;
+    }
+
+    // TOYS_AND_GAMES
+    const toysPatterns = ['toy', 'game', 'play', 'kid', 'child'];
+    if (toysPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.TOYS_AND_GAMES;
+    }
+
+    // BRAND_PRIVATE_LABEL
+    const privateLabelPatterns = ['private label', 'brand', 'oem', 'white label'];
+    if (privateLabelPatterns.some((pattern) => normalized.includes(pattern))) {
+      return ProductCategory.BRAND_PRIVATE_LABEL;
+    }
+
+    // Default fallback
+    return ProductCategory.OTHERS;
   }
 }

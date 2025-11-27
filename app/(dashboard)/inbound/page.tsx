@@ -1,9 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import PageHeader from '@/components/common/PageHeader';
+import { motion, AnimatePresence } from 'framer-motion';
 import StatCard from '@/components/common/StatCard';
-import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -43,11 +43,15 @@ interface DayData {
   label: string;
   receivedQty: number;
   totalCbm: number;
+  edelReceivedQty: number;
+  edelTotalCbm: number;
 }
 
 interface SummaryTotals {
   totalReceivedQty: number;
   totalCbm: number;
+  totalEdelReceivedQty: number;
+  totalEdelTotalCbm: number;
   dayData: DayData[];
 }
 
@@ -160,6 +164,42 @@ export default function InboundPage() {
     fetchChartData(granularity);
   };
 
+  const handleDownloadSummary = async () => {
+    try {
+      const params = new URLSearchParams();
+
+      if (selectedMonth && selectedMonth !== 'ALL') {
+        params.append('month', selectedMonth);
+      } else {
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+      }
+      if (selectedProductCategory && selectedProductCategory !== 'ALL') {
+        params.append('productCategory', selectedProductCategory);
+      }
+      params.append('timeGranularity', timeGranularity);
+
+      const response = await fetch(`${BACKEND_URL}/inbound/download-summary?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error('Failed to download inbound summary');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inbound-summary.xlsx';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error('Inbound summary download failed:', error);
+      alert('Failed to download inbound summary. Please try again.');
+    }
+  };
+
   const formatNumber = (num: number, decimals: number = 0) => {
     return new Intl.NumberFormat('en-US', {
       minimumFractionDigits: decimals,
@@ -208,10 +248,6 @@ export default function InboundPage() {
 
   return (
     <div>
-      <PageHeader
-        title="Inbound Management"
-        description="Track and manage incoming shipments, fresh receipts, and goods receipt notes with CBM calculations"
-      />
 
       {/* Date Filters */}
       <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 mb-8 shadow-sm dark:shadow-none">
@@ -474,65 +510,220 @@ export default function InboundPage() {
         </div>
       )}
 
-      {/* Summary Totals Table */}
+      {/* Summary Totals Table - Server Management Style */}
       {!loading && summaryData && (
-        <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm dark:shadow-none mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Summary Totals</h3>
-          </div>
-          
-          {summaryData.summaryTotals ? (
-            <div className="overflow-x-auto max-h-96 overflow-y-auto">
-              <table className="w-full">
-                <thead className="sticky top-0 bg-white dark:bg-slate-800/50 z-10 shadow-sm">
-                  <tr className="border-b border-gray-200 dark:border-slate-700">
-                    {summaryData.summaryTotals.dayData && summaryData.summaryTotals.dayData.length > 0 ? (
-                      <>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Days</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Total Received Qty</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Total CBM</th>
-                      </>
-                    ) : (
-                      <>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Total Received Qty</th>
-                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-slate-100">Total CBM</th>
-                      </>
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
+        <div className="w-full mb-8">
+          <div className="relative border border-gray-200 dark:border-slate-700/30 rounded-2xl p-6 bg-white dark:bg-slate-800/50">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Summary Totals</h3>
+                </div>
+                <div className="text-sm text-gray-500 dark:text-slate-400">
+                  {summaryData.summaryTotals?.dayData?.length || 0} Records
+                </div>
+              </div>
+              <button
+                onClick={handleDownloadSummary}
+                className="flex items-center gap-2 bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
+              >
+                <Download className="w-4 h-4" />
+                Download Excel
+              </button>
+            </div>
+
+            {summaryData.summaryTotals ? (
+              <div>
+                {/* Headers */}
+                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <div className="col-span-1">No</div>
+                  <div className="col-span-3">Date</div>
+                  <div className="col-span-2">Received Qty</div>
+                  <div className="col-span-2">Total CBM</div>
+                  <div className="col-span-2">EDEL Received Qty</div>
+                  <div className="col-span-2">EDEL CBM</div>
+                </div>
+
+                {/* Scrollable Data Rows - Max 7 visible */}
+                <motion.div
+                  className="space-y-2 max-h-[490px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent"
+                  variants={{
+                    visible: {
+                      transition: {
+                        staggerChildren: 0.08,
+                        delayChildren: 0.1,
+                      },
+                    },
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {/* Data Rows */}
                   {summaryData.summaryTotals.dayData && summaryData.summaryTotals.dayData.length > 0 ? (
-                    summaryData.summaryTotals.dayData.map((day) => (
-                      <tr key={day.date} className="border-b border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700/30 transition-colors">
-                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300 font-medium">
-                          {day.label}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300">
-                          {formatNumber(day.receivedQty)}
-                        </td>
-                        <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300">
-                          {formatNumber(day.totalCbm, 2)}
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr className="border-b border-gray-100 dark:border-slate-800">
-                      <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300 font-medium">
-                        {formatNumber(summaryData.summaryTotals.totalReceivedQty)}
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-900 dark:text-slate-300 font-medium">
-                        {formatNumber(summaryData.summaryTotals.totalCbm, 2)}
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400">
-              <p>No summary data available</p>
-            </div>
-          )}
+                    summaryData.summaryTotals.dayData.map((day, index) => (
+                    <motion.div
+                      key={day.date}
+                      variants={{
+                        hidden: { 
+                          opacity: 0, 
+                          x: -25,
+                          scale: 0.95,
+                          filter: "blur(4px)" 
+                        },
+                        visible: {
+                          opacity: 1,
+                          x: 0,
+                          scale: 1,
+                          filter: "blur(0px)",
+                          transition: {
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 28,
+                            mass: 0.6,
+                          },
+                        },
+                      }}
+                      className="relative"
+                    >
+                      <motion.div
+                        className="relative bg-gray-50 dark:bg-slate-700/50 border border-gray-100 dark:border-slate-600/50 rounded-xl p-4 overflow-hidden"
+                        whileHover={{
+                          y: -1,
+                          transition: { type: "spring", stiffness: 400, damping: 25 }
+                        }}
+                      >
+                        {/* Status gradient overlay */}
+                        <div 
+                          className="absolute inset-0 bg-gradient-to-l from-green-500/10 to-transparent pointer-events-none"
+                          style={{ 
+                            backgroundSize: "30% 100%", 
+                            backgroundPosition: "right",
+                            backgroundRepeat: "no-repeat"
+                          }} 
+                        />
+                        
+                        {/* Grid Content */}
+                        <div className="relative grid grid-cols-12 gap-4 items-center">
+                          {/* Number */}
+                          <div className="col-span-1">
+                            <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                          </div>
+
+                          {/* Date */}
+                          <div className="col-span-3 flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-red-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                              <ArrowDownToLine className="w-4 h-4 text-white" />
+                            </div>
+                            <span className="text-gray-900 dark:text-slate-200 font-medium">
+                              {day.label}
+                            </span>
+                          </div>
+
+                          {/* Received Qty */}
+                          <div className="col-span-2">
+                            <div className="flex items-center gap-3">
+                              <div className="flex gap-1">
+                                {Array.from({ length: 10 }).map((_, i) => (
+                                  <div
+                                    key={i}
+                                    className={`w-1.5 h-5 rounded-full transition-all duration-500 ${
+                                      i < Math.round((day.receivedQty / Math.max(...summaryData.summaryTotals!.dayData!.map(d => d.receivedQty))) * 10)
+                                        ? 'bg-gray-600 dark:bg-slate-300/60'
+                                        : 'bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                              <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium min-w-[4rem]">
+                                {formatNumber(day.receivedQty)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Total CBM */}
+                          <div className="col-span-2">
+                            <div className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
+                              <span className="text-green-600 dark:text-green-400 text-sm font-medium">
+                                {formatNumber(day.totalCbm, 2)} CBM
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* EDEL Received Qty */}
+                          <div className="col-span-2 flex justify-center">
+                            <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
+                              {formatNumber(day.edelReceivedQty)}
+                            </span>
+                          </div>
+
+                          {/* EDEL CBM */}
+                          <div className="col-span-2">
+                            <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                              <span className="text-purple-600 dark:text-purple-400 text-sm font-medium">
+                                {formatNumber(day.edelTotalCbm, 2)} CBM
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  ))
+                ) : (
+                  <motion.div
+                    variants={{
+                      hidden: { opacity: 0, x: -25, scale: 0.95, filter: "blur(4px)" },
+                      visible: { opacity: 1, x: 0, scale: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 400, damping: 28, mass: 0.6 } },
+                    }}
+                    className="relative"
+                  >
+                    <div className="relative bg-gray-50 dark:bg-slate-700/50 border border-gray-100 dark:border-slate-600/50 rounded-xl p-4">
+                      <div className="grid grid-cols-12 gap-4 items-center">
+                        <div className="col-span-1">
+                          <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">01</span>
+                        </div>
+                        <div className="col-span-3">
+                          <span className="text-gray-900 dark:text-slate-200 font-medium">Total</span>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
+                            {formatNumber(summaryData.summaryTotals.totalReceivedQty)}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
+                            <span className="text-green-600 dark:text-green-400 text-sm font-medium">
+                              {formatNumber(summaryData.summaryTotals.totalCbm, 2)} CBM
+                            </span>
+                          </div>
+                        </div>
+                        <div className="col-span-2">
+                          <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
+                            {formatNumber(summaryData.summaryTotals.totalEdelReceivedQty)}
+                          </span>
+                        </div>
+                        <div className="col-span-2">
+                          <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                            <span className="text-purple-600 dark:text-purple-400 text-sm font-medium">
+                              {formatNumber(summaryData.summaryTotals.totalEdelTotalCbm, 2)} CBM
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+                </motion.div>
+              </div>
+            ) : (
+              <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400">
+                <p>No summary data available</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
