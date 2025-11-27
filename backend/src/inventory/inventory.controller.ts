@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InventoryService } from './inventory.service';
+import type { Express } from 'express';
 
 @Controller('inventory')
 export class InventoryController {
@@ -42,7 +43,7 @@ export class InventoryController {
     } catch (error) {
       console.error('Inventory upload error:', error);
       throw new HttpException(
-        error.message || 'Failed to process Inventory file',
+        this.getErrorMessage(error, 'Failed to process Inventory file'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -68,11 +69,11 @@ export class InventoryController {
     try {
       return await this.inventoryService.getSummary(uploadId, fromDate, toDate, itemGroup);
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to fetch inventory summary',
+        this.getErrorMessage(error, 'Failed to fetch inventory summary'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -89,7 +90,7 @@ export class InventoryController {
       return uploads;
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to fetch inventory uploads',
+        this.getErrorMessage(error, 'Failed to fetch inventory uploads'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -105,13 +106,29 @@ export class InventoryController {
       await this.inventoryService.deleteUpload(uploadId);
       return { message: 'Inventory upload deleted successfully' };
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to delete inventory upload',
+        this.getErrorMessage(error, 'Failed to delete inventory upload'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return fallback;
     }
   }
 }

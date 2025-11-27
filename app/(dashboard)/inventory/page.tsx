@@ -1,8 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import PageHeader from '@/components/common/PageHeader';
 import StatCard from '@/components/common/StatCard';
 import { Boxes, Package, Box } from 'lucide-react';
 
@@ -27,7 +26,7 @@ interface InventorySummaryResponse {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
-export default function InventoryPage() {
+function InventoryPageContent() {
   const searchParams = useSearchParams();
   const uploadIdParam = searchParams.get('uploadId');
 
@@ -232,5 +231,13 @@ export default function InventoryPage() {
         </ul>
       </div>
     </div>
+  );
+}
+
+export default function InventoryPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div></div>}>
+      <InventoryPageContent />
+    </Suspense>
   );
 }

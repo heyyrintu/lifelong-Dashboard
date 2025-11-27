@@ -114,7 +114,9 @@ export class InboundService implements OnModuleInit {
       const result = await this.loadItemMasterInternal(ITEM_MASTER_PATH, false);
       console.log(`Item Master auto-loaded: ${result.rowsProcessed} items`);
     } catch (error) {
-      console.error('Failed to auto-load Item Master:', error.message);
+      const message = this.getErrorMessage(error);
+      console.error('Failed to auto-load Item Master:', error);
+      console.error(message);
     }
   }
 
@@ -254,7 +256,8 @@ export class InboundService implements OnModuleInit {
       return await this.loadItemMasterInternal(filePath, true);
     } catch (error) {
       console.error('Error processing Item Master Excel file:', error);
-      throw new Error(`Failed to process Item Master Excel file: ${error.message}`);
+      const message = this.getErrorMessage(error);
+      throw new Error(`Failed to process Item Master Excel file: ${message}`);
     }
   }
 
@@ -319,8 +322,10 @@ export class InboundService implements OnModuleInit {
         const receivedSkuTrimmed = receivedSku?.trim();
         if (receivedSkuTrimmed && itemMasterMap.has(receivedSkuTrimmed)) {
           const master = itemMasterMap.get(receivedSkuTrimmed);
-          cbmPerUnit = master.cbmPerUnit || 0;
-          itemGroup = master.itemGroup || 'Others';
+          if (master) {
+            cbmPerUnit = master.cbmPerUnit || 0;
+            itemGroup = master.itemGroup || 'Others';
+          }
         }
 
         totalCbm = receivedQty * cbmPerUnit;
@@ -361,7 +366,24 @@ export class InboundService implements OnModuleInit {
       };
     } catch (error) {
       console.error('Error processing Inbound Excel file:', error);
-      throw new Error(`Failed to process Inbound Excel file: ${error.message}`);
+      const message = this.getErrorMessage(error);
+      throw new Error(`Failed to process Inbound Excel file: ${message}`);
+    }
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
     }
   }
 
@@ -387,8 +409,9 @@ export class InboundService implements OnModuleInit {
     const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${productCategory || ''}-${granularity}`;
     
     // Check cache
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey);
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
     }
 
     // Determine which upload to use

@@ -11,7 +11,7 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Express, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InboundService } from './inbound.service';
 
@@ -34,10 +34,8 @@ export class InboundController {
       const result = await this.inboundService.uploadItemMaster(file.path, file.originalname);
       return result;
     } catch (error) {
-      throw new HttpException(
-        error.message || 'Failed to process Item Master file',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to process Item Master file');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -67,13 +65,11 @@ export class InboundController {
       res.setHeader('Content-Disposition', 'attachment; filename=inbound-summary.xlsx');
       res.send(excelBuffer);
     } catch (error) {
-      if ((error as any).status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
-      throw new HttpException(
-        (error as any).message || 'Failed to download inbound summary',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to download inbound summary');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -101,10 +97,8 @@ export class InboundController {
       return result;
     } catch (error) {
       console.error('Inbound upload error:', error);
-      throw new HttpException(
-        error.message || 'Failed to process Inbound file',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to process Inbound file');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -118,10 +112,8 @@ export class InboundController {
       const uploads = await this.inboundService.getUploads();
       return uploads;
     } catch (error) {
-      throw new HttpException(
-        error.message || 'Failed to fetch uploads',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to fetch uploads');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -141,13 +133,11 @@ export class InboundController {
     try {
       return await this.inboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
-      throw new HttpException(
-        error.message || 'Failed to fetch inbound summary',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to fetch inbound summary');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -161,13 +151,26 @@ export class InboundController {
       await this.inboundService.deleteUpload(uploadId);
       return { message: 'Inbound upload deleted successfully' };
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
-      throw new HttpException(
-        error.message || 'Failed to delete inbound upload',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      const message = this.getErrorMessage(error, 'Failed to delete inbound upload');
+      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'object' && error !== null && 'message' in error) {
+      const maybeMessage = (error as { message?: unknown }).message;
+      if (typeof maybeMessage === 'string' && maybeMessage.trim().length > 0) {
+        return maybeMessage;
+      }
+    }
+
+    return fallback;
   }
 }

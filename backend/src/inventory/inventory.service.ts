@@ -246,7 +246,8 @@ export class InventoryService {
         fs.unlinkSync(filePath);
       } catch {}
 
-      throw new Error(`Failed to process Inventory Excel file: ${error.message}`);
+      const message = this.getErrorMessage(error);
+      throw new Error(`Failed to process Inventory Excel file: ${message}`);
     }
   }
 
@@ -271,8 +272,9 @@ export class InventoryService {
     const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${itemGroup || 'ALL'}`;
     
     // Check cache
-    if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+    const cached = this.cache.get(cacheKey);
+    if (cached) {
+      return cached;
     }
 
     // Determine which upload to use
@@ -314,6 +316,22 @@ export class InventoryService {
     console.log(`getSummary: ${elapsed}ms (uploadId=${targetUploadId.substring(0, 8)}...)`);
 
     return result;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
+    }
   }
 
   /**

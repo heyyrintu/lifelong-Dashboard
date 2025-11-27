@@ -176,7 +176,8 @@ export class OutboundService {
       };
     } catch (error) {
       console.error('Error processing Excel file:', error);
-      throw new Error(`Failed to process Excel file: ${error.message}`);
+      const message = this.getErrorMessage(error);
+      throw new Error(`Failed to process Excel file: ${message}`);
     }
   }
 
@@ -201,7 +202,10 @@ export class OutboundService {
     
     // Check cache
     if (this.cache.has(cacheKey)) {
-      return this.cache.get(cacheKey)!;
+      const cached = this.cache.get(cacheKey);
+      if (cached) {
+        return cached;
+      }
     }
 
     // Determine which upload to use
@@ -277,6 +281,22 @@ export class OutboundService {
     console.log(`Outbound getSummary: ${elapsed}ms`);
 
     return result;
+  }
+
+  private getErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
+    }
   }
 
   /**

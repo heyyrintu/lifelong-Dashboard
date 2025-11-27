@@ -262,7 +262,7 @@ export class OutboundService {
     categoryTable.push(categoryTotalRow);
 
     // Build product category table - using product category filtered data
-    const productCategoryGroups: { [key in ProductCategory]?: any[] } = {};
+    const productCategoryGroups: Record<string, any[]> = {};
     PRODUCT_CATEGORY_ORDER.forEach(cat => {
       productCategoryGroups[cat] = [];
     });
