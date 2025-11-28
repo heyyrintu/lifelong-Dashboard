@@ -11,9 +11,9 @@ import {
   HttpStatus,
   Res,
 } from '@nestjs/common';
-import { Response } from 'express';
+import type { Express, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { OutboundService } from './outbound.service.mock';
+import { OutboundService } from './outbound.service';
 
 @Controller('outbound')
 export class OutboundController {
@@ -35,7 +35,7 @@ export class OutboundController {
       return result;
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to process file',
+        this.getErrorMessage(error, 'Failed to process file'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -52,7 +52,7 @@ export class OutboundController {
       return uploads;
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to fetch uploads',
+        this.getErrorMessage(error, 'Failed to fetch uploads'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -69,7 +69,7 @@ export class OutboundController {
       return { message: 'Upload deleted successfully' };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to delete upload',
+        this.getErrorMessage(error, 'Failed to delete upload'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -86,20 +86,24 @@ export class OutboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
+    @Query('productCategory') productCategory?: string | string[],
   ) {
     try {
-      const excelBuffer = await this.outboundService.generateDetailedExcel(uploadId, fromDate, toDate, month, productCategory || 'ALL');
+      // Normalize productCategory to array
+      const categories = productCategory 
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      const excelBuffer = await this.outboundService.generateDetailedExcel(uploadId, fromDate, toDate, month, categories);
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=outbound-detailed-data.xlsx');
       res.send(excelBuffer);
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to download summary',
+        this.getErrorMessage(error, 'Failed to download summary'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -115,19 +119,46 @@ export class OutboundController {
     @Query('fromDate') fromDate?: string,
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
-    @Query('productCategory') productCategory?: string,
-    @Query('timeGranularity') timeGranularity?: string,
+    @Query('productCategory') productCategory?: string | string[],
+    @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
   ) {
     try {
-      return await this.outboundService.getSummary(uploadId, fromDate, toDate, month, productCategory, timeGranularity);
+      // Normalize productCategory to array
+      const categories = productCategory 
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      return await this.outboundService.getSummary(
+        uploadId, 
+        fromDate, 
+        toDate, 
+        month, 
+        categories,
+        timeGranularity || 'month',
+      );
     } catch (error) {
-      if (error.status === 404) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to fetch summary',
+        this.getErrorMessage(error, 'Failed to fetch summary'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
+    }
+  }
+
+  private getErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string' && error.trim().length > 0) {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return fallback;
     }
   }
 }

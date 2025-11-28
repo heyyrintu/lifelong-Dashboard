@@ -58,7 +58,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* Mobile overlay */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-20 lg:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-20 lg:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -68,24 +68,31 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 z-30 h-screen
-          w-64 bg-white dark:bg-slate-900 border-r border-gray-200 dark:border-slate-700
-          transform transition-transform duration-300 ease-in-out
+          w-64
+          bg-gradient-to-br 
+          from-white via-blue-50/30 to-cyan-50/20
+          dark:from-slate-800/50 dark:via-blue-900/20 dark:to-cyan-900/10
+          border-r border-gray-200 dark:border-slate-700
+          shadow-sm dark:shadow-none
+          transform transition-all duration-300 ease-in-out
+          sidebar-noise
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full relative z-10">
           {/* Logo section */}
-          <div className="p-6 border-b border-gray-200 dark:border-slate-700 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">Drona MIS</h2>
-              <p className="text-xs text-gray-600 dark:text-slate-500">Logistics Dashboard</p>
-            </div>
+          <div className="relative p-6 border-b border-gray-200/50 dark:border-white/10 flex items-center justify-center">
+            <img
+              src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
+              alt="Drona MIS logo"
+              className="h-20 w-20 rounded-2xl object-cover"
+            />
             <button
               onClick={onClose}
-              className="lg:hidden p-1 hover:bg-gray-100 dark:hover:bg-slate-800 rounded transition-colors"
+              className="lg:hidden absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors"
               aria-label="Close menu"
             >
-              <X className="w-5 h-5 text-gray-500 dark:text-slate-400" />
+              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
           </div>
 
@@ -109,15 +116,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       className={`
                         flex items-center gap-3 px-4 py-3 rounded-lg
                         transition-all duration-200 group
-                        ${
-                          isActive
-                            ? 'bg-red-50 dark:bg-brandRed/10 text-brandRed dark:text-brandRed border-l-4 border-brandRed pl-3 font-semibold'
-                            : 'text-gray-700 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800 hover:text-gray-900 dark:hover:text-slate-200 border-l-4 border-transparent'
+                        ${isActive
+                          ? 'bg-brandRed/10 dark:bg-white/10 text-brandRed dark:text-white border-l-4 border-brandRed dark:border-indigo-400 pl-3 font-semibold'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-rose-100/70 dark:hover:bg-rose-500/20 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
                         }
                       `}
                     >
                       <Icon
-                        className={`w-5 h-5 ${isActive ? 'text-brandRed dark:text-brandRed' : 'text-gray-500 dark:text-slate-500 group-hover:text-gray-700 dark:group-hover:text-slate-300'}`}
+                        className={`w-5 h-5 ${isActive
+                          ? 'text-brandRed dark:text-indigo-400'
+                          : 'text-gray-400 dark:text-gray-400 group-hover:text-[#FEA418] dark:group-hover:text-[#FEA418]'
+                          }`}
                       />
                       <span className="font-medium">{item.name}</span>
                     </Link>
@@ -127,13 +136,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </ul>
           </nav>
 
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 dark:border-slate-700">
-            <div className="text-xs text-gray-500 dark:text-slate-500 space-y-1">
-              <p>Version 2.0.0</p>
-              <p>Phase 1: UI Shell</p>
-            </div>
-          </div>
+          {/* Footer (intentionally left empty) */}
         </div>
       </aside>
     </>

@@ -136,7 +136,8 @@ export class InboundServiceMock {
       };
     } catch (error) {
       console.error('Error processing Item Master Excel file:', error);
-      throw new Error(`Failed to process Item Master Excel file: ${error.message}`);
+      const message = this.safeErrorMessage(error);
+      throw new Error(`Failed to process Item Master Excel file: ${message}`);
     }
   }
 
@@ -246,7 +247,8 @@ export class InboundServiceMock {
       };
     } catch (error) {
       console.error('Error processing Inbound Excel file:', error);
-      throw new Error(`Failed to process Inbound Excel file: ${error.message}`);
+      const message = this.safeErrorMessage(error);
+      throw new Error(`Failed to process Inbound Excel file: ${message}`);
     }
   }
 
@@ -616,5 +618,21 @@ export class InboundServiceMock {
     }
     
     return null;
+  }
+
+  private safeErrorMessage(error: unknown): string {
+    if (error instanceof Error && error.message) {
+      return error.message;
+    }
+
+    if (typeof error === 'string') {
+      return error;
+    }
+
+    try {
+      return JSON.stringify(error);
+    } catch {
+      return 'Unknown error';
+    }
   }
 }

@@ -63,6 +63,10 @@ model OutboundRow {
   @@index([deliveryNoteDate])
   @@index([normalizedCategory])
   @@index([productCategory])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND deliveryNoteDate BETWEEN ? AND ?
+  @@index([uploadId, deliveryNoteDate])
+  // Composite index for category filtering: WHERE uploadId = ? AND normalizedCategory = ?
+  @@index([uploadId, normalizedCategory])
   @@map("outbound_rows")
 }
 
@@ -103,11 +107,16 @@ model InboundRow {
   cbmPerUnit     Float         @default(0) @map("cbm_per_unit")
   totalCbm       Float         @default(0) @map("total_cbm")
 
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
   createdAt      DateTime      @default(now()) @map("created_at")
 
   @@index([uploadId])
   @@index([dateOfUnload])
   @@index([itemGroup])
+  @@index([productCategory])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND dateOfUnload BETWEEN ? AND ?
+  @@index([uploadId, dateOfUnload])
   @@map("inbound_rows")
 }
 
@@ -138,12 +147,19 @@ model InventoryRow {
   cbmPerUnit   Float               @default(0) @map("cbm_per_unit") // G - CBM per unit
   isTotalRow   Boolean             @default(false) @map("is_total_row") // True if this is the "Total" row
 
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
   dailyStocks  InventoryDailyStock[]
 
   createdAt    DateTime            @default(now()) @map("created_at")
 
   @@index([uploadId])
   @@index([itemGroup])
+  @@index([productCategory])
+  // Composite index for getSummary filter: WHERE uploadId = ? AND itemGroup = ?
+  @@index([uploadId, itemGroup])
+  // Composite index for Total row lookup: WHERE uploadId = ? AND isTotalRow = true
+  @@index([uploadId, isTotalRow])
   @@map("inventory_rows")
 }
 
@@ -159,5 +175,70 @@ model InventoryDailyStock {
 
   @@index([inventoryRowId])
   @@index([stockDate])
+  // Composite index for date-range queries filtering by inventoryRowId + stockDate
+  // Covers WHERE inventoryRowId = ? AND stockDate BETWEEN ? AND ? (getSummary hot path)
+  @@index([inventoryRowId, stockDate])
   @@map("inventory_daily_stock")
+}
+
+// ============================================
+// Phase 5 - Billing Models
+// ============================================
+
+model BillingPeriod {
+  id             String            @id @default(uuid())
+  customerName   String            @map("customer_name")   // e.g. "Lifelong"
+  location       String                                     // e.g. "HR-11 & HR12 (Farukh Nagar & Daboda)"
+  year           Int                                        // 2025
+  month          Int                                        // 1–12
+  fromDate       DateTime?         @map("from_date")
+  toDate         DateTime?         @map("to_date")
+
+  // Snapshot of core metrics for that month
+  inventoryCbm   Float             @default(0) @map("inventory_cbm")
+  outboundCbm    Float             @default(0) @map("outbound_cbm")
+  inventoryRate  Float             @default(410) @map("inventory_rate")
+  outboundRate   Float             @default(86) @map("outbound_rate")
+
+  // Pre-calculated core amounts
+  inventoryAmount Float            @default(0) @map("inventory_amount")
+  outboundAmount  Float            @default(0) @map("outbound_amount")
+
+  // Totals
+  subtotalAmount  Float            @default(0) @map("subtotal_amount")
+  gstPercent      Float            @default(18) @map("gst_percent")
+  gstAmount       Float            @default(0) @map("gst_amount")
+  grandTotal      Float            @default(0) @map("grand_total")
+
+  status          String           @default("draft")  // "draft" | "final"
+  notes           String?
+
+  lineItems       BillingLineItem[]
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  @@unique([customerName, location, year, month])
+  @@map("billing_periods")
+}
+
+model BillingLineItem {
+  id              String        @id @default(uuid())
+  billingPeriodId String        @map("billing_period_id")
+  billingPeriod   BillingPeriod @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+
+  // Type helps separate core vs extras
+  type            String        // "INVENTORY" | "OUTBOUND" | "PACKAGING" | "OT" | "ADHOC" | "FOOD" | "OVERHEAD" | "VAS" | "OTHER"
+  label           String        // e.g. "Inventory", "Out Bound", "Overtime Cost Blue Collars"
+  qty             Float?        @default(0)
+  cbm             Float?        @default(0)      // for core rows if needed
+  rate            Float?        @default(0)
+  amount          Float         @default(0)      // final amount = qty*rate or directly set
+  isCore          Boolean       @default(false)  @map("is_core") // true: auto-calculated rows
+  source          String        @default("SYSTEM") // "SYSTEM" | "USER"
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([billingPeriodId])
+  @@map("billing_line_items")
 }
