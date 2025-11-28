@@ -473,7 +473,7 @@ export default function LoginPage() {
                       disabled={loading}
                       className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
                     >
-                      Didn't receive OTP? Resend
+                      Didn&apos;t receive OTP? Resend
                     </button>
                   </div>
                 </>

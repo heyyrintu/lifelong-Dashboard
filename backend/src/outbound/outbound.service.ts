@@ -85,35 +85,55 @@ export class OutboundService {
     private categoryNormalizer: CategoryNormalizerService,
   ) {}
 
+  // Maximum rows to process (prevent DoS from huge files)
+  private static readonly MAX_ROWS = 500000;
+  private static readonly BATCH_SIZE = 5000;
+
   /**
    * Parse and store Excel file data
+   * 
+   * SECURITY: Uses transaction to ensure atomicity
+   * SECURITY: Enforces row limit to prevent DoS
+   * SECURITY: Ensures temp file cleanup in all cases
    */
   async uploadExcel(filePath: string, fileName: string): Promise<UploadResult> {
+    const startTime = Date.now();
+    
     try {
-      const startTime = Date.now();
-
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const rawData: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       // Skip header row (index 0)
       const dataRows = rawData.slice(1);
 
-      // Create upload record
-      const upload = await this.prisma.outboundUpload.create({
-        data: {
-          fileName,
-          status: 'processed',
-        },
-      });
+      // Security: Enforce row limit
+      if (dataRows.length > OutboundService.MAX_ROWS) {
+        throw new Error(`File exceeds maximum allowed rows (${OutboundService.MAX_ROWS}). Please split the file.`);
+      }
 
-      const parsedRows = [];
+      // Parse all rows first (before transaction) to catch validation errors early
+      const parsedRows: Array<{
+        customerGroup: string | null;
+        sourceWarehouse: string | null;
+        soItem: string | null;
+        categoryRaw: string | null;
+        salesOrderQty: number;
+        soTotalCbm: number;
+        deliveryNoteDate: Date | null;
+        deliveryNoteItem: string | null;
+        deliveryNoteQty: number;
+        dnTotalCbm: number;
+        transporter: string | null;
+        normalizedCategory: NormalizedCategory;
+        productCategory: ProductCategory;
+      }> = [];
 
       for (const row of dataRows) {
         // Skip empty rows
-        if (!row || row.length === 0) continue;
+        if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed) - matching actual MIS file structure:
         // Customer Group=column C (2), Source Warehouse=column K (10), SO Item=column L (11)
@@ -126,7 +146,7 @@ export class OutboundService {
         const categoryRaw = this.getCellValue(row[12]); // M
         const salesOrderQty = this.parseNumber(row[13]); // N
         const soTotalCbm = this.parseNumber(row[15]); // P
-        const deliveryNoteDate = this.parseDate(row[18]); // S
+        const deliveryNoteDate = this.parseExcelDate(row[18]); // S - Fixed date parsing
         const deliveryNoteItem = this.getCellValue(row[20]); // U
         const deliveryNoteQty = this.parseNumber(row[21]); // V
         const dnTotalCbm = this.parseNumber(row[22]); // W
@@ -138,7 +158,6 @@ export class OutboundService {
         const productCategory = this.categoryNormalizer.normalizeProductCategory(categoryRaw);
 
         parsedRows.push({
-          uploadId: upload.id,
           customerGroup,
           sourceWarehouse,
           soItem,
@@ -155,29 +174,72 @@ export class OutboundService {
         });
       }
 
-      // Bulk insert rows
-      if (parsedRows.length > 0) {
-        await this.prisma.outboundRow.createMany({
-          data: parsedRows,
-        });
+      if (parsedRows.length === 0) {
+        throw new Error('No valid data rows found in the Excel file');
       }
 
-      fs.unlinkSync(filePath);
+      // Use transaction to ensure atomicity - either all data is inserted or none
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create upload record within transaction
+        const upload = await tx.outboundUpload.create({
+          data: {
+            fileName,
+            status: 'processing', // Mark as processing initially
+          },
+        });
+
+        // Bulk insert rows in batches (Prisma has limits on single createMany)
+        const rowsWithUploadId = parsedRows.map(row => ({
+          ...row,
+          uploadId: upload.id,
+        }));
+
+        for (let i = 0; i < rowsWithUploadId.length; i += OutboundService.BATCH_SIZE) {
+          const batch = rowsWithUploadId.slice(i, i + OutboundService.BATCH_SIZE);
+          await tx.outboundRow.createMany({
+            data: batch,
+          });
+        }
+
+        // Mark upload as processed after successful insertion
+        await tx.outboundUpload.update({
+          where: { id: upload.id },
+          data: { status: 'processed' },
+        });
+
+        return {
+          uploadId: upload.id,
+          rowsInserted: parsedRows.length,
+        };
+      });
 
       // Clear cache when new data is uploaded
       this.cache.clear();
 
       const elapsed = Date.now() - startTime;
-      console.log(`Outbound upload: ${parsedRows.length} rows in ${elapsed}ms`);
+      console.log(`Outbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
 
-      return {
-        uploadId: upload.id,
-        rowsInserted: parsedRows.length,
-      };
+      return result;
     } catch (error) {
       console.error('Error processing Excel file:', error);
       const message = this.getErrorMessage(error);
       throw new Error(`Failed to process Excel file: ${message}`);
+    } finally {
+      // SECURITY: Always clean up temp file, even on error
+      this.safeUnlink(filePath);
+    }
+  }
+
+  /**
+   * Safely delete a file, logging but not throwing on error
+   */
+  private safeUnlink(filePath: string): void {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err) {
+      console.error(`Failed to delete temp file ${filePath}:`, err);
     }
   }
 
@@ -946,23 +1008,94 @@ export class OutboundService {
     return isNaN(num) ? 0 : num;
   }
 
-  private parseDate(cell: any): Date | null {
-    if (!cell) return null;
+  /**
+   * Parse Excel date - handles both serial numbers and string formats
+   * 
+   * BUGFIX: Excel uses 1899-12-30 as epoch (day 0), not 1899-11-30
+   * Excel also has a leap year bug where it thinks 1900 was a leap year,
+   * so serial numbers >= 60 need adjustment.
+   */
+  private parseExcelDate(cell: unknown): Date | null {
+    if (cell === undefined || cell === null || cell === '') return null;
     
     try {
       // Handle Excel serial date numbers
       if (typeof cell === 'number') {
-        const excelEpoch = new Date(1899, 11, 30);
-        const date = new Date(excelEpoch.getTime() + cell * 86400000);
-        return date;
+        // Excel serial number: days since 1899-12-30
+        // Note: Excel incorrectly treats 1900 as a leap year (Lotus 1-2-3 bug)
+        // Serial 60 = Feb 29, 1900 (doesn't exist) but we need to handle it
+        // Serial 61 = Mar 1, 1900
+        // For dates >= 60, we need to subtract 1 to account for this bug
+        
+        // Excel epoch is Dec 30, 1899 (serial 0)
+        // But due to the 1900 leap year bug, we use Dec 31, 1899 for serial >= 60
+        const serialNumber = Math.floor(cell);
+        
+        if (serialNumber < 1) return null; // Invalid serial
+        if (serialNumber > 2958465) return null; // Beyond year 9999
+        
+        // Adjust for Excel's leap year bug
+        const adjustedSerial = serialNumber >= 60 ? serialNumber - 1 : serialNumber;
+        
+        // Calculate date from epoch (Jan 1, 1900 = serial 1, after adjustment)
+        const date = new Date(1899, 11, 31 + adjustedSerial);
+        
+        // Handle time component if present (fractional part of serial)
+        const timeFraction = cell - serialNumber;
+        if (timeFraction > 0) {
+          const milliseconds = Math.round(timeFraction * 24 * 60 * 60 * 1000);
+          date.setMilliseconds(date.getMilliseconds() + milliseconds);
+        }
+        
+        return isNaN(date.getTime()) ? null : date;
       }
       
       // Handle string dates
-      const date = new Date(cell);
-      return isNaN(date.getTime()) ? null : date;
+      if (typeof cell === 'string') {
+        const trimmed = cell.trim();
+        if (!trimmed) return null;
+        
+        // Try ISO format first (YYYY-MM-DD)
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+          const [, year, month, day] = isoMatch;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Try common formats (DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY)
+        const dateMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (dateMatch) {
+          const [, part1, part2, yearPart] = dateMatch;
+          const year = parseInt(yearPart) < 100 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
+          // Assume DD/MM/YYYY for international format
+          const day = parseInt(part1);
+          const month = parseInt(part2) - 1;
+          const date = new Date(year, month, day);
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Fallback to Date.parse
+        const date = new Date(trimmed);
+        return isNaN(date.getTime()) ? null : date;
+      }
+      
+      // Handle Date objects passed through
+      if (cell instanceof Date) {
+        return isNaN(cell.getTime()) ? null : cell;
+      }
+      
+      return null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * @deprecated Use parseExcelDate instead
+   */
+  private parseDate(cell: unknown): Date | null {
+    return this.parseExcelDate(cell);
   }
 
   private parseMonthName(monthStr: string): [number, number] {

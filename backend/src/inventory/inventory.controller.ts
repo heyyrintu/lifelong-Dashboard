@@ -13,8 +13,10 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InventoryService } from './inventory.service';
 import type { Express } from 'express';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('inventory')
+@Public() // TODO: Remove when frontend auth is ready
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 

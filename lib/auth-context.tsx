@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { account } from './appwrite';
 import { Models } from 'appwrite';
 
-interface User extends Models.User<Models.Preferences> {}
+type User = Models.User<Models.Preferences>;
 
 interface AuthContextType {
   user: User | null;

@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
 import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search, FileText } from 'lucide-react';
-import { Particles } from '@/components/ui/particles';
-import { useTheme } from '@/components/theme-provider';
 import {
   BarChart,
   Bar,
@@ -96,17 +94,11 @@ interface UploadInfo {
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export default function OutboundPage() {
-  const { theme } = useTheme();
-  const [particleColor, setParticleColor] = useState('#ffffff');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
-
-  useEffect(() => {
-    setParticleColor(theme === 'dark' ? '#ffffff' : '#000000');
-  }, [theme]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -129,10 +121,40 @@ export default function OutboundPage() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
 
+  // Combine initial data fetch - avoid duplicate API calls
   useEffect(() => {
-    fetchSummary();
-    fetchChartData(timeGranularity);
-  }, []);
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        setChartLoading(true);
+        
+        const params = new URLSearchParams();
+        params.append('timeGranularity', timeGranularity);
+        
+        const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('No data available. Please upload an Outbound Excel file first.');
+          }
+          throw new Error('Failed to fetch data from backend');
+        }
+        
+        const result: SummaryResponse = await response.json();
+        setData(result);
+        setChartData(result.timeSeries);
+      } catch (err: any) {
+        setError(err.message || 'An error occurred while fetching data');
+        setData(null);
+        setChartData(null);
+      } finally {
+        setLoading(false);
+        setChartLoading(false);
+      }
+    };
+    
+    fetchInitialData();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchChartData = async (granularity: 'month' | 'week' | 'day') => {
     try {
@@ -308,60 +330,45 @@ export default function OutboundPage() {
     }
   };
 
-  // Helper function to format numbers - only show decimal if needed
-  const formatNumber = (num: number | string | undefined | null, decimals?: number): string => {
+  // Memoized helper functions to avoid recreation on every render
+  const formatNumber = useCallback((num: number | string | undefined | null, decimals?: number): string => {
     if (num === undefined || num === null || num === '') return '0';
     const value = typeof num === 'string' ? parseFloat(num) : num;
     if (isNaN(value)) return '0';
+    if (decimals !== undefined) return value.toFixed(decimals);
+    return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+  }, []);
 
-    // If decimals specified, use that
-    if (decimals !== undefined) {
-      return value.toFixed(decimals);
-    }
-
-    // Check if the number has a decimal part
-    if (Number.isInteger(value)) {
-      return value.toString();
-    } else {
-      return value.toFixed(1);
-    }
-  };
-
-  // Helper function to format numbers in Lakhs (divide by 100,000) with "L" postfix
-  const formatInLakhs = (num: number | string | undefined | null, decimals: number = 2): string => {
+  const formatInLakhs = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null || num === '') return '0 L';
     const value = typeof num === 'string' ? parseFloat(num) : num;
     if (isNaN(value)) return '0 L';
+    return `${(value / 100000).toFixed(decimals)} L`;
+  }, []);
 
-    const lakhs = value / 100000;
-    return `${lakhs.toFixed(decimals)} L`;
-  };
-
-  // Helper function to format numbers in Thousands (divide by 1,000) with "K" postfix
-  const formatInThousands = (num: number | string | undefined | null, decimals: number = 2): string => {
+  const formatInThousands = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
     if (num === undefined || num === null || num === '') return '0 K';
     const value = typeof num === 'string' ? parseFloat(num) : num;
     if (isNaN(value)) return '0 K';
+    return `${(value / 1000).toFixed(decimals)} K`;
+  }, []);
 
-    const thousands = value / 1000;
-    return `${thousands.toFixed(decimals)} K`;
-  };
+  // Static label map - defined outside component would be even better
+  const CATEGORY_LABELS: Record<string, string> = useMemo(() => ({
+    'ALL': 'All Categories',
+    'EDEL': 'EDEL',
+    'HOME_AND_KITCHEN': 'Home & Kitchen',
+    'ELECTRONICS': 'Electronics',
+    'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
+    'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
+    'TOYS_AND_GAMES': 'Toys & Games',
+    'BRAND_PRIVATE_LABEL': 'Brand Private Label',
+    'OTHERS': 'Others',
+  }), []);
 
-  // Helper function to format product category enum to display label
-  const formatProductCategory = (category: string): string => {
-    const labelMap: Record<string, string> = {
-      'ALL': 'All Categories',
-      'EDEL': 'EDEL',
-      'HOME_AND_KITCHEN': 'Home & Kitchen',
-      'ELECTRONICS': 'Electronics',
-      'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
-      'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
-      'TOYS_AND_GAMES': 'Toys & Games',
-      'BRAND_PRIVATE_LABEL': 'Brand Private Label',
-      'OTHERS': 'Others',
-    };
-    return labelMap[category] || category;
-  };
+  const formatProductCategory = useCallback((category: string): string => {
+    return CATEGORY_LABELS[category] || category;
+  }, [CATEGORY_LABELS]);
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
@@ -404,13 +411,6 @@ export default function OutboundPage() {
   if (!loading && error) {
     return (
       <div className="relative min-h-screen">
-        <Particles
-          className="absolute inset-0 -z-10"
-          quantity={100}
-          ease={80}
-          color={particleColor}
-          refresh
-        />
         <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-8 text-center">
           <Package className="w-16 h-16 text-yellow-600 dark:text-yellow-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-200 mb-2">No Data Available</h3>
@@ -428,13 +428,6 @@ export default function OutboundPage() {
 
   return (
     <div className="relative min-h-screen">
-      <Particles
-        className="absolute inset-0 -z-10"
-        quantity={100}
-        ease={80}
-        color={particleColor}
-        refresh
-      />
       {/* Date & Category Filters - Premium Redesign */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}

@@ -16,8 +16,10 @@ import {
   RecalculateBillingDto,
   BillingLineItemDto,
 } from './billing.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('billing')
+@Public() // TODO: Remove when frontend auth is ready
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 

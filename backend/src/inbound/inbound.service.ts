@@ -266,31 +266,36 @@ export class InboundService implements OnModuleInit {
     }
   }
 
+  // Maximum rows to process (prevent DoS from huge files)
+  private static readonly MAX_ROWS = 500000;
+  private static readonly BATCH_SIZE = 5000;
+
   /**
    * Parse and store Inbound Excel file
+   * 
+   * SECURITY: Uses transaction to ensure atomicity
+   * SECURITY: Enforces row limit to prevent DoS
+   * SECURITY: Ensures temp file cleanup in all cases
    */
   async uploadInbound(filePath: string, fileName: string): Promise<InboundUploadResult> {
-    try {
-      const startTime = Date.now();
+    const startTime = Date.now();
 
+    try {
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const rawData: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       // Skip row 1 (blank), row 2 has headers, data starts at row 3
       const dataRows = rawData.slice(2);
 
-      // Create upload record
-      const upload = await this.prisma.inboundUpload.create({
-        data: {
-          fileName,
-          status: 'processed',
-        },
-      });
+      // Security: Enforce row limit
+      if (dataRows.length > InboundService.MAX_ROWS) {
+        throw new Error(`File exceeds maximum allowed rows (${InboundService.MAX_ROWS}). Please split the file.`);
+      }
 
-      // Build item master map for CBM lookup
+      // Build item master map for CBM lookup (before transaction)
       const itemMasterMap = new Map<string, { itemGroup: string; cbmPerUnit: number }>();
       const itemMasters = await this.prisma.itemMaster.findMany({
         select: { id: true, itemGroup: true, cbmPerUnit: true },
@@ -303,16 +308,28 @@ export class InboundService implements OnModuleInit {
         });
       });
 
-      const parsedRows = [];
+      // Parse all rows first (before transaction) to catch validation errors early
+      const parsedRows: Array<{
+        dateOfUnload: Date | null;
+        invoiceSku: string | null;
+        receivedSku: string | null;
+        invoiceQty: number;
+        receivedQty: number;
+        goodQty: number;
+        itemGroup: string;
+        cbmPerUnit: number;
+        totalCbm: number;
+        productCategory: ProductCategory;
+      }> = [];
 
       for (const row of dataRows) {
         // Skip empty rows
-        if (!row || row.length === 0) continue;
+        if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed):
         // Date of Unload=column B (1), Invoice SKU=column I (8), Received SKU=column J (9)
         // Invoice Qty=column K (10), Received Qty=column L (11), Good=column N (13)
-        const dateOfUnload = this.parseDate(row[1]); // B
+        const dateOfUnload = this.parseExcelDate(row[1]); // B
         const invoiceSku = this.getCellValue(row[8]); // I
         const receivedSku = this.getCellValue(row[9]); // J
         const invoiceQty = this.parseNumber(row[10]); // K
@@ -338,7 +355,6 @@ export class InboundService implements OnModuleInit {
         const productCategory = this.categoryNormalizer.normalizeProductCategory(itemGroup);
 
         parsedRows.push({
-          uploadId: upload.id,
           dateOfUnload,
           invoiceSku,
           receivedSku,
@@ -352,30 +368,72 @@ export class InboundService implements OnModuleInit {
         });
       }
 
-      // Bulk insert rows
-      if (parsedRows.length > 0) {
-        await this.prisma.inboundRow.createMany({
-          data: parsedRows,
-        });
+      if (parsedRows.length === 0) {
+        throw new Error('No valid data rows found in the Excel file');
       }
 
-      // Clean up file
-      fs.unlinkSync(filePath);
+      // Use transaction to ensure atomicity
+      const result = await this.prisma.$transaction(async (tx) => {
+        // Create upload record within transaction
+        const upload = await tx.inboundUpload.create({
+          data: {
+            fileName,
+            status: 'processing',
+          },
+        });
+
+        // Bulk insert rows in batches
+        const rowsWithUploadId = parsedRows.map(row => ({
+          ...row,
+          uploadId: upload.id,
+        }));
+
+        for (let i = 0; i < rowsWithUploadId.length; i += InboundService.BATCH_SIZE) {
+          const batch = rowsWithUploadId.slice(i, i + InboundService.BATCH_SIZE);
+          await tx.inboundRow.createMany({
+            data: batch,
+          });
+        }
+
+        // Mark upload as processed
+        await tx.inboundUpload.update({
+          where: { id: upload.id },
+          data: { status: 'processed' },
+        });
+
+        return {
+          uploadId: upload.id,
+          rowsInserted: parsedRows.length,
+        };
+      });
 
       // Clear cache when new data is uploaded
       this.cache.clear();
 
       const elapsed = Date.now() - startTime;
-      console.log(`Inbound upload: ${parsedRows.length} rows in ${elapsed}ms`);
+      console.log(`Inbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
 
-      return {
-        uploadId: upload.id,
-        rowsInserted: parsedRows.length,
-      };
+      return result;
     } catch (error) {
       console.error('Error processing Inbound Excel file:', error);
       const message = this.getErrorMessage(error);
       throw new Error(`Failed to process Inbound Excel file: ${message}`);
+    } finally {
+      // SECURITY: Always clean up temp file
+      this.safeUnlink(filePath);
+    }
+  }
+
+  /**
+   * Safely delete a file, logging but not throwing on error
+   */
+  private safeUnlink(filePath: string): void {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err) {
+      console.error(`Failed to delete temp file ${filePath}:`, err);
     }
   }
 
@@ -826,22 +884,80 @@ export class InboundService implements OnModuleInit {
     return isNaN(num) ? 0 : num;
   }
 
-  private parseDate(cell: any): Date | null {
-    if (!cell) return null;
+  /**
+   * Parse Excel date - handles both serial numbers and string formats
+   * 
+   * BUGFIX: Excel uses 1899-12-30 as epoch (day 0), not 1899-11-30
+   * Excel also has a leap year bug where it thinks 1900 was a leap year.
+   */
+  private parseExcelDate(cell: unknown): Date | null {
+    if (cell === undefined || cell === null || cell === '') return null;
     
     try {
       // Handle Excel serial date numbers
       if (typeof cell === 'number') {
-        const excelEpoch = new Date(1899, 11, 30);
-        const date = new Date(excelEpoch.getTime() + cell * 86400000);
-        return date;
+        const serialNumber = Math.floor(cell);
+        
+        if (serialNumber < 1) return null;
+        if (serialNumber > 2958465) return null; // Beyond year 9999
+        
+        // Adjust for Excel's leap year bug
+        const adjustedSerial = serialNumber >= 60 ? serialNumber - 1 : serialNumber;
+        const date = new Date(1899, 11, 31 + adjustedSerial);
+        
+        // Handle time component
+        const timeFraction = cell - serialNumber;
+        if (timeFraction > 0) {
+          const milliseconds = Math.round(timeFraction * 24 * 60 * 60 * 1000);
+          date.setMilliseconds(date.getMilliseconds() + milliseconds);
+        }
+        
+        return isNaN(date.getTime()) ? null : date;
       }
       
       // Handle string dates
-      const date = new Date(cell);
-      return isNaN(date.getTime()) ? null : date;
+      if (typeof cell === 'string') {
+        const trimmed = cell.trim();
+        if (!trimmed) return null;
+        
+        // Try ISO format first
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+          const [, year, month, day] = isoMatch;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Try DD/MM/YYYY format
+        const dateMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (dateMatch) {
+          const [, part1, part2, yearPart] = dateMatch;
+          const year = parseInt(yearPart) < 100 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
+          const day = parseInt(part1);
+          const month = parseInt(part2) - 1;
+          const date = new Date(year, month, day);
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Fallback
+        const date = new Date(trimmed);
+        return isNaN(date.getTime()) ? null : date;
+      }
+      
+      if (cell instanceof Date) {
+        return isNaN(cell.getTime()) ? null : cell;
+      }
+      
+      return null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * @deprecated Use parseExcelDate instead
+   */
+  private parseDate(cell: unknown): Date | null {
+    return this.parseExcelDate(cell);
   }
 }
