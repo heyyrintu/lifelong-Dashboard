@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AppwritePing } from '@/components/appwrite-ping';
+import { AuthProvider } from '@/lib/auth-context';
 
 export const metadata: Metadata = {
   title: 'Drona MIS V2',
@@ -18,9 +20,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased" suppressHydrationWarning={true}>
-        <ThemeProvider>
-          {children}
-        </ThemeProvider>
+        <AppwritePing />
+        <AuthProvider>
+          <ThemeProvider>
+            {children}
+          </ThemeProvider>
+        </AuthProvider>
       </body>
     </html>
   );

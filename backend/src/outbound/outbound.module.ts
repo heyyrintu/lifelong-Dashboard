@@ -37,5 +37,6 @@ import { CategoryNormalizerService } from './category-normalizer.service';
   ],
   controllers: [OutboundController],
   providers: [OutboundService, CategoryNormalizerService],
+  exports: [OutboundService],
 })
 export class OutboundModule {}

@@ -53,12 +53,15 @@ body {
   h1 {
     @apply text-3xl font-bold tracking-tight;
   }
+
   h2 {
     @apply text-2xl font-semibold tracking-tight;
   }
+
   h3 {
     @apply text-xl font-semibold tracking-tight;
   }
+
   h4 {
     @apply text-lg font-semibold tracking-tight;
   }
@@ -86,4 +89,25 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-500 dark:bg-slate-600;
+}
+
+/* Noise texture for sidebar */
+.sidebar-noise {
+  position: relative;
+}
+
+.sidebar-noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: overlay;
+}
+
+.dark .sidebar-noise::before {
+  opacity: 0.3;
+  mix-blend-mode: soft-light;
 }

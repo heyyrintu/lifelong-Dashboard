@@ -68,13 +68,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       <aside
         className={`
           fixed lg:sticky top-0 left-0 z-30 h-screen
-          w-64 bg-gradient-to-b from-rose-100/70 via-rose-50/60 to-slate-50/60 dark:bg-gradient-to-b dark:from-slate-900/70 dark:via-slate-900/60 dark:to-slate-950/70
-          backdrop-blur-2xl border-r border-white/40 dark:border-white/10 shadow-lg shadow-black/10 dark:shadow-black/40
-          transform transition-transform duration-300 ease-in-out
+          w-64
+          bg-gradient-to-br 
+          from-white via-blue-50/30 to-cyan-50/20
+          dark:from-slate-800/50 dark:via-blue-900/20 dark:to-cyan-900/10
+          border-r border-gray-200 dark:border-slate-700
+          shadow-sm dark:shadow-none
+          transform transition-all duration-300 ease-in-out
+          sidebar-noise
           ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
       >
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full relative z-10">
           {/* Logo section */}
           <div className="relative p-6 border-b border-gray-200/50 dark:border-white/10 flex items-center justify-center">
             <img
@@ -111,19 +116,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                       className={`
                         flex items-center gap-3 px-4 py-3 rounded-lg
                         transition-all duration-200 group
-                        ${
-                          isActive
-                            ? 'bg-brandRed/10 dark:bg-white/10 text-brandRed dark:text-white border-l-4 border-brandRed dark:border-indigo-400 pl-3 font-semibold'
-                            : 'text-gray-700 dark:text-gray-300 hover:bg-rose-100/70 dark:hover:bg-rose-500/20 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
+                        ${isActive
+                          ? 'bg-brandRed/10 dark:bg-white/10 text-brandRed dark:text-white border-l-4 border-brandRed dark:border-indigo-400 pl-3 font-semibold'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-rose-100/70 dark:hover:bg-rose-500/20 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
                         }
                       `}
                     >
                       <Icon
-                        className={`w-5 h-5 ${
-                          isActive
-                            ? 'text-brandRed dark:text-indigo-400'
-                            : 'text-gray-400 dark:text-gray-400 group-hover:text-[#FEA418] dark:group-hover:text-[#FEA418]'
-                        }`}
+                        className={`w-5 h-5 ${isActive
+                          ? 'text-brandRed dark:text-indigo-400'
+                          : 'text-gray-400 dark:text-gray-400 group-hover:text-[#FEA418] dark:group-hover:text-[#FEA418]'
+                          }`}
                       />
                       <span className="font-medium">{item.name}</span>
                     </Link>
