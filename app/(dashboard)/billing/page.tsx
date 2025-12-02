@@ -19,6 +19,7 @@ import {
   AlertCircle,
   Check,
   Loader2,
+  FileSpreadsheet,
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
@@ -56,6 +57,7 @@ interface BillingPeriod {
   grandTotal: number;
   status: string;
   lineItems: BillingLineItem[];
+  updatedAt?: string;
 }
 
 // Helper to format numbers as currency
@@ -330,6 +332,35 @@ export default function BillingPage() {
     }
   };
 
+  // Download Excel with multiple sheets
+  const handleDownloadExcel = async () => {
+    if (!billingPeriod) return;
+
+    try {
+      const response = await fetch(
+        `${BACKEND_URL}/billing/${billingPeriod.id}/excel`
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to generate Excel');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const monthShort = monthNames[selectedMonth - 1];
+      a.download = `Billing_Details_${customerName}_${monthShort}-${selectedYear}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (err: any) {
+      setError(err.message || 'Failed to download Excel');
+    }
+  };
+
   // Get core items
   const coreItems = billingPeriod?.lineItems.filter((item) => item.isCore) || [];
 
@@ -348,15 +379,15 @@ export default function BillingPage() {
 
   const localTotals = calculateLocalTotals();
 
-  // Line item type options
+  // Line item type options for Other Expenses (from billing template)
   const lineItemTypes = [
-    { value: 'PACKAGING', label: 'Packaging Material' },
-    { value: 'OT', label: 'Overtime Cost' },
-    { value: 'ADHOC', label: 'Adhoc Charges' },
-    { value: 'FOOD', label: 'Food & Refreshment' },
-    { value: 'OVERHEAD', label: 'Overhead Expenses' },
-    { value: 'VAS', label: 'Value Added Services' },
-    { value: 'OTHER', label: 'Other Expenses' },
+    { value: 'OT_BLUE_COLLARS', label: 'Overtime Cost Blue Collars' },
+    { value: 'ADHOC_MANPOWER', label: 'Adhoc Manpower cost' },
+    { value: 'SUN_MGMT', label: 'Sunday/Holiday Working Mgmt Charges' },
+    { value: 'SUN_BLUE_COLLAR', label: 'Sunday/Holiday Working Blue Collar' },
+    { value: 'SUN_SUPERVISOR', label: 'Sunday/Holiday Working Supervisor' },
+    { value: 'PACKING_CONSUMABLES', label: 'Packing Materials & Consumables' },
+    { value: 'FOOD_SNACKS', label: 'Food Snacks' },
   ];
 
   const monthOptions = getMonthOptions();
@@ -607,6 +638,15 @@ export default function BillingPage() {
                 >
                   <Download className="w-4 h-4" />
                   Download Invoice
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleDownloadExcel}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-semibold flex items-center gap-2 shadow-md"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                  Download Excel
                 </motion.button>
               </div>
             </div>

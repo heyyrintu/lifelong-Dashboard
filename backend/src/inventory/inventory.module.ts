@@ -31,7 +31,7 @@ import { CategoryNormalizerService } from '../outbound/category-normalizer.servi
         }
       },
       limits: {
-        fileSize: 50 * 1024 * 1024, // 50MB for large inventory files
+        fileSize: 25 * 1024 * 1024, // 25MB
       },
     }),
   ],

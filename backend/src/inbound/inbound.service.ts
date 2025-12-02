@@ -266,31 +266,36 @@ export class InboundService implements OnModuleInit {
     }
   }
 
+  // Maximum rows to process (prevent DoS from huge files)
+  private static readonly MAX_ROWS = 500000;
+  private static readonly BATCH_SIZE = 5000;
+
   /**
    * Parse and store Inbound Excel file
+   * 
+   * SECURITY: Uses transaction to ensure atomicity
+   * SECURITY: Enforces row limit to prevent DoS
+   * SECURITY: Ensures temp file cleanup in all cases
    */
   async uploadInbound(filePath: string, fileName: string): Promise<InboundUploadResult> {
-    try {
-      const startTime = Date.now();
+    const startTime = Date.now();
 
+    try {
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const rawData: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
       // Skip row 1 (blank), row 2 has headers, data starts at row 3
       const dataRows = rawData.slice(2);
 
-      // Create upload record
-      const upload = await this.prisma.inboundUpload.create({
-        data: {
-          fileName,
-          status: 'processed',
-        },
-      });
+      // Security: Enforce row limit
+      if (dataRows.length > InboundService.MAX_ROWS) {
+        throw new Error(`File exceeds maximum allowed rows (${InboundService.MAX_ROWS}). Please split the file.`);
+      }
 
-      // Build item master map for CBM lookup
+      // Build item master map for CBM lookup (before transaction)
       const itemMasterMap = new Map<string, { itemGroup: string; cbmPerUnit: number }>();
       const itemMasters = await this.prisma.itemMaster.findMany({
         select: { id: true, itemGroup: true, cbmPerUnit: true },
@@ -303,16 +308,28 @@ export class InboundService implements OnModuleInit {
         });
       });
 
-      const parsedRows = [];
+      // Parse all rows first (before transaction) to catch validation errors early
+      const parsedRows: Array<{
+        dateOfUnload: Date | null;
+        invoiceSku: string | null;
+        receivedSku: string | null;
+        invoiceQty: number;
+        receivedQty: number;
+        goodQty: number;
+        itemGroup: string;
+        cbmPerUnit: number;
+        totalCbm: number;
+        productCategory: ProductCategory;
+      }> = [];
 
       for (const row of dataRows) {
         // Skip empty rows
-        if (!row || row.length === 0) continue;
+        if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed):
         // Date of Unload=column B (1), Invoice SKU=column I (8), Received SKU=column J (9)
         // Invoice Qty=column K (10), Received Qty=column L (11), Good=column N (13)
-        const dateOfUnload = this.parseDate(row[1]); // B
+        const dateOfUnload = this.parseExcelDate(row[1]); // B
         const invoiceSku = this.getCellValue(row[8]); // I
         const receivedSku = this.getCellValue(row[9]); // J
         const invoiceQty = this.parseNumber(row[10]); // K
@@ -338,7 +355,6 @@ export class InboundService implements OnModuleInit {
         const productCategory = this.categoryNormalizer.normalizeProductCategory(itemGroup);
 
         parsedRows.push({
-          uploadId: upload.id,
           dateOfUnload,
           invoiceSku,
           receivedSku,
@@ -352,30 +368,79 @@ export class InboundService implements OnModuleInit {
         });
       }
 
-      // Bulk insert rows
-      if (parsedRows.length > 0) {
-        await this.prisma.inboundRow.createMany({
-          data: parsedRows,
-        });
+      if (parsedRows.length === 0) {
+        throw new Error('No valid data rows found in the Excel file');
       }
 
-      // Clean up file
-      fs.unlinkSync(filePath);
+      // Use transaction to ensure atomicity
+      // Increase timeout to 2 minutes for large files
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // Create upload record within transaction
+          const upload = await tx.inboundUpload.create({
+            data: {
+              fileName,
+              status: 'processing',
+            },
+          });
+
+          // Bulk insert rows in batches
+          const rowsWithUploadId = parsedRows.map(row => ({
+            ...row,
+            uploadId: upload.id,
+          }));
+
+          for (let i = 0; i < rowsWithUploadId.length; i += InboundService.BATCH_SIZE) {
+            const batch = rowsWithUploadId.slice(i, i + InboundService.BATCH_SIZE);
+            await tx.inboundRow.createMany({
+              data: batch,
+            });
+          }
+
+          // Mark upload as processed
+          await tx.inboundUpload.update({
+            where: { id: upload.id },
+            data: { status: 'processed' },
+          });
+
+          return {
+            uploadId: upload.id,
+            rowsInserted: parsedRows.length,
+          };
+        },
+        {
+          maxWait: 120000, // 2 minutes max wait to acquire connection
+          timeout: 120000, // 2 minutes transaction timeout
+        }
+      );
 
       // Clear cache when new data is uploaded
       this.cache.clear();
 
       const elapsed = Date.now() - startTime;
-      console.log(`Inbound upload: ${parsedRows.length} rows in ${elapsed}ms`);
+      console.log(`Inbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
 
-      return {
-        uploadId: upload.id,
-        rowsInserted: parsedRows.length,
-      };
+      return result;
     } catch (error) {
       console.error('Error processing Inbound Excel file:', error);
       const message = this.getErrorMessage(error);
       throw new Error(`Failed to process Inbound Excel file: ${message}`);
+    } finally {
+      // SECURITY: Always clean up temp file
+      this.safeUnlink(filePath);
+    }
+  }
+
+  /**
+   * Safely delete a file, logging but not throwing on error
+   */
+  private safeUnlink(filePath: string): void {
+    try {
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    } catch (err) {
+      console.error(`Failed to delete temp file ${filePath}:`, err);
     }
   }
 
@@ -413,8 +478,9 @@ export class InboundService implements OnModuleInit {
     const startTime = Date.now();
 
     // Generate cache key
+    // 'all' when no uploadId specified = aggregate across all uploads
     const granularity = timeGranularity || 'month';
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
+    const cacheKey = `${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
     
     // Check cache
     const cached = this.cache.get(cacheKey);
@@ -422,20 +488,23 @@ export class InboundService implements OnModuleInit {
       return cached;
     }
 
-    // Determine which upload to use
-    let targetUploadId = uploadId;
-    if (!targetUploadId) {
-      const latestUpload = await this.prisma.inboundUpload.findFirst({
+    // Determine which upload(s) to use
+    // If uploadId is specified, use that specific upload
+    // If not specified, aggregate data from ALL processed uploads
+    let targetUploadIds: string[] = [];
+    if (uploadId) {
+      targetUploadIds = [uploadId];
+    } else {
+      const allUploads = await this.prisma.inboundUpload.findMany({
         where: { status: 'processed' },
-        orderBy: { uploadedAt: 'desc' },
-        select: { id: true }, // Only fetch id
+        select: { id: true },
       });
 
-      if (!latestUpload) {
+      if (allUploads.length === 0) {
         throw new NotFoundException('No processed inbound uploads found');
       }
 
-      targetUploadId = latestUpload.id;
+      targetUploadIds = allUploads.map(u => u.id);
     }
 
     // Handle month filter - convert to fromDate/toDate
@@ -454,13 +523,14 @@ export class InboundService implements OnModuleInit {
       : undefined;
 
     // Run parallel queries for metrics, dates, months, categories, and time series
+    // (aggregating across all uploads if multiple)
     const [cards, availableDates, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
-      this.calculateCardMetricsOptimized(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
-      this.getAvailableDates(targetUploadId),
-      this.getAvailableMonths(targetUploadId),
-      this.getProductCategories(targetUploadId),
-      this.generateTimeSeries(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
-      this.getSummaryTotals(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
+      this.calculateCardMetricsOptimized(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
+      this.getAvailableDates(targetUploadIds),
+      this.getAvailableMonths(targetUploadIds),
+      this.getProductCategories(targetUploadIds),
+      this.generateTimeSeries(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
+      this.getSummaryTotals(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
     ]);
 
     const result: InboundSummaryResponse = {
@@ -482,25 +552,38 @@ export class InboundService implements OnModuleInit {
   }
 
   /**
+   * Helper to parse date string as local date (not UTC)
+   * Fixes timezone issue where "2024-11-01" was being parsed as UTC midnight
+   */
+  private parseLocalDate(dateStr: string, endOfDay = false): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (endOfDay) {
+      return new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  /**
    * OPTIMIZATION: Calculate card metrics using SQL aggregation
    * Reduces data transfer from N rows to a single aggregated result
+   * Supports multiple upload IDs for aggregating across all uploads
    */
   private async calculateCardMetricsOptimized(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
   ): Promise<InboundCardMetrics> {
     // Build date filter
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (fromDate) {
-      params.push(new Date(fromDate));
+      params.push(this.parseLocalDate(fromDate));
       dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      params.push(new Date(toDate));
+      params.push(this.parseLocalDate(toDate, true));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategories && productCategories.length > 0) {
@@ -526,7 +609,7 @@ export class InboundService implements OnModuleInit {
         COALESCE(SUM(good_qty), 0) as good_qty_total,
         COALESCE(SUM(total_cbm), 0) as total_cbm
       FROM inbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
 
     const row = result[0];
@@ -540,9 +623,9 @@ export class InboundService implements OnModuleInit {
     };
   }
 
-  private async getAvailableDates(uploadId: string): Promise<{ minDate: string | null; maxDate: string | null }> {
+  private async getAvailableDates(uploadIds: string[]): Promise<{ minDate: string | null; maxDate: string | null }> {
     const result = await this.prisma.inboundRow.aggregate({
-      where: { uploadId },
+      where: { uploadId: { in: uploadIds } },
       _min: { dateOfUnload: true },
       _max: { dateOfUnload: true },
     });
@@ -553,9 +636,9 @@ export class InboundService implements OnModuleInit {
     };
   }
 
-  private async getAvailableMonths(uploadId: string): Promise<string[]> {
+  private async getAvailableMonths(uploadIds: string[]): Promise<string[]> {
     const rows = await this.prisma.inboundRow.findMany({
-      where: { uploadId, dateOfUnload: { not: null } },
+      where: { uploadId: { in: uploadIds }, dateOfUnload: { not: null } },
       select: { dateOfUnload: true },
       distinct: ['dateOfUnload'],
     });
@@ -571,9 +654,9 @@ export class InboundService implements OnModuleInit {
     return Array.from(months).sort();
   }
 
-  private async getProductCategories(uploadId: string): Promise<string[]> {
+  private async getProductCategories(uploadIds: string[]): Promise<string[]> {
     const rows = await this.prisma.inboundRow.findMany({
-      where: { uploadId },
+      where: { uploadId: { in: uploadIds } },
       select: { productCategory: true },
       distinct: ['productCategory'],
     });
@@ -586,19 +669,19 @@ export class InboundService implements OnModuleInit {
   }
 
   private async generateTimeSeries(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
     granularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<TimeSeriesData> {
     // Build where clause
-    const where: any = { uploadId };
+    const where: any = { uploadId: { in: uploadIds } };
     if (fromDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, gte: new Date(fromDate) };
+      where.dateOfUnload = { ...where.dateOfUnload, gte: this.parseLocalDate(fromDate) };
     }
     if (toDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, lte: new Date(toDate) };
+      where.dateOfUnload = { ...where.dateOfUnload, lte: this.parseLocalDate(toDate, true) };
     }
     if (productCategories && productCategories.length > 0) {
       where.productCategory = { in: productCategories as ProductCategory[] };
@@ -684,21 +767,21 @@ export class InboundService implements OnModuleInit {
   }
 
   private async getSummaryTotals(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
   ): Promise<SummaryTotals> {
     // Build SQL conditions similar to outbound summary totals
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
 
     if (fromDate) {
-      params.push(new Date(fromDate));
+      params.push(this.parseLocalDate(fromDate));
       dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      params.push(new Date(toDate));
+      params.push(this.parseLocalDate(toDate, true));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategories && productCategories.length > 0) {
@@ -724,7 +807,7 @@ export class InboundService implements OnModuleInit {
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
       FROM inbound_rows
-      WHERE upload_id = $1 
+      WHERE upload_id = ANY($1)
         AND date_of_unload IS NOT NULL
         ${dateCondition}
       GROUP BY DATE(date_of_unload), TO_CHAR(date_of_unload, 'YYYY-MM-DD')
@@ -826,22 +909,80 @@ export class InboundService implements OnModuleInit {
     return isNaN(num) ? 0 : num;
   }
 
-  private parseDate(cell: any): Date | null {
-    if (!cell) return null;
+  /**
+   * Parse Excel date - handles both serial numbers and string formats
+   * 
+   * BUGFIX: Excel uses 1899-12-30 as epoch (day 0), not 1899-11-30
+   * Excel also has a leap year bug where it thinks 1900 was a leap year.
+   */
+  private parseExcelDate(cell: unknown): Date | null {
+    if (cell === undefined || cell === null || cell === '') return null;
     
     try {
       // Handle Excel serial date numbers
       if (typeof cell === 'number') {
-        const excelEpoch = new Date(1899, 11, 30);
-        const date = new Date(excelEpoch.getTime() + cell * 86400000);
-        return date;
+        const serialNumber = Math.floor(cell);
+        
+        if (serialNumber < 1) return null;
+        if (serialNumber > 2958465) return null; // Beyond year 9999
+        
+        // Adjust for Excel's leap year bug
+        const adjustedSerial = serialNumber >= 60 ? serialNumber - 1 : serialNumber;
+        const date = new Date(1899, 11, 31 + adjustedSerial);
+        
+        // Handle time component
+        const timeFraction = cell - serialNumber;
+        if (timeFraction > 0) {
+          const milliseconds = Math.round(timeFraction * 24 * 60 * 60 * 1000);
+          date.setMilliseconds(date.getMilliseconds() + milliseconds);
+        }
+        
+        return isNaN(date.getTime()) ? null : date;
       }
       
       // Handle string dates
-      const date = new Date(cell);
-      return isNaN(date.getTime()) ? null : date;
+      if (typeof cell === 'string') {
+        const trimmed = cell.trim();
+        if (!trimmed) return null;
+        
+        // Try ISO format first
+        const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (isoMatch) {
+          const [, year, month, day] = isoMatch;
+          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Try DD/MM/YYYY format
+        const dateMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (dateMatch) {
+          const [, part1, part2, yearPart] = dateMatch;
+          const year = parseInt(yearPart) < 100 ? 2000 + parseInt(yearPart) : parseInt(yearPart);
+          const day = parseInt(part1);
+          const month = parseInt(part2) - 1;
+          const date = new Date(year, month, day);
+          return isNaN(date.getTime()) ? null : date;
+        }
+        
+        // Fallback
+        const date = new Date(trimmed);
+        return isNaN(date.getTime()) ? null : date;
+      }
+      
+      if (cell instanceof Date) {
+        return isNaN(cell.getTime()) ? null : cell;
+      }
+      
+      return null;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * @deprecated Use parseExcelDate instead
+   */
+  private parseDate(cell: unknown): Date | null {
+    return this.parseExcelDate(cell);
   }
 }

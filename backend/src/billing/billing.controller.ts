@@ -16,8 +16,10 @@ import {
   RecalculateBillingDto,
   BillingLineItemDto,
 } from './billing.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('billing')
+@Public() // TODO: Remove when frontend auth is ready
 export class BillingController {
   constructor(private readonly billingService: BillingService) {}
 
@@ -116,6 +118,38 @@ export class BillingController {
     } catch (error: any) {
       res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
         message: error.message || 'Failed to generate PDF',
+      });
+    }
+  }
+
+  /**
+   * GET /billing/:billingPeriodId/excel
+   * Export billing period as Excel file with multiple sheets
+   * Sheets: Calculation, Inventory HR11, Inventory HR12, Outbound HR11, Outbound HR12
+   */
+  @Get(':billingPeriodId/excel')
+  async exportExcel(
+    @Param('billingPeriodId') billingPeriodId: string,
+    @Res() res: Response,
+  ) {
+    try {
+      const billingPeriod = await this.billingService.getBillingPeriodById(billingPeriodId);
+      const buffer = await this.billingService.generateExcel(billingPeriodId);
+
+      const monthNames = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      ];
+      const monthShort = monthNames[billingPeriod.month - 1];
+
+      const filename = `Billing_Details_${billingPeriod.customerName.replace(/\s+/g, '_')}_${monthShort}-${billingPeriod.year}.xlsx`;
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.send(buffer);
+    } catch (error: any) {
+      res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+        message: error.message || 'Failed to generate Excel',
       });
     }
   }

@@ -282,45 +282,26 @@ export default function InboundPage() {
     return label;
   };
 
-  const stats = summaryData ? [
-    {
-      title: 'Invoice SKU Count',
-      value: formatNumber(summaryData.cards.invoiceSkuCount),
-      subtitle: 'Unique invoice SKUs',
-      icon: ArrowDownToLine,
-    },
-    {
-      title: 'Received SKU Count',
-      value: formatNumber(summaryData.cards.receivedSkuCount),
-      subtitle: 'Unique received SKUs',
-      icon: Package,
-    },
-    {
-      title: 'Invoice Qty',
-      value: formatNumber(summaryData.cards.invoiceQtyTotal, 2),
-      subtitle: 'Total invoice quantity',
-      icon: TrendingUp,
-    },
-    {
-      title: 'Received Qty',
-      value: formatNumber(summaryData.cards.receivedQtyTotal, 2),
-      subtitle: 'Total received quantity',
-      icon: CheckCircle,
-    },
-    {
-      title: 'Good Qty',
-      value: formatNumber(summaryData.cards.goodQtyTotal, 2),
-      subtitle: 'Total good quantity',
-      icon: Package,
-    },
-    {
-      title: 'Total CBM',
-      value: formatNumber(summaryData.cards.totalCbm, 2),
-      subtitle: 'Cubic meters',
-      icon: Clock,
-    },
-  ] : [];
+  // Format backend month value (e.g. 2025-11) to display label like Nov'25
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
+  const formatMonthLabel = (month: string): string => {
+    if (month === 'ALL') return 'All Months';
+
+    const match = month.match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const [, yearStr, monthStr] = match;
+      const monthIndex = parseInt(monthStr, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        const shortYear = yearStr.slice(2);
+        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
+      }
+    }
+
+    return month;
+  };
+
+  
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
@@ -416,7 +397,7 @@ export default function InboundPage() {
                 >
                   {(summaryData?.availableMonths || ['ALL']).map((month: string) => (
                     <option key={month} value={month}>
-                      {month === 'ALL' ? 'All Months' : month}
+                      {formatMonthLabel(month)}
                     </option>
                   ))}
                 </select>
@@ -588,18 +569,170 @@ export default function InboundPage() {
         </div>
       )}
 
-      {/* Inbound Cards */}
+      {/* Inbound Cards - Outbound Style */}
       {!loading && summaryData && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {stats.map((stat, index) => (
-            <MetricCard
-              key={index}
-              title={stat.title}
-              value={stat.value}
-              subtitle={stat.subtitle}
-              icon={stat.icon}
-            />
-          ))}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          {/* Invoice Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          >
+            {/* Decorative gradient */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <ArrowDownToLine className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Invoice</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invoice SKU</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique Invoice Items</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                  {formatNumber(summaryData.cards.invoiceSkuCount)}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invoice Qty</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Invoice Quantity</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                  {formatNumber(summaryData.cards.invoiceQtyTotal, 2)}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Received Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          >
+            {/* Decorative gradient */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+                <CheckCircle className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Received</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">Delivery metrics</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received SKU</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique Received Items</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                  {formatNumber(summaryData.cards.receivedSkuCount)}
+                </span>
+              </div>
+              
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received Qty</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                  {formatNumber(summaryData.cards.receivedQtyTotal, 2)}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Good Qty</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Good Quantity</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                  {formatNumber(summaryData.cards.goodQtyTotal, 2)}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Volume Card */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          >
+            {/* Decorative gradient */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <Clock className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Volume</h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">CBM metrics</p>
+              </div>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total CBM</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Cubic Meters</p>
+                  </div>
+                </div>
+                <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
+                  {formatNumber(summaryData.cards.totalCbm, 2)}
+                </span>
+              </div>
+            </div>
+          </motion.div>
         </div>
       )}
 

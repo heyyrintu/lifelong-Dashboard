@@ -4,7 +4,6 @@ import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -12,28 +11,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <ProtectedRoute>
       <div className="relative flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-900">
-        {/* Aurora Background Effect */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div
-            className={cn(
-              `
-            [--white-gradient:repeating-linear-gradient(100deg,var(--white)_0%,var(--white)_7%,var(--transparent)_10%,var(--transparent)_12%,var(--white)_16%)]
-            [--dark-gradient:repeating-linear-gradient(100deg,var(--black)_0%,var(--black)_7%,var(--transparent)_10%,var(--transparent)_12%,var(--black)_16%)]
-            [--aurora:repeating-linear-gradient(100deg,var(--blue-500)_5%,var(--indigo-300)_20%,var(--blue-300)_30%,var(--violet-200)_40%,var(--blue-400)_50%)]
-            [background-image:var(--white-gradient),var(--aurora)]
-            dark:[background-image:var(--dark-gradient),var(--aurora)]
-            [background-size:300%,_200%]
-            [background-position:50%_50%,50%_50%]
-            filter blur-[10px] invert dark:invert-0
-            after:content-[""] after:absolute after:inset-0 after:[background-image:var(--white-gradient),var(--aurora)] 
-            after:dark:[background-image:var(--dark-gradient),var(--aurora)]
-            after:[background-size:200%,_100%] 
-            after:animate-aurora after:[background-attachment:fixed] after:mix-blend-difference
-            pointer-events-none
-            absolute -inset-[10px] opacity-50 will-change-transform
-            [mask-image:radial-gradient(ellipse_at_100%_0%,black_10%,var(--transparent)_70%)]`
-            )}
-          ></div>
+        {/* Aurora Background Effect - larger visible gradient */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Primary gradient blob - top right */}
+          <div className="absolute -top-60 -right-60 w-[700px] h-[700px] bg-gradient-to-br from-blue-400/50 via-indigo-500/40 to-purple-500/50 rounded-full blur-[100px] animate-pulse" />
+          {/* Secondary gradient blob - bottom left */}
+          <div className="absolute -bottom-60 -left-60 w-[700px] h-[700px] bg-gradient-to-tr from-violet-400/40 via-blue-500/30 to-cyan-400/40 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+          {/* Center accent - larger */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-gradient-to-r from-blue-500/20 via-purple-400/15 to-pink-500/20 rounded-full blur-[120px]" />
+          {/* Top left accent */}
+          <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-gradient-to-br from-cyan-400/30 via-blue-400/20 to-indigo-500/30 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
         </div>
 
         {/* Main Content - positioned above aurora background */}

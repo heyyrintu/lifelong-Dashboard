@@ -69,7 +69,7 @@ export default function SummaryPage() {
   const getDateRangeForFilter = (filter: TimeFilter) => {
     const now = new Date();
     let fromDate: string;
-    let toDate: string = now.toISOString().split('T')[0];
+    const toDate: string = now.toISOString().split('T')[0];
 
     if (filter === '24h') {
       const yesterday = new Date(now);

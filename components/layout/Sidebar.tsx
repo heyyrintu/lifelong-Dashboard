@@ -10,6 +10,8 @@ import {
   Upload,
   FileText,
   X,
+  UserCheck,
+  ClipboardList,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -47,6 +49,16 @@ const menuItems = [
     name: 'Billing',
     path: '/billing',
     icon: FileText,
+  },
+  {
+    name: 'Take Attendance',
+    path: '/attendance/take',
+    icon: UserCheck,
+  },
+  {
+    name: 'View Attendance',
+    path: '/attendance/view',
+    icon: ClipboardList,
   },
 ];
 

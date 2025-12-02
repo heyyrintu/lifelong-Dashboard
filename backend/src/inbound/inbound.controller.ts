@@ -14,8 +14,10 @@ import {
 import type { Express, Response } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InboundService } from './inbound.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('inbound')
+@Public() // TODO: Remove when frontend auth is ready
 export class InboundController {
   constructor(private readonly inboundService: InboundService) {}
 

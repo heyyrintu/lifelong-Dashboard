@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { OutboundService } from '../outbound/outbound.service';
+import * as XLSX from 'xlsx-js-style';
 
 export interface RecalculateBillingDto {
   customerName: string;
@@ -674,6 +675,669 @@ export class BillingService {
     });
 
     return { success: true };
+  }
+
+  /**
+   * Generate Excel file for billing invoice
+   * Creates 5 sheets: Calculation, Inventory HR11, Inventory HR12, Outbound HR11, Outbound HR12
+   */
+  async generateExcel(billingPeriodId: string): Promise<Buffer> {
+    const billingPeriod = await this.getBillingPeriodById(billingPeriodId);
+    
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const monthName = monthNames[billingPeriod.month - 1];
+    const monthShort = monthName.substring(0, 3);
+
+    // Get date range
+    const fromDate = billingPeriod.fromDate 
+      ? billingPeriod.fromDate.toISOString().split('T')[0] 
+      : this.getMonthDateRange(billingPeriod.year, billingPeriod.month).fromDate;
+    const toDate = billingPeriod.toDate 
+      ? billingPeriod.toDate.toISOString().split('T')[0] 
+      : this.getMonthDateRange(billingPeriod.year, billingPeriod.month).toDate;
+
+    // Create workbook
+    const workbook = XLSX.utils.book_new();
+
+    // Sheet 1: Calculation (Billing Summary)
+    const calcSheet = this.createCalculationSheet(billingPeriod, monthShort, billingPeriod.year);
+    XLSX.utils.book_append_sheet(workbook, calcSheet, 'Calculation');
+
+    // Fetch inventory and outbound data for HR11 and HR12
+    const [inventoryHR11, inventoryHR12, outboundHR11, outboundHR12] = await Promise.all([
+      this.getInventoryDataForWarehouse('HR11', fromDate, toDate),
+      this.getInventoryDataForWarehouse('HR12', fromDate, toDate),
+      this.getOutboundDataForWarehouse('HR11', fromDate, toDate),
+      this.getOutboundDataForWarehouse('HR12', fromDate, toDate),
+    ]);
+
+    // Sheet 2: Inventory HR11
+    const invHR11Sheet = this.createInventorySheet(inventoryHR11, 'HR11', monthShort, billingPeriod.year);
+    XLSX.utils.book_append_sheet(workbook, invHR11Sheet, 'Inventory HR11');
+
+    // Sheet 3: Inventory HR12
+    const invHR12Sheet = this.createInventorySheet(inventoryHR12, 'HR12', monthShort, billingPeriod.year);
+    XLSX.utils.book_append_sheet(workbook, invHR12Sheet, 'Inventory HR12');
+
+    // Sheet 4: Outbound HR11
+    const outHR11Sheet = this.createOutboundSheet(outboundHR11, 'HR11', monthShort, billingPeriod.year);
+    XLSX.utils.book_append_sheet(workbook, outHR11Sheet, 'Outbound HR11');
+
+    // Sheet 5: Outbound HR12
+    const outHR12Sheet = this.createOutboundSheet(outboundHR12, 'HR12', monthShort, billingPeriod.year);
+    XLSX.utils.book_append_sheet(workbook, outHR12Sheet, 'Outbound HR12');
+
+    // Generate buffer
+    const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+    return buffer;
+  }
+
+  /**
+   * Style definitions for Excel
+   */
+  private getStyles() {
+    return {
+      // Title style - Bold, large font, dark blue background
+      title: {
+        font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '1F4E79' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      },
+      // Company header - Bold, medium font
+      companyHeader: {
+        font: { bold: true, sz: 14, color: { rgb: '1F4E79' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+      },
+      // Section header - Bold, colored background
+      sectionHeader: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: 'E53935' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // Column header - Bold, gray background
+      columnHeader: {
+        font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '4472C4' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // Data cell - Normal with border
+      dataCell: {
+        font: { sz: 10 },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // Number cell - Right aligned with border
+      numberCell: {
+        font: { sz: 10 },
+        alignment: { horizontal: 'right', vertical: 'center' },
+        border: this.getBorder(),
+        numFmt: '#,##0.00',
+      },
+      // Total row - Bold, yellow background
+      totalRow: {
+        font: { bold: true, sz: 11, color: { rgb: '000000' } },
+        fill: { fgColor: { rgb: 'FFF2CC' } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // GST row - Bold, light blue background
+      gstRow: {
+        font: { bold: true, sz: 10, color: { rgb: '1F4E79' } },
+        fill: { fgColor: { rgb: 'DEEBF7' } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // Grand total - Bold, green background
+      grandTotal: {
+        font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: '2E7D32' } },
+        alignment: { horizontal: 'right', vertical: 'center' },
+        border: this.getBorder(),
+      },
+      // Other expenses header - Orange background
+      otherExpensesHeader: {
+        font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+        fill: { fgColor: { rgb: 'ED6C02' } },
+        alignment: { horizontal: 'left', vertical: 'center' },
+        border: this.getBorder(),
+      },
+    };
+  }
+
+  private getBorder() {
+    return {
+      top: { style: 'thin', color: { rgb: 'CCCCCC' } },
+      bottom: { style: 'thin', color: { rgb: 'CCCCCC' } },
+      left: { style: 'thin', color: { rgb: 'CCCCCC' } },
+      right: { style: 'thin', color: { rgb: 'CCCCCC' } },
+    };
+  }
+
+  /**
+   * Apply style to a cell
+   */
+  private setCellStyle(ws: XLSX.WorkSheet, cellRef: string, style: any, value?: any) {
+    if (!ws[cellRef]) {
+      ws[cellRef] = { v: value ?? '', t: 's' };
+    }
+    ws[cellRef].s = style;
+  }
+
+  /**
+   * Create Calculation (Billing Summary) sheet
+   */
+  private createCalculationSheet(billingPeriod: any, monthShort: string, year: number): XLSX.WorkSheet {
+    const coreItems = billingPeriod.lineItems.filter((item: any) => item.isCore);
+    const extraItems = billingPeriod.lineItems.filter((item: any) => !item.isCore);
+    const styles = this.getStyles();
+
+    // Build data rows
+    const data: any[][] = [];
+
+    // Row 0: Company name
+    data.push(['Drona Logitech Pvt. Ltd.', '', '', '', 'Month', `${monthShort}-${year.toString().slice(-2)}`]);
+    // Row 1: Customer
+    data.push(['Customer Name :-', billingPeriod.customerName, '', '', '', '']);
+    // Row 2: Location
+    data.push(['Location:-', billingPeriod.location, '', '', '', '']);
+    // Row 3: Empty
+    data.push(['', '', '', '', '', '']);
+    // Row 4: Column headers
+    data.push(['Particulars.', 'Qty', 'CBM', 'Rate', 'Total Amount', 'Remarks']);
+    // Row 5: Empty
+    data.push(['', '', '', '', '', '']);
+    // Row 6: Core section header
+    data.push(['Qty- Processing & Storage Footwear- B2C', '', '', '', '', '']);
+
+    let rowIndex = 7;
+    // Core items (Inventory, Out Bound)
+    for (const item of coreItems) {
+      data.push([
+        item.label,
+        item.qty !== null ? item.qty : '',
+        item.cbm !== null ? Math.round(item.cbm * 100) / 100 : '',
+        item.rate || '',
+        Math.round(item.amount * 100) / 100,
+        ''
+      ]);
+      rowIndex++;
+    }
+
+    // Packaging Material row
+    data.push(['Packaging Material', '', 175, 410, 71750, '']);
+    rowIndex++;
+    
+    // Empty row
+    data.push(['', '', '', '', '', '']);
+    rowIndex++;
+
+    // Other Expenses section header
+    const otherExpensesRow = rowIndex;
+    data.push(['Other Expenses.', 'Qty', '', 'Rate', 'Amount', '']);
+    rowIndex++;
+
+    for (const item of extraItems) {
+      data.push([
+        item.label,
+        item.qty !== null ? item.qty : '',
+        '',
+        item.rate || '',
+        Math.round(item.amount * 100) / 100,
+        ''
+      ]);
+      rowIndex++;
+    }
+
+    // Empty row
+    data.push(['', '', '', '', '', '']);
+    rowIndex++;
+
+    // Totals
+    const totalRow = rowIndex;
+    data.push(['Total', '', '', '', Math.round(billingPeriod.subtotalAmount * 100) / 100, '']);
+    rowIndex++;
+    
+    const gstRow = rowIndex;
+    data.push([`GST. @ ${billingPeriod.gstPercent}%`, '', '', '', Math.round(billingPeriod.gstAmount * 100) / 100, '']);
+    rowIndex++;
+    
+    const grandTotalRow = rowIndex;
+    data.push(['Grand Total', '', '', '', Math.round(billingPeriod.grandTotal * 100) / 100, '']);
+
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // Apply styles
+    // Row 0: Company header
+    this.setCellStyle(ws, 'A1', styles.companyHeader);
+    this.setCellStyle(ws, 'E1', { font: { bold: true, sz: 10 }, alignment: { horizontal: 'right' } });
+    this.setCellStyle(ws, 'F1', { font: { bold: true, sz: 11, color: { rgb: 'E53935' } } });
+
+    // Row 1-2: Customer/Location
+    this.setCellStyle(ws, 'A2', { font: { bold: true, sz: 10 } });
+    this.setCellStyle(ws, 'B2', { font: { sz: 10 } });
+    this.setCellStyle(ws, 'A3', { font: { bold: true, sz: 10 } });
+    this.setCellStyle(ws, 'B3', { font: { sz: 10 } });
+
+    // Row 4: Column headers
+    ['A5', 'B5', 'C5', 'D5', 'E5', 'F5'].forEach(cell => {
+      this.setCellStyle(ws, cell, styles.columnHeader);
+    });
+
+    // Row 6: Core section header
+    ['A7', 'B7', 'C7', 'D7', 'E7', 'F7'].forEach(cell => {
+      this.setCellStyle(ws, cell, styles.sectionHeader);
+    });
+
+    // Data rows styling
+    for (let i = 8; i <= 8 + coreItems.length; i++) {
+      this.setCellStyle(ws, `A${i}`, styles.dataCell);
+      this.setCellStyle(ws, `B${i}`, styles.numberCell);
+      this.setCellStyle(ws, `C${i}`, styles.numberCell);
+      this.setCellStyle(ws, `D${i}`, styles.numberCell);
+      this.setCellStyle(ws, `E${i}`, styles.numberCell);
+      this.setCellStyle(ws, `F${i}`, styles.dataCell);
+    }
+
+    // Other Expenses header
+    ['A', 'B', 'C', 'D', 'E', 'F'].forEach(col => {
+      this.setCellStyle(ws, `${col}${otherExpensesRow + 1}`, styles.otherExpensesHeader);
+    });
+
+    // Total row styling
+    ['A', 'B', 'C', 'D', 'E', 'F'].forEach(col => {
+      this.setCellStyle(ws, `${col}${totalRow + 1}`, styles.totalRow);
+    });
+
+    // GST row styling
+    ['A', 'B', 'C', 'D', 'E', 'F'].forEach(col => {
+      this.setCellStyle(ws, `${col}${gstRow + 1}`, styles.gstRow);
+    });
+
+    // Grand Total row styling
+    ['A', 'B', 'C', 'D', 'E', 'F'].forEach(col => {
+      this.setCellStyle(ws, `${col}${grandTotalRow + 1}`, styles.grandTotal);
+    });
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 42 }, // Particulars
+      { wch: 15 }, // Qty
+      { wch: 15 }, // CBM
+      { wch: 12 }, // Rate
+      { wch: 18 }, // Amount
+      { wch: 15 }, // Remarks
+    ];
+
+    // Set row heights
+    ws['!rows'] = [
+      { hpt: 25 }, // Company header
+      { hpt: 20 },
+      { hpt: 20 },
+      { hpt: 10 },
+      { hpt: 22 }, // Column headers
+    ];
+
+    return ws;
+  }
+
+  /**
+   * Get inventory data for a specific warehouse
+   */
+  private async getInventoryDataForWarehouse(warehouseCode: string, fromDate: string, toDate: string) {
+    // Find warehouse that contains the code (HR11 or HR12)
+    const rows = await this.prisma.inventoryRow.findMany({
+      where: {
+        warehouse: { contains: warehouseCode },
+        isTotalRow: false,
+      },
+      include: {
+        dailyStocks: {
+          where: {
+            stockDate: {
+              gte: new Date(fromDate),
+              lte: new Date(toDate),
+            },
+          },
+          orderBy: { stockDate: 'asc' },
+        },
+      },
+    });
+
+    // Process rows and calculate avg qty and avg cbm
+    return rows.map(row => {
+      const quantities = row.dailyStocks.map(ds => ds.quantity);
+      const avgQty = quantities.length > 0 
+        ? quantities.reduce((a, b) => a + b, 0) / quantities.length 
+        : 0;
+      const avgCbm = avgQty * row.cbmPerUnit;
+
+      return {
+        item: row.item,
+        warehouse: row.warehouse,
+        itemGroup: row.itemGroup,
+        cbmPerUnit: row.cbmPerUnit,
+        productCategory: row.productCategory,
+        avgQty: Math.round(avgQty * 100) / 100,
+        avgCbm: Math.round(avgCbm * 100) / 100,
+        dailyStocks: row.dailyStocks,
+      };
+    });
+  }
+
+  /**
+   * Get outbound data for a specific warehouse
+   */
+  private async getOutboundDataForWarehouse(warehouseCode: string, fromDate: string, toDate: string) {
+    const rows = await this.prisma.outboundRow.findMany({
+      where: {
+        sourceWarehouse: { contains: warehouseCode },
+        deliveryNoteDate: {
+          gte: new Date(fromDate),
+          lte: new Date(toDate),
+        },
+      },
+      orderBy: { deliveryNoteDate: 'asc' },
+    });
+
+    return rows;
+  }
+
+  /**
+   * Create Inventory sheet with avg qty and avg cbm columns
+   */
+  private createInventorySheet(data: any[], warehouseCode: string, monthShort: string, year: number): XLSX.WorkSheet {
+    const styles = this.getStyles();
+    
+    // Header rows
+    const sheetData: any[][] = [];
+    
+    // Row 0: Title
+    sheetData.push([`Daily Stock Analytics - ${warehouseCode}`, '', '', '', '', '', '']);
+    // Row 1: Period
+    sheetData.push([`Period: ${monthShort}-${year}`, '', '', '', '', '', '']);
+    // Row 2: Empty
+    sheetData.push(['', '', '', '', '', '', '']);
+
+    // Row 3: Column headers
+    sheetData.push([
+      'Item',
+      'Warehouse', 
+      'Item Group',
+      'Product Category',
+      'CBM Per Unit',
+      'Avg Qty',
+      'Avg CBM'
+    ]);
+
+    // Calculate totals
+    let totalAvgQty = 0;
+    let totalAvgCbm = 0;
+
+    // Data rows starting from row 4
+    for (const row of data) {
+      sheetData.push([
+        row.item,
+        row.warehouse,
+        row.itemGroup,
+        row.productCategory || '',
+        row.cbmPerUnit,
+        row.avgQty,
+        row.avgCbm,
+      ]);
+      totalAvgQty += row.avgQty;
+      totalAvgCbm += row.avgCbm;
+    }
+
+    // Empty row
+    sheetData.push(['', '', '', '', '', '', '']);
+    
+    // Total row
+    const totalRowIndex = sheetData.length;
+    sheetData.push([
+      'TOTAL',
+      '',
+      '',
+      '',
+      '',
+      Math.round(totalAvgQty * 100) / 100,
+      Math.round(totalAvgCbm * 100) / 100,
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Apply styles
+    // Title row (Row 1)
+    this.setCellStyle(ws, 'A1', styles.title);
+    ['B1', 'C1', 'D1', 'E1', 'F1', 'G1'].forEach(cell => {
+      this.setCellStyle(ws, cell, styles.title);
+    });
+
+    // Period row (Row 2)
+    this.setCellStyle(ws, 'A2', { 
+      font: { bold: true, sz: 11, color: { rgb: '666666' } },
+      alignment: { horizontal: 'left' }
+    });
+
+    // Column headers (Row 4)
+    ['A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4'].forEach(cell => {
+      this.setCellStyle(ws, cell, styles.columnHeader);
+    });
+
+    // Data rows with alternating colors
+    for (let i = 5; i < 5 + data.length; i++) {
+      const isEven = (i - 5) % 2 === 0;
+      const rowStyle = isEven ? {
+        font: { sz: 9 },
+        fill: { fgColor: { rgb: 'F8F9FA' } },
+        border: this.getBorder(),
+        alignment: { vertical: 'center' },
+      } : {
+        font: { sz: 9 },
+        fill: { fgColor: { rgb: 'FFFFFF' } },
+        border: this.getBorder(),
+        alignment: { vertical: 'center' },
+      };
+      
+      const numberStyle = { ...rowStyle, alignment: { horizontal: 'right', vertical: 'center' } };
+      
+      this.setCellStyle(ws, `A${i}`, rowStyle);
+      this.setCellStyle(ws, `B${i}`, rowStyle);
+      this.setCellStyle(ws, `C${i}`, rowStyle);
+      this.setCellStyle(ws, `D${i}`, rowStyle);
+      this.setCellStyle(ws, `E${i}`, numberStyle);
+      this.setCellStyle(ws, `F${i}`, numberStyle);
+      this.setCellStyle(ws, `G${i}`, numberStyle);
+    }
+
+    // Total row styling
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
+      this.setCellStyle(ws, `${col}${totalRowIndex + 1}`, styles.totalRow);
+    });
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 28 }, // Item
+      { wch: 18 }, // Warehouse
+      { wch: 20 }, // Item Group
+      { wch: 16 }, // Product Category
+      { wch: 14 }, // CBM Per Unit
+      { wch: 12 }, // Avg Qty
+      { wch: 12 }, // Avg CBM
+    ];
+
+    // Set row heights
+    ws['!rows'] = [
+      { hpt: 28 }, // Title
+      { hpt: 20 }, // Period
+      { hpt: 10 }, // Empty
+      { hpt: 24 }, // Column headers
+    ];
+
+    return ws;
+  }
+
+  /**
+   * Create Outbound sheet
+   */
+  private createOutboundSheet(data: any[], warehouseCode: string, monthShort: string, year: number): XLSX.WorkSheet {
+    const styles = this.getStyles();
+    
+    // Header rows
+    const sheetData: any[][] = [];
+    
+    // Row 0: Title
+    sheetData.push([`Outward - ${warehouseCode}`, '', '', '', '', '', '', '']);
+    // Row 1: Period
+    sheetData.push([`Period: ${monthShort}-${year}`, '', '', '', '', '', '', '']);
+    // Row 2: Empty
+    sheetData.push(['', '', '', '', '', '', '', '']);
+
+    // Row 3: Column headers
+    sheetData.push([
+      'Delivery Note Date',
+      'Source Warehouse',
+      'Customer Group',
+      'SO Item',
+      'Category',
+      'DN Item',
+      'DN Qty',
+      'DN Total CBM'
+    ]);
+
+    // Calculate totals
+    let totalDnQty = 0;
+    let totalDnCbm = 0;
+
+    // Data rows starting from row 4
+    for (const row of data) {
+      const dnDate = row.deliveryNoteDate 
+        ? new Date(row.deliveryNoteDate).toLocaleDateString('en-IN') 
+        : '';
+      
+      sheetData.push([
+        dnDate,
+        row.sourceWarehouse || '',
+        row.customerGroup || '',
+        row.soItem || '',
+        row.categoryRaw || '',
+        row.deliveryNoteItem || '',
+        row.deliveryNoteQty,
+        Math.round(row.dnTotalCbm * 10000) / 10000,
+      ]);
+      totalDnQty += row.deliveryNoteQty || 0;
+      totalDnCbm += row.dnTotalCbm || 0;
+    }
+
+    // Empty row
+    sheetData.push(['', '', '', '', '', '', '', '']);
+    
+    // Total row
+    const totalRowIndex = sheetData.length;
+    sheetData.push([
+      'TOTAL',
+      '',
+      '',
+      '',
+      '',
+      '',
+      totalDnQty,
+      Math.round(totalDnCbm * 100) / 100,
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+
+    // Apply styles
+    // Title row (Row 1) - Green theme for outbound
+    const outboundTitleStyle = {
+      font: { bold: true, sz: 16, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '2E7D32' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+    };
+    ['A1', 'B1', 'C1', 'D1', 'E1', 'F1', 'G1', 'H1'].forEach(cell => {
+      this.setCellStyle(ws, cell, outboundTitleStyle);
+    });
+
+    // Period row (Row 2)
+    this.setCellStyle(ws, 'A2', { 
+      font: { bold: true, sz: 11, color: { rgb: '666666' } },
+      alignment: { horizontal: 'left' }
+    });
+
+    // Column headers (Row 4) - Green theme
+    const outboundHeaderStyle = {
+      font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '388E3C' } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      border: this.getBorder(),
+    };
+    ['A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4', 'H4'].forEach(cell => {
+      this.setCellStyle(ws, cell, outboundHeaderStyle);
+    });
+
+    // Data rows with alternating colors
+    for (let i = 5; i < 5 + data.length; i++) {
+      const isEven = (i - 5) % 2 === 0;
+      const rowStyle = isEven ? {
+        font: { sz: 9 },
+        fill: { fgColor: { rgb: 'E8F5E9' } },
+        border: this.getBorder(),
+        alignment: { vertical: 'center' },
+      } : {
+        font: { sz: 9 },
+        fill: { fgColor: { rgb: 'FFFFFF' } },
+        border: this.getBorder(),
+        alignment: { vertical: 'center' },
+      };
+      
+      const numberStyle = { ...rowStyle, alignment: { horizontal: 'right', vertical: 'center' } };
+      
+      this.setCellStyle(ws, `A${i}`, rowStyle);
+      this.setCellStyle(ws, `B${i}`, rowStyle);
+      this.setCellStyle(ws, `C${i}`, rowStyle);
+      this.setCellStyle(ws, `D${i}`, rowStyle);
+      this.setCellStyle(ws, `E${i}`, rowStyle);
+      this.setCellStyle(ws, `F${i}`, rowStyle);
+      this.setCellStyle(ws, `G${i}`, numberStyle);
+      this.setCellStyle(ws, `H${i}`, numberStyle);
+    }
+
+    // Total row styling - Green theme
+    const outboundTotalStyle = {
+      font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '1B5E20' } },
+      alignment: { horizontal: 'right', vertical: 'center' },
+      border: this.getBorder(),
+    };
+    ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(col => {
+      this.setCellStyle(ws, `${col}${totalRowIndex + 1}`, outboundTotalStyle);
+    });
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 16 }, // Date
+      { wch: 18 }, // Source Warehouse
+      { wch: 20 }, // Customer Group
+      { wch: 14 }, // SO Item
+      { wch: 18 }, // Category
+      { wch: 14 }, // DN Item
+      { wch: 12 }, // DN Qty
+      { wch: 14 }, // DN Total CBM
+    ];
+
+    // Set row heights
+    ws['!rows'] = [
+      { hpt: 28 }, // Title
+      { hpt: 20 }, // Period
+      { hpt: 10 }, // Empty
+      { hpt: 24 }, // Column headers
+    ];
+
+    return ws;
   }
 }
 
