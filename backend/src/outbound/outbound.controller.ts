@@ -112,6 +112,44 @@ export class OutboundController {
   }
 
   /**
+   * GET /outbound/top-products
+   * Get top/bottom selling products by CBM or Qty from delivery note items
+   */
+  @Get('top-products')
+  async getTopProducts(
+    @Query('limit') limit?: string,
+    @Query('month') month?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('warehouse') warehouse?: string,
+    @Query('productCategory') productCategory?: string | string[],
+    @Query('rankBy') rankBy?: 'cbm' | 'qty',
+    @Query('sortOrder') sortOrder?: 'top' | 'bottom',
+  ) {
+    try {
+      const categories = productCategory
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+      const parsedLimit = limit ? parseInt(limit, 10) : 10;
+      return await this.outboundService.getTopProducts(
+        parsedLimit,
+        month,
+        fromDate,
+        toDate,
+        warehouse,
+        categories,
+        rankBy || 'cbm',
+        sortOrder || 'top',
+      );
+    } catch (error) {
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to fetch top products'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
    * GET /outbound/summary
    * Get summary data with optional filters
    */
@@ -123,6 +161,7 @@ export class OutboundController {
     @Query('month') month?: string,
     @Query('productCategory') productCategory?: string | string[],
     @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
+    @Query('warehouse') warehouse?: string,
   ) {
     try {
       // Normalize productCategory to array
@@ -136,6 +175,7 @@ export class OutboundController {
         month, 
         categories,
         timeGranularity || 'month',
+        warehouse,
       );
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {

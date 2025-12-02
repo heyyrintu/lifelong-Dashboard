@@ -373,39 +373,46 @@ export class InboundService implements OnModuleInit {
       }
 
       // Use transaction to ensure atomicity
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Create upload record within transaction
-        const upload = await tx.inboundUpload.create({
-          data: {
-            fileName,
-            status: 'processing',
-          },
-        });
-
-        // Bulk insert rows in batches
-        const rowsWithUploadId = parsedRows.map(row => ({
-          ...row,
-          uploadId: upload.id,
-        }));
-
-        for (let i = 0; i < rowsWithUploadId.length; i += InboundService.BATCH_SIZE) {
-          const batch = rowsWithUploadId.slice(i, i + InboundService.BATCH_SIZE);
-          await tx.inboundRow.createMany({
-            data: batch,
+      // Increase timeout to 2 minutes for large files
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // Create upload record within transaction
+          const upload = await tx.inboundUpload.create({
+            data: {
+              fileName,
+              status: 'processing',
+            },
           });
+
+          // Bulk insert rows in batches
+          const rowsWithUploadId = parsedRows.map(row => ({
+            ...row,
+            uploadId: upload.id,
+          }));
+
+          for (let i = 0; i < rowsWithUploadId.length; i += InboundService.BATCH_SIZE) {
+            const batch = rowsWithUploadId.slice(i, i + InboundService.BATCH_SIZE);
+            await tx.inboundRow.createMany({
+              data: batch,
+            });
+          }
+
+          // Mark upload as processed
+          await tx.inboundUpload.update({
+            where: { id: upload.id },
+            data: { status: 'processed' },
+          });
+
+          return {
+            uploadId: upload.id,
+            rowsInserted: parsedRows.length,
+          };
+        },
+        {
+          maxWait: 120000, // 2 minutes max wait to acquire connection
+          timeout: 120000, // 2 minutes transaction timeout
         }
-
-        // Mark upload as processed
-        await tx.inboundUpload.update({
-          where: { id: upload.id },
-          data: { status: 'processed' },
-        });
-
-        return {
-          uploadId: upload.id,
-          rowsInserted: parsedRows.length,
-        };
-      });
+      );
 
       // Clear cache when new data is uploaded
       this.cache.clear();
@@ -471,8 +478,9 @@ export class InboundService implements OnModuleInit {
     const startTime = Date.now();
 
     // Generate cache key
+    // 'all' when no uploadId specified = aggregate across all uploads
     const granularity = timeGranularity || 'month';
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
+    const cacheKey = `${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
     
     // Check cache
     const cached = this.cache.get(cacheKey);
@@ -480,20 +488,23 @@ export class InboundService implements OnModuleInit {
       return cached;
     }
 
-    // Determine which upload to use
-    let targetUploadId = uploadId;
-    if (!targetUploadId) {
-      const latestUpload = await this.prisma.inboundUpload.findFirst({
+    // Determine which upload(s) to use
+    // If uploadId is specified, use that specific upload
+    // If not specified, aggregate data from ALL processed uploads
+    let targetUploadIds: string[] = [];
+    if (uploadId) {
+      targetUploadIds = [uploadId];
+    } else {
+      const allUploads = await this.prisma.inboundUpload.findMany({
         where: { status: 'processed' },
-        orderBy: { uploadedAt: 'desc' },
-        select: { id: true }, // Only fetch id
+        select: { id: true },
       });
 
-      if (!latestUpload) {
+      if (allUploads.length === 0) {
         throw new NotFoundException('No processed inbound uploads found');
       }
 
-      targetUploadId = latestUpload.id;
+      targetUploadIds = allUploads.map(u => u.id);
     }
 
     // Handle month filter - convert to fromDate/toDate
@@ -512,13 +523,14 @@ export class InboundService implements OnModuleInit {
       : undefined;
 
     // Run parallel queries for metrics, dates, months, categories, and time series
+    // (aggregating across all uploads if multiple)
     const [cards, availableDates, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
-      this.calculateCardMetricsOptimized(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
-      this.getAvailableDates(targetUploadId),
-      this.getAvailableMonths(targetUploadId),
-      this.getProductCategories(targetUploadId),
-      this.generateTimeSeries(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
-      this.getSummaryTotals(targetUploadId, effectiveFromDate, effectiveToDate, productCategoryFilter),
+      this.calculateCardMetricsOptimized(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
+      this.getAvailableDates(targetUploadIds),
+      this.getAvailableMonths(targetUploadIds),
+      this.getProductCategories(targetUploadIds),
+      this.generateTimeSeries(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
+      this.getSummaryTotals(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
     ]);
 
     const result: InboundSummaryResponse = {
@@ -540,25 +552,38 @@ export class InboundService implements OnModuleInit {
   }
 
   /**
+   * Helper to parse date string as local date (not UTC)
+   * Fixes timezone issue where "2024-11-01" was being parsed as UTC midnight
+   */
+  private parseLocalDate(dateStr: string, endOfDay = false): Date {
+    const [year, month, day] = dateStr.split('-').map(Number);
+    if (endOfDay) {
+      return new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+    return new Date(year, month - 1, day, 0, 0, 0, 0);
+  }
+
+  /**
    * OPTIMIZATION: Calculate card metrics using SQL aggregation
    * Reduces data transfer from N rows to a single aggregated result
+   * Supports multiple upload IDs for aggregating across all uploads
    */
   private async calculateCardMetricsOptimized(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
   ): Promise<InboundCardMetrics> {
     // Build date filter
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (fromDate) {
-      params.push(new Date(fromDate));
+      params.push(this.parseLocalDate(fromDate));
       dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      params.push(new Date(toDate));
+      params.push(this.parseLocalDate(toDate, true));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategories && productCategories.length > 0) {
@@ -584,7 +609,7 @@ export class InboundService implements OnModuleInit {
         COALESCE(SUM(good_qty), 0) as good_qty_total,
         COALESCE(SUM(total_cbm), 0) as total_cbm
       FROM inbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
 
     const row = result[0];
@@ -598,9 +623,9 @@ export class InboundService implements OnModuleInit {
     };
   }
 
-  private async getAvailableDates(uploadId: string): Promise<{ minDate: string | null; maxDate: string | null }> {
+  private async getAvailableDates(uploadIds: string[]): Promise<{ minDate: string | null; maxDate: string | null }> {
     const result = await this.prisma.inboundRow.aggregate({
-      where: { uploadId },
+      where: { uploadId: { in: uploadIds } },
       _min: { dateOfUnload: true },
       _max: { dateOfUnload: true },
     });
@@ -611,9 +636,9 @@ export class InboundService implements OnModuleInit {
     };
   }
 
-  private async getAvailableMonths(uploadId: string): Promise<string[]> {
+  private async getAvailableMonths(uploadIds: string[]): Promise<string[]> {
     const rows = await this.prisma.inboundRow.findMany({
-      where: { uploadId, dateOfUnload: { not: null } },
+      where: { uploadId: { in: uploadIds }, dateOfUnload: { not: null } },
       select: { dateOfUnload: true },
       distinct: ['dateOfUnload'],
     });
@@ -629,9 +654,9 @@ export class InboundService implements OnModuleInit {
     return Array.from(months).sort();
   }
 
-  private async getProductCategories(uploadId: string): Promise<string[]> {
+  private async getProductCategories(uploadIds: string[]): Promise<string[]> {
     const rows = await this.prisma.inboundRow.findMany({
-      where: { uploadId },
+      where: { uploadId: { in: uploadIds } },
       select: { productCategory: true },
       distinct: ['productCategory'],
     });
@@ -644,19 +669,19 @@ export class InboundService implements OnModuleInit {
   }
 
   private async generateTimeSeries(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
     granularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<TimeSeriesData> {
     // Build where clause
-    const where: any = { uploadId };
+    const where: any = { uploadId: { in: uploadIds } };
     if (fromDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, gte: new Date(fromDate) };
+      where.dateOfUnload = { ...where.dateOfUnload, gte: this.parseLocalDate(fromDate) };
     }
     if (toDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, lte: new Date(toDate) };
+      where.dateOfUnload = { ...where.dateOfUnload, lte: this.parseLocalDate(toDate, true) };
     }
     if (productCategories && productCategories.length > 0) {
       where.productCategory = { in: productCategories as ProductCategory[] };
@@ -742,21 +767,21 @@ export class InboundService implements OnModuleInit {
   }
 
   private async getSummaryTotals(
-    uploadId: string,
+    uploadIds: string[],
     fromDate?: string,
     toDate?: string,
     productCategories?: string[],
   ): Promise<SummaryTotals> {
     // Build SQL conditions similar to outbound summary totals
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
 
     if (fromDate) {
-      params.push(new Date(fromDate));
+      params.push(this.parseLocalDate(fromDate));
       dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      params.push(new Date(toDate));
+      params.push(this.parseLocalDate(toDate, true));
       dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategories && productCategories.length > 0) {
@@ -782,7 +807,7 @@ export class InboundService implements OnModuleInit {
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
       FROM inbound_rows
-      WHERE upload_id = $1 
+      WHERE upload_id = ANY($1)
         AND date_of_unload IS NOT NULL
         ${dateCondition}
       GROUP BY DATE(date_of_unload), TO_CHAR(date_of_unload, 'YYYY-MM-DD')

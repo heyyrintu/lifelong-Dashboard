@@ -6,6 +6,7 @@ import { OutboundModule } from './outbound/outbound.module';
 import { InboundModule } from './inbound/inbound.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { BillingModule } from './billing/billing.module';
+import { AttendanceModule } from './attendance/attendance.module';
 import { PrismaModule } from './prisma/prisma.module';
 // Auth module with JWT authentication and RBAC
 import { AuthModule } from './auth/auth.module';
@@ -42,6 +43,7 @@ import { AuthModule } from './auth/auth.module';
     InboundModule,
     InventoryModule,
     BillingModule,
+    AttendanceModule,
     AuthModule, // JWT auth enabled globally
   ],
   providers: [

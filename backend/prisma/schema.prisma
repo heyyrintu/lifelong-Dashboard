@@ -160,6 +160,8 @@ model InventoryRow {
   @@index([uploadId, itemGroup])
   // Composite index for Total row lookup: WHERE uploadId = ? AND isTotalRow = true
   @@index([uploadId, isTotalRow])
+  // Composite index for time series with category filter
+  @@index([uploadId, productCategory])
   @@map("inventory_rows")
 }
 
@@ -178,6 +180,8 @@ model InventoryDailyStock {
   // Composite index for date-range queries filtering by inventoryRowId + stockDate
   // Covers WHERE inventoryRowId = ? AND stockDate BETWEEN ? AND ? (getSummary hot path)
   @@index([inventoryRowId, stockDate])
+  // Composite index for time series aggregation: GROUP BY stock_date with row join
+  @@index([stockDate, inventoryRowId])
   @@map("inventory_daily_stock")
 }
 
@@ -241,4 +245,75 @@ model BillingLineItem {
 
   @@index([billingPeriodId])
   @@map("billing_line_items")
+}
+
+// ============================================
+// Phase 6 - Attendance Models
+// ============================================
+
+enum EmployeeType {
+  ON_ROLL
+  OFF_ROLL
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  WEEKLY_OFF
+  HALF_DAY
+}
+
+model Employee {
+  id           String       @id @default(uuid())
+  employeeId   String       @unique @map("employee_id") // e.g., F00000001, DLP117
+  name         String
+  designation  String?
+  department   String?
+  vendor       String?      // KBR, Drona Value Chain, etc.
+  contact      String?
+  dateOfJoining DateTime?   @map("date_of_joining")
+  employeeType EmployeeType @default(OFF_ROLL) @map("employee_type")
+  location     String       @default("Farukh Nagar")
+  isActive     Boolean      @default(true) @map("is_active")
+  
+  attendances  Attendance[]
+  
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([employeeType])
+  @@index([isActive])
+  @@index([vendor])
+  @@index([location])
+  @@map("employees")
+}
+
+model Attendance {
+  id           String           @id @default(uuid())
+  employeeId   String           @map("employee_id")
+  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  date         DateTime         @db.Date
+  status       AttendanceStatus @default(PRESENT)
+  inTime       DateTime?        @map("in_time")
+  outTime      DateTime?        @map("out_time")
+  totalHours   Float            @default(0) @map("total_hours")    // Calculated: outTime - inTime
+  overtimeHours Float           @default(0) @map("overtime_hours") // Hours beyond 9 hrs
+  remarks      String?
+  
+  // Source tracking
+  source       String           @default("manual") // "manual" | "excel-upload"
+  uploadBatch  String?          @map("upload_batch") // To group excel uploads
+  
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@unique([employeeId, date]) // One attendance record per employee per day
+  @@index([date])
+  @@index([status])
+  @@index([source])
+  @@index([uploadBatch])
+  @@index([employeeId, date])
+  @@map("attendances")
 }

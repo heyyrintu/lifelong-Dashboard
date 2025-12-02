@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
-import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search, FileText } from 'lucide-react';
+import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search, FileText, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -17,6 +17,8 @@ import {
   Cell,
   LabelList,
   Legend,
+  PieChart,
+  Pie,
 } from 'recharts';
 
 interface CardMetrics {
@@ -79,6 +81,7 @@ interface SummaryResponse {
   productCategoryTable: CategoryRow[];
   availableMonths: string[];
   productCategories: string[];
+  availableWarehouses: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
 }
@@ -91,6 +94,15 @@ interface UploadInfo {
   status: string;
 }
 
+interface TopProduct {
+  rank: number;
+  deliveryNoteItem: string;
+  totalCbm: number;
+  totalQty: number;
+  productCategory: string;
+  percentageOfTotal: number;
+}
+
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
 
 export default function OutboundPage() {
@@ -99,6 +111,12 @@ export default function OutboundPage() {
   const [data, setData] = useState<SummaryResponse | null>(null);
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
+
+  // Top Products state
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [topProductsLoading, setTopProductsLoading] = useState(false);
+  const [topProductsRankBy, setTopProductsRankBy] = useState<'cbm' | 'qty'>('cbm');
+  const [topProductsSortOrder, setTopProductsSortOrder] = useState<'top' | 'bottom'>('top');
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -120,6 +138,33 @@ export default function OutboundPage() {
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
+
+  const productCategoryDonutData = useMemo(
+    () => {
+      const fixedCategories = [
+        'E-Commerce',
+        'Offline',
+        'Quick-Commerce',
+        'EBO',
+        'B2C',
+        'Others',
+      ];
+
+      const cbmByCategory = new Map<string, number>();
+      if (data?.categoryTable) {
+        for (const category of data.categoryTable) {
+          cbmByCategory.set(category.categoryLabel, category.dnTotalCbm ?? 0);
+        }
+      }
+
+      return fixedCategories.map((name) => ({
+        name,
+        value: cbmByCategory.get(name) ?? 0,
+      }));
+    },
+    [data?.categoryTable]
+  );
 
   // Combine initial data fetch - avoid duplicate API calls
   useEffect(() => {
@@ -127,22 +172,31 @@ export default function OutboundPage() {
       try {
         setLoading(true);
         setChartLoading(true);
+        setTopProductsLoading(true);
         
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
         
-        const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+        const [summaryResponse, topProductsResponse] = await Promise.all([
+          fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`),
+          fetch(`${BACKEND_URL}/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
+        ]);
         
-        if (!response.ok) {
-          if (response.status === 404) {
+        if (!summaryResponse.ok) {
+          if (summaryResponse.status === 404) {
             throw new Error('No data available. Please upload an Outbound Excel file first.');
           }
           throw new Error('Failed to fetch data from backend');
         }
         
-        const result: SummaryResponse = await response.json();
+        const result: SummaryResponse = await summaryResponse.json();
         setData(result);
         setChartData(result.timeSeries);
+
+        if (topProductsResponse.ok) {
+          const topProductsResult: TopProduct[] = await topProductsResponse.json();
+          setTopProducts(topProductsResult);
+        }
       } catch (err: any) {
         setError(err.message || 'An error occurred while fetching data');
         setData(null);
@@ -150,6 +204,7 @@ export default function OutboundPage() {
       } finally {
         setLoading(false);
         setChartLoading(false);
+        setTopProductsLoading(false);
       }
     };
     
@@ -195,6 +250,9 @@ export default function OutboundPage() {
         if (selectedProductCategories.length > 0) {
           selectedProductCategories.forEach(cat => params.append('productCategory', cat));
         }
+        if (selectedWarehouse && selectedWarehouse !== 'ALL') {
+          params.append('warehouse', selectedWarehouse);
+        }
       }
       // Always send timeGranularity
       params.append('timeGranularity', timeGranularity);
@@ -234,6 +292,9 @@ export default function OutboundPage() {
       if (selectedProductCategories.length > 0) {
         selectedProductCategories.forEach(cat => params.append('productCategory', cat));
       }
+      if (selectedWarehouse && selectedWarehouse !== 'ALL') {
+        params.append('warehouse', selectedWarehouse);
+      }
       // Use the passed granularity instead of state
       params.append('timeGranularity', granularity);
 
@@ -258,6 +319,58 @@ export default function OutboundPage() {
 
   const handleFilter = () => {
     fetchSummary(true);
+    fetchTopProducts(topProductsRankBy, topProductsSortOrder);
+  };
+
+  // Fetch top products
+  const fetchTopProducts = async (rankBy: 'cbm' | 'qty', sortOrder: 'top' | 'bottom') => {
+    try {
+      setTopProductsLoading(true);
+      const params = new URLSearchParams();
+      params.append('limit', '10');
+      params.append('rankBy', rankBy);
+      params.append('sortOrder', sortOrder);
+      
+      // Apply current filters
+      if (selectedMonth && selectedMonth !== 'ALL') {
+        params.append('month', selectedMonth);
+      } else {
+        if (fromDate) params.append('fromDate', fromDate);
+        if (toDate) params.append('toDate', toDate);
+      }
+      if (selectedProductCategories.length > 0) {
+        selectedProductCategories.forEach(cat => params.append('productCategory', cat));
+      }
+      if (selectedWarehouse && selectedWarehouse !== 'ALL') {
+        params.append('warehouse', selectedWarehouse);
+      }
+
+      const response = await fetch(`${BACKEND_URL}/outbound/top-products?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch top products');
+      }
+      
+      const result: TopProduct[] = await response.json();
+      setTopProducts(result);
+    } catch (err: any) {
+      console.error('Top products fetch error:', err.message);
+      setTopProducts([]);
+    } finally {
+      setTopProductsLoading(false);
+    }
+  };
+
+  // Handle rank by change
+  const handleRankByChange = (rankBy: 'cbm' | 'qty') => {
+    setTopProductsRankBy(rankBy);
+    fetchTopProducts(rankBy, topProductsSortOrder);
+  };
+
+  // Handle sort order change
+  const handleSortOrderChange = (sortOrder: 'top' | 'bottom') => {
+    setTopProductsSortOrder(sortOrder);
+    fetchTopProducts(topProductsRankBy, sortOrder);
   };
 
   const toggleProductCategory = (category: string) => {
@@ -305,6 +418,9 @@ export default function OutboundPage() {
       }
       if (selectedProductCategories.length > 0) {
         selectedProductCategories.forEach(cat => params.append('productCategory', cat));
+      }
+      if (selectedWarehouse && selectedWarehouse !== 'ALL') {
+        params.append('warehouse', selectedWarehouse);
       }
       params.append('timeGranularity', timeGranularity);
 
@@ -369,6 +485,25 @@ export default function OutboundPage() {
   const formatProductCategory = useCallback((category: string): string => {
     return CATEGORY_LABELS[category] || category;
   }, [CATEGORY_LABELS]);
+
+  // Format backend month value (e.g. 2025-11) to display label like Nov'25
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+  const formatMonthLabel = useCallback((month: string): string => {
+    if (month === 'ALL') return 'All Months';
+
+    const match = month.match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const [, yearStr, monthStr] = match;
+      const monthIndex = parseInt(monthStr, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        const shortYear = yearStr.slice(2);
+        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
+      }
+    }
+
+    return month;
+  }, []);
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
@@ -440,7 +575,7 @@ export default function OutboundPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
-          <div className="md:col-span-4 space-y-2">
+          <div className="md:col-span-3 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
@@ -470,7 +605,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Month Selector */}
-          <div className="md:col-span-3 space-y-2">
+          <div className="md:col-span-2 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
@@ -484,7 +619,33 @@ export default function OutboundPage() {
                 >
                   {(data?.availableMonths || ['ALL']).map((month) => (
                     <option key={month} value={month}>
-                      {month === 'ALL' ? 'All Months' : month}
+                      {formatMonthLabel(month)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+                <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Warehouse Filter */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+              <Box className="w-3.5 h-3.5" /> Warehouse
+            </label>
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+              <div className="relative flex-1">
+                <select
+                  value={selectedWarehouse}
+                  onChange={(e) => setSelectedWarehouse(e.target.value)}
+                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
+                  suppressHydrationWarning={true}
+                >
+                  {(data?.availableWarehouses || ['ALL']).map((warehouse) => (
+                    <option key={warehouse} value={warehouse}>
+                      {warehouse}
                     </option>
                   ))}
                 </select>
@@ -496,7 +657,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="md:col-span-2 space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -600,7 +761,7 @@ export default function OutboundPage() {
                 </>
               )}
             </motion.button>
-            {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0) && (
+            {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
                 whileHover={{ scale: 1.02, translateY: -2 }}
                 whileTap={{ scale: 0.98, translateY: 0 }}
@@ -609,6 +770,7 @@ export default function OutboundPage() {
                   setToDate('');
                   setSelectedMonth('ALL');
                   setSelectedProductCategories([]);
+                  setSelectedWarehouse('ALL');
                   fetchSummary(false);
                 }}
                 className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5"
@@ -903,7 +1065,7 @@ export default function OutboundPage() {
         </motion.div>
       </div>
 
-      {/* Category Breakdown Table - Premium Glassmorphism Design */}
+      {/* Product Catagory Table - Premium Glassmorphism Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -920,7 +1082,7 @@ export default function OutboundPage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Category Breakdown</h3>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Product Catagory</h3>
               </div>
               <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
                 {data?.categoryTable?.length || 0} Categories
@@ -1155,6 +1317,409 @@ export default function OutboundPage() {
               <div className="text-center">
                 <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No category data available</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Pie Charts Section - Products and Categories by CBM */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Products by CBM Pie Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="w-full"
+        >
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            {/* Decorative gradient blobs */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                <Box className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  Products by CBM
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Top 10 products distribution
+                </p>
+              </div>
+            </div>
+
+            {/* Pie Chart */}
+            {topProducts.length > 0 ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={topProducts.slice(0, 10).map((product, index) => ({
+                        name: product.deliveryNoteItem.length > 20 
+                          ? product.deliveryNoteItem.substring(0, 20) + '...' 
+                          : product.deliveryNoteItem,
+                        value: product.totalCbm,
+                        fullName: product.deliveryNoteItem,
+                      }))}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${(percent * 100).toFixed(1)}%`}
+                      outerRadius={100}
+                      innerRadius={40}
+                      fill="#8884d8"
+                      dataKey="value"
+                      paddingAngle={2}
+                    >
+                      {topProducts.slice(0, 10).map((_, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={[
+                            '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+                            '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
+                          ][index % 10]} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                                {data.fullName}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
+                                CBM: <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">{formatNumber(data.value, 2)}</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
+                <div className="text-center">
+                  <Box className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No product data available</p>
+                </div>
+              </div>
+            )}
+
+            {/* Legend */}
+            {topProducts.length > 0 && (
+              <div className="mt-4 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                {topProducts.slice(0, 10).map((product, index) => (
+                  <div key={product.deliveryNoteItem} className="flex items-center gap-2 text-xs">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ 
+                        backgroundColor: [
+                          '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
+                          '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
+                        ][index % 10] 
+                      }} 
+                    />
+                    <span className="text-gray-600 dark:text-slate-400 truncate">
+                      {product.deliveryNoteItem.length > 25 
+                        ? product.deliveryNoteItem.substring(0, 25) + '...' 
+                        : product.deliveryNoteItem}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+
+        {/* Categories by CBM Pie Chart */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="w-full"
+        >
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            {/* Decorative gradient blobs */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6 relative z-10">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                <Package className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                  Product Catagory
+                </h3>
+                <p className="text-sm text-gray-500 dark:text-slate-400">
+                  Category distribution by CBM
+                </p>
+              </div>
+            </div>
+
+            {/* Pie Chart */}
+            {productCategoryDonutData.some(item => item.value > 0) ? (
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={productCategoryDonutData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) => `${(percent * 100).toFixed(1)}%`}
+                      outerRadius={100}
+                      innerRadius={40}
+                      fill="#8884d8"
+                      dataKey="value"
+                      paddingAngle={2}
+                    >
+                      {productCategoryDonutData.map((_, index) => (
+                        <Cell 
+                          key={`cell-${index}`} 
+                          fill={[
+                            '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
+                            '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
+                          ][index % 10]} 
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const data = payload[0].payload;
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                                {data.name}
+                              </p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
+                                CBM: <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{formatNumber(data.value, 2)}</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
+                <div className="text-center">
+                  <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                  <p>No category data available</p>
+                </div>
+              </div>
+            )}
+
+            {/* Legend */}
+            {productCategoryDonutData.some(item => item.value > 0) && (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                {productCategoryDonutData.map((category, index) => (
+                  <div key={category.name} className="flex items-center gap-2 text-xs">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0" 
+                      style={{ 
+                        backgroundColor: [
+                          '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
+                          '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
+                        ][index % 10] 
+                      }} 
+                    />
+                    <span className="text-gray-600 dark:text-slate-400 truncate">
+                      {category.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Product Performances Table - Premium Glassmorphism Design */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        className="w-full mb-8"
+      >
+        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          {/* Decorative gradient blobs */}
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
+                  <Trophy className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                    Product Performances
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-slate-400">
+                    Ranked by {topProductsRankBy === 'cbm' ? 'CBM' : 'Quantity'}
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Controls */}
+            <div className="flex items-center gap-3">
+              {/* Rank By Toggle */}
+              <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
+                <button
+                  onClick={() => handleRankByChange('cbm')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                    topProductsRankBy === 'cbm'
+                      ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  By CBM
+                </button>
+                <button
+                  onClick={() => handleRankByChange('qty')}
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                    topProductsRankBy === 'qty'
+                      ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  By Qty
+                </button>
+              </div>
+              
+              {/* Sort Order Toggle */}
+              <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
+                <button
+                  onClick={() => handleSortOrderChange('top')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                    topProductsSortOrder === 'top'
+                      ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ArrowUp className="w-3.5 h-3.5" />
+                  Top
+                </button>
+                <button
+                  onClick={() => handleSortOrderChange('bottom')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
+                    topProductsSortOrder === 'bottom'
+                      ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
+                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                  }`}
+                >
+                  <ArrowDown className="w-3.5 h-3.5" />
+                  Bottom
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {topProductsLoading ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
+            </div>
+          ) : topProducts.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-gray-200/50 dark:border-slate-700/50">
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Rank</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Product Item</th>
+                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                      <span className={topProductsRankBy === 'qty' ? 'text-amber-600 dark:text-amber-400' : ''}>DN Qty</span>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                      <span className={topProductsRankBy === 'cbm' ? 'text-amber-600 dark:text-amber-400' : ''}>DN CBM</span>
+                    </th>
+                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">% of Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
+                  {topProducts.map((product, index) => (
+                    <motion.tr
+                      key={product.deliveryNoteItem}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
+                          product.rank === 1 
+                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30' 
+                            : product.rank === 2 
+                              ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md' 
+                              : product.rank === 3 
+                                ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20'
+                                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
+                        }`}>
+                          {product.rank}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="text-sm font-medium text-gray-900 dark:text-slate-200">
+                          {product.deliveryNoteItem}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-700/50">
+                          {product.productCategory}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-sm font-mono font-semibold ${
+                          topProductsRankBy === 'qty' 
+                            ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-gray-700 dark:text-slate-300'
+                        }`}>
+                          {formatNumber(product.totalQty)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className={`text-sm font-mono font-semibold ${
+                          topProductsRankBy === 'cbm' 
+                            ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-gray-700 dark:text-slate-300'
+                        }`}>
+                          {formatNumber(product.totalCbm, 2)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400">
+                          {formatNumber(product.percentageOfTotal, 2)}%
+                        </span>
+                      </td>
+                    </motion.tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
+              <div className="text-center">
+                <Trophy className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No product data available</p>
               </div>
             </div>
           )}

@@ -70,8 +70,18 @@ export interface SummaryResponse {
   productCategoryTable: CategoryRow[];
   availableMonths: string[];
   productCategories: string[];
+  availableWarehouses: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
+}
+
+export interface TopProduct {
+  rank: number;
+  deliveryNoteItem: string;
+  totalCbm: number;
+  totalQty: number;
+  productCategory: string;
+  percentageOfTotal: number;
 }
 
 @Injectable()
@@ -179,39 +189,46 @@ export class OutboundService {
       }
 
       // Use transaction to ensure atomicity - either all data is inserted or none
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Create upload record within transaction
-        const upload = await tx.outboundUpload.create({
-          data: {
-            fileName,
-            status: 'processing', // Mark as processing initially
-          },
-        });
-
-        // Bulk insert rows in batches (Prisma has limits on single createMany)
-        const rowsWithUploadId = parsedRows.map(row => ({
-          ...row,
-          uploadId: upload.id,
-        }));
-
-        for (let i = 0; i < rowsWithUploadId.length; i += OutboundService.BATCH_SIZE) {
-          const batch = rowsWithUploadId.slice(i, i + OutboundService.BATCH_SIZE);
-          await tx.outboundRow.createMany({
-            data: batch,
+      // Increase timeout to 2 minutes for large files
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          // Create upload record within transaction
+          const upload = await tx.outboundUpload.create({
+            data: {
+              fileName,
+              status: 'processing', // Mark as processing initially
+            },
           });
+
+          // Bulk insert rows in batches (Prisma has limits on single createMany)
+          const rowsWithUploadId = parsedRows.map(row => ({
+            ...row,
+            uploadId: upload.id,
+          }));
+
+          for (let i = 0; i < rowsWithUploadId.length; i += OutboundService.BATCH_SIZE) {
+            const batch = rowsWithUploadId.slice(i, i + OutboundService.BATCH_SIZE);
+            await tx.outboundRow.createMany({
+              data: batch,
+            });
+          }
+
+          // Mark upload as processed after successful insertion
+          await tx.outboundUpload.update({
+            where: { id: upload.id },
+            data: { status: 'processed' },
+          });
+
+          return {
+            uploadId: upload.id,
+            rowsInserted: parsedRows.length,
+          };
+        },
+        {
+          maxWait: 120000, // 2 minutes max wait to acquire connection
+          timeout: 120000, // 2 minutes transaction timeout
         }
-
-        // Mark upload as processed after successful insertion
-        await tx.outboundUpload.update({
-          where: { id: upload.id },
-          data: { status: 'processed' },
-        });
-
-        return {
-          uploadId: upload.id,
-          rowsInserted: parsedRows.length,
-        };
-      });
+      );
 
       // Clear cache when new data is uploaded
       this.cache.clear();
@@ -256,11 +273,13 @@ export class OutboundService {
     month?: string,
     productCategories?: string[],
     timeGranularity: 'month' | 'week' | 'day' = 'month',
+    warehouse?: string,
   ): Promise<SummaryResponse> {
     const startTime = Date.now();
 
     // Generate cache key (include all filter parameters)
-    const cacheKey = `${uploadId || 'latest'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${timeGranularity}`;
+    // 'all' when no uploadId specified = aggregate across all uploads
+    const cacheKey = `${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${warehouse || 'ALL'}-${timeGranularity}`;
     
     // Check cache
     if (this.cache.has(cacheKey)) {
@@ -270,20 +289,23 @@ export class OutboundService {
       }
     }
 
-    // Determine which upload to use
-    let targetUploadId = uploadId;
-    if (!targetUploadId) {
-      const latestUpload = await this.prisma.outboundUpload.findFirst({
+    // Determine which upload(s) to use
+    // If uploadId is specified, use that specific upload
+    // If not specified, aggregate data from ALL processed uploads
+    let targetUploadIds: string[] = [];
+    if (uploadId) {
+      targetUploadIds = [uploadId];
+    } else {
+      const allUploads = await this.prisma.outboundUpload.findMany({
         where: { status: 'processed' },
-        orderBy: { uploadedAt: 'desc' },
-        select: { id: true }, // Only fetch id
+        select: { id: true },
       });
 
-      if (!latestUpload) {
+      if (allUploads.length === 0) {
         throw new NotFoundException('No processed uploads found');
       }
 
-      targetUploadId = latestUpload.id;
+      targetUploadIds = allUploads.map(u => u.id);
     }
 
     // Build date filter
@@ -296,17 +318,24 @@ export class OutboundService {
         : this.parseMonthName(month);
       
       if (year && monthNum) {
-        const startDate = new Date(year, monthNum - 1, 1);
-        const endDate = new Date(year, monthNum, 0, 23, 59, 59);
+        // Create dates using ISO string format to ensure correct timezone handling
+        const startDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-01T00:00:00`);
+        // Get last day of month
+        const lastDay = new Date(year, monthNum, 0).getDate();
+        const endDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59`);
         dateFilter.gte = startDate;
         dateFilter.lte = endDate;
       }
     } else {
       if (fromDate) {
-        dateFilter.gte = new Date(fromDate);
+        // Parse date and set to start of day in local timezone
+        const from = new Date(fromDate + 'T00:00:00');
+        dateFilter.gte = from;
       }
       if (toDate) {
-        dateFilter.lte = new Date(toDate);
+        // Parse date and set to end of day in local timezone
+        const to = new Date(toDate + 'T23:59:59');
+        dateFilter.lte = to;
       }
     }
 
@@ -315,15 +344,19 @@ export class OutboundService {
       ? productCategories.filter(c => c !== 'ALL') as ProductCategory[]
       : undefined;
 
-    // Run parallel queries for all data
-    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
-      this.calculateCardMetricsOptimized(targetUploadId, dateFilter, productCategoryFilter),
-      this.calculateCategoryTableOptimized(targetUploadId, dateFilter, productCategoryFilter),
-      this.calculateProductCategoryTable(targetUploadId, dateFilter),
-      this.getAvailableMonthsOptimized(targetUploadId),
+    // Build warehouse filter
+    const warehouseFilter = warehouse && warehouse !== 'ALL' ? warehouse : undefined;
+
+    // Run parallel queries for all data (aggregating across all uploads if multiple)
+    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, availableWarehouses, timeSeries, summaryTotals] = await Promise.all([
+      this.calculateCardMetricsOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
+      this.calculateCategoryTableOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
+      this.calculateProductCategoryTable(targetUploadIds, dateFilter, warehouseFilter),
+      this.getAvailableMonthsOptimized(targetUploadIds),
       this.getProductCategories(),
-      this.calculateTimeSeries(targetUploadId, timeGranularity),
-      this.calculateSummaryTotals(targetUploadId, dateFilter, productCategoryFilter),
+      this.getAvailableWarehouses(targetUploadIds),
+      this.calculateTimeSeries(targetUploadIds, timeGranularity, warehouseFilter),
+      this.calculateSummaryTotals(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
     ]);
 
     const result = {
@@ -332,6 +365,7 @@ export class OutboundService {
       productCategoryTable,
       availableMonths,
       productCategories: productCategoriesList,
+      availableWarehouses,
       timeSeries,
       summaryTotals,
     };
@@ -363,14 +397,16 @@ export class OutboundService {
 
   /**
    * OPTIMIZATION: Calculate card metrics using SQL aggregation
+   * Supports multiple upload IDs for aggregating across all uploads
    */
   private async calculateCardMetricsOptimized(
-    uploadId: string,
+    uploadIds: string[],
     dateFilter: { gte?: Date; lte?: Date },
     productCategoryFilter?: ProductCategory[],
+    warehouse?: string,
   ): Promise<CardMetrics> {
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
@@ -384,6 +420,10 @@ export class OutboundService {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
       params.push(...productCategoryFilter);
       dateCondition += ` AND product_category IN (${placeholders})`;
+    }
+    if (warehouse) {
+      params.push(warehouse);
+      dateCondition += ` AND source_warehouse = $${params.length}`;
     }
 
     const result = await this.prisma.$queryRawUnsafe<[{
@@ -402,7 +442,7 @@ export class OutboundService {
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
         COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
       FROM outbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
 
     const row = result[0];
@@ -424,14 +464,16 @@ export class OutboundService {
    * OPTIMIZATION: Calculate category table using SQL GROUP BY
    * Previous: Fetch all rows, filter and aggregate per category in JS
    * After: Single SQL query with GROUP BY normalized_category
+   * Supports multiple upload IDs for aggregating across all uploads
    */
   private async calculateCategoryTableOptimized(
-    uploadId: string,
+    uploadIds: string[],
     dateFilter: { gte?: Date; lte?: Date },
     productCategoryFilter?: ProductCategory[],
+    warehouse?: string,
   ): Promise<CategoryRow[]> {
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
@@ -445,6 +487,10 @@ export class OutboundService {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
       params.push(...productCategoryFilter);
       dateCondition += ` AND product_category IN (${placeholders})`;
+    }
+    if (warehouse) {
+      params.push(warehouse);
+      dateCondition += ` AND source_warehouse = $${params.length}`;
     }
 
     // Query with GROUP BY for category aggregation
@@ -466,7 +512,7 @@ export class OutboundService {
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
         COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
       FROM outbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
       GROUP BY normalized_category
     `, ...params);
 
@@ -526,7 +572,7 @@ export class OutboundService {
         COUNT(DISTINCT so_item) as so_count,
         COUNT(DISTINCT delivery_note_item) as dn_count
       FROM outbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
 
     // Add TOTAL row
@@ -548,19 +594,39 @@ export class OutboundService {
    * OPTIMIZATION: Get available months using SQL date extraction
    * Previous: Fetch all distinct dates, process in JS
    * After: Use SQL date_trunc/extract for direct month aggregation
+   * Supports multiple upload IDs
    */
-  private async getAvailableMonthsOptimized(uploadId: string): Promise<string[]> {
-    const result = await this.prisma.$queryRaw<Array<{ month_str: string }>>` 
+  private async getAvailableMonthsOptimized(uploadIds: string[]): Promise<string[]> {
+    const result = await this.prisma.$queryRawUnsafe<Array<{ month_str: string }>>(`
       SELECT DISTINCT 
         TO_CHAR(delivery_note_date, 'YYYY-MM') as month_str
       FROM outbound_rows
-      WHERE upload_id = ${uploadId}
+      WHERE upload_id = ANY($1)
         AND delivery_note_date IS NOT NULL
       ORDER BY month_str
-    `;
+    `, uploadIds);
 
     const months = result.map(r => r.month_str).filter(Boolean);
     return ['ALL', ...months];
+  }
+
+  /**
+   * Get available warehouses from all uploads
+   * Returns distinct source_warehouse values
+   */
+  private async getAvailableWarehouses(uploadIds: string[]): Promise<string[]> {
+    const result = await this.prisma.$queryRawUnsafe<Array<{ warehouse: string }>>(`
+      SELECT DISTINCT 
+        source_warehouse as warehouse
+      FROM outbound_rows
+      WHERE upload_id = ANY($1)
+        AND source_warehouse IS NOT NULL
+        AND source_warehouse != ''
+      ORDER BY warehouse
+    `, uploadIds);
+
+    const warehouses = result.map(r => r.warehouse).filter(Boolean);
+    return ['ALL', ...warehouses];
   }
 
   /**
@@ -594,13 +660,15 @@ export class OutboundService {
 
   /**
    * Calculate product category table using SQL GROUP BY
+   * Supports multiple upload IDs
    */
   private async calculateProductCategoryTable(
-    uploadId: string,
+    uploadIds: string[],
     dateFilter: { gte?: Date; lte?: Date },
+    warehouse?: string,
   ): Promise<CategoryRow[]> {
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
@@ -609,6 +677,10 @@ export class OutboundService {
     if (dateFilter.lte) {
       params.push(dateFilter.lte);
       dateCondition += ` AND delivery_note_date <= $${params.length}`;
+    }
+    if (warehouse) {
+      params.push(warehouse);
+      dateCondition += ` AND source_warehouse = $${params.length}`;
     }
 
     // Query with GROUP BY for product category aggregation
@@ -630,7 +702,7 @@ export class OutboundService {
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
         COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
       FROM outbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
       GROUP BY product_category
     `, ...params);
 
@@ -694,7 +766,7 @@ export class OutboundService {
         COUNT(DISTINCT so_item) as so_count,
         COUNT(DISTINCT delivery_note_item) as dn_count
       FROM outbound_rows
-      WHERE upload_id = $1 ${dateCondition}
+      WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
 
     // Add TOTAL row
@@ -714,10 +786,12 @@ export class OutboundService {
 
   /**
    * Calculate time series data for charts
+   * Supports multiple upload IDs
    */
   private async calculateTimeSeries(
-    uploadId: string,
+    uploadIds: string[],
     granularity: 'month' | 'week' | 'day',
+    warehouse?: string,
   ): Promise<TimeSeriesData> {
     let dateFormat: string;
     let groupBy: string;
@@ -738,6 +812,13 @@ export class OutboundService {
         break;
     }
 
+    const params: any[] = [uploadIds];
+    let warehouseCondition = '';
+    if (warehouse) {
+      params.push(warehouse);
+      warehouseCondition = ` AND source_warehouse = $${params.length}`;
+    }
+
     const result = await this.prisma.$queryRawUnsafe<Array<{
       period: Date;
       period_label: string;
@@ -754,11 +835,12 @@ export class OutboundService {
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
         COALESCE(SUM(dn_total_cbm), 0) as dn_total_cbm
       FROM outbound_rows
-      WHERE upload_id = $1
+      WHERE upload_id = ANY($1)
         AND delivery_note_date IS NOT NULL
+        ${warehouseCondition}
       GROUP BY ${groupBy}
       ORDER BY period
-    `, uploadId);
+    `, ...params);
 
     const points: TimeSeriesPoint[] = result.map(row => {
       const period = new Date(row.period);
@@ -810,14 +892,16 @@ export class OutboundService {
 
   /**
    * Calculate summary totals with day-by-day breakdown
+   * Supports multiple upload IDs
    */
   private async calculateSummaryTotals(
-    uploadId: string,
+    uploadIds: string[],
     dateFilter: { gte?: Date; lte?: Date },
     productCategoryFilter?: ProductCategory[],
+    warehouse?: string,
   ): Promise<SummaryTotals> {
     let dateCondition = '';
-    const params: any[] = [uploadId];
+    const params: any[] = [uploadIds];
     
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
@@ -831,6 +915,10 @@ export class OutboundService {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
       params.push(...productCategoryFilter);
       dateCondition += ` AND product_category IN (${placeholders})`;
+    }
+    if (warehouse) {
+      params.push(warehouse);
+      dateCondition += ` AND source_warehouse = $${params.length}`;
     }
 
     // Get day-by-day breakdown
@@ -850,7 +938,7 @@ export class OutboundService {
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN delivery_note_qty ELSE 0 END), 0) as edel_dn_qty,
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN dn_total_cbm ELSE 0 END), 0) as edel_dn_cbm
       FROM outbound_rows
-      WHERE upload_id = $1 
+      WHERE upload_id = ANY($1)
         AND delivery_note_date IS NOT NULL
         ${dateCondition}
       GROUP BY DATE(delivery_note_date), TO_CHAR(delivery_note_date, 'YYYY-MM-DD')
@@ -1112,5 +1200,144 @@ export class OutboundService {
       }
     }
     return [0, 0];
+  }
+
+  /**
+   * Get top/bottom selling products by CBM or Qty from delivery note items
+   * @param rankBy - 'cbm' or 'qty' to determine ranking metric
+   * @param sortOrder - 'top' for highest first, 'bottom' for lowest first
+   */
+  async getTopProducts(
+    limit: number = 10,
+    month?: string,
+    fromDate?: string,
+    toDate?: string,
+    warehouse?: string,
+    productCategories?: string[],
+    rankBy: 'cbm' | 'qty' = 'cbm',
+    sortOrder: 'top' | 'bottom' = 'top',
+  ): Promise<TopProduct[]> {
+    // Get all processed upload IDs
+    const allUploads = await this.prisma.outboundUpload.findMany({
+      where: { status: 'processed' },
+      select: { id: true },
+    });
+
+    if (allUploads.length === 0) {
+      return [];
+    }
+
+    const uploadIds = allUploads.map(u => u.id);
+
+    // Build query conditions
+    let dateCondition = '';
+    const params: any[] = [uploadIds];
+
+    // Handle month filter
+    if (month && month !== 'ALL') {
+      const [year, monthNum] = month.includes('-')
+        ? month.split('-').map(Number)
+        : this.parseMonthName(month);
+
+      if (year && monthNum) {
+        // Create dates using ISO string format to ensure correct timezone handling
+        const startDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-01T00:00:00`);
+        // Get last day of month
+        const lastDay = new Date(year, monthNum, 0).getDate();
+        const endDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59`);
+        params.push(startDate);
+        dateCondition += ` AND delivery_note_date >= $${params.length}`;
+        params.push(endDate);
+        dateCondition += ` AND delivery_note_date <= $${params.length}`;
+      }
+    } else {
+      if (fromDate) {
+        // Parse date and set to start of day in local timezone
+        params.push(new Date(fromDate + 'T00:00:00'));
+        dateCondition += ` AND delivery_note_date >= $${params.length}`;
+      }
+      if (toDate) {
+        // Parse date and set to end of day in local timezone
+        params.push(new Date(toDate + 'T23:59:59'));
+        dateCondition += ` AND delivery_note_date <= $${params.length}`;
+      }
+    }
+
+    // Warehouse filter
+    if (warehouse && warehouse !== 'ALL') {
+      params.push(warehouse);
+      dateCondition += ` AND source_warehouse = $${params.length}`;
+    }
+
+    // Product category filter
+    if (productCategories && productCategories.length > 0) {
+      const filtered = productCategories.filter(c => c !== 'ALL');
+      if (filtered.length > 0) {
+        const placeholders = filtered.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+        params.push(...filtered);
+        dateCondition += ` AND product_category IN (${placeholders})`;
+      }
+    }
+
+    // Add limit parameter
+    params.push(limit);
+    const limitParam = `$${params.length}`;
+
+    // Determine ORDER BY clause based on rankBy and sortOrder
+    const orderByColumn = rankBy === 'qty' ? 'total_qty' : 'total_cbm';
+    const orderDirection = sortOrder === 'bottom' ? 'ASC' : 'DESC';
+
+    // First, get the total sum for percentage calculation (without limit param)
+    const paramsForTotal = params.slice(0, -1); // Remove the limit param
+    const totalResult = await this.prisma.$queryRawUnsafe<Array<{
+      total_sum: number;
+    }>>(`
+      SELECT 
+        COALESCE(SUM(${rankBy === 'qty' ? 'delivery_note_qty' : 'dn_total_cbm'}), 0) as total_sum
+      FROM outbound_rows
+      WHERE upload_id = ANY($1)
+        AND delivery_note_item IS NOT NULL
+        AND delivery_note_item != ''
+        ${dateCondition}
+    `, ...paramsForTotal);
+
+    const totalSum = Number(totalResult[0]?.total_sum) || 0;
+
+    // Query to get top/bottom products by CBM or Qty
+    const result = await this.prisma.$queryRawUnsafe<Array<{
+      delivery_note_item: string;
+      total_cbm: number;
+      total_qty: number;
+      product_category: string;
+    }>>(`
+      SELECT 
+        delivery_note_item,
+        COALESCE(SUM(dn_total_cbm), 0) as total_cbm,
+        COALESCE(SUM(delivery_note_qty), 0) as total_qty,
+        MAX(product_category) as product_category
+      FROM outbound_rows
+      WHERE upload_id = ANY($1)
+        AND delivery_note_item IS NOT NULL
+        AND delivery_note_item != ''
+        ${dateCondition}
+      GROUP BY delivery_note_item
+      ORDER BY ${orderByColumn} ${orderDirection}
+      LIMIT ${limitParam}
+    `, ...params);
+
+    // Map to TopProduct interface with rank and percentage
+    return result.map((row, index) => {
+      const value = rankBy === 'qty' ? Number(row.total_qty) : Number(row.total_cbm);
+      const percentage = totalSum > 0 ? Math.round((value / totalSum) * 10000) / 100 : 0;
+      
+      return {
+        rank: index + 1,
+        deliveryNoteItem: row.delivery_note_item,
+        totalCbm: Math.round(Number(row.total_cbm) * 100) / 100,
+        totalQty: Math.round(Number(row.total_qty)),
+        productCategory: this.getProductCategoryLabel(row.product_category),
+        percentageOfTotal: percentage,
+      };
+    });
   }
 }

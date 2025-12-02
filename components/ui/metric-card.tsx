@@ -20,8 +20,8 @@ export function MetricCard({
         <div
             className={cn(
                 "w-full p-1 rounded-xl relative isolate overflow-hidden min-h-[168px]",
-                "bg-white/5 dark:bg-slate-800/50",
-                "bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/[0.02] dark:to-transparent",
+                "bg-white/15 dark:bg-slate-800/50",
+                "bg-gradient-to-br from-black/15 to-black/[0.06] dark:from-white/[0.06] dark:to-transparent",
                 "backdrop-blur-xl backdrop-saturate-[180%]",
                 "border border-black/10 dark:border-slate-700/50",
                 "shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.3)]",

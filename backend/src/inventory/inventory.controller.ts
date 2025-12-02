@@ -69,12 +69,13 @@ export class InventoryController {
     @Query('toDate') toDate?: string,
     @Query('itemGroup') itemGroup?: string,
     @Query('productCategory') productCategory?: string | string[],
+    @Query('warehouse') warehouse?: string,
   ) {
     try {
       const categories = productCategory
         ? (Array.isArray(productCategory) ? productCategory : [productCategory])
         : undefined;
-      return await this.inventoryService.getSummary(uploadId, fromDate, toDate, itemGroup, categories);
+      return await this.inventoryService.getSummary(uploadId, fromDate, toDate, itemGroup, categories, warehouse);
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;
@@ -118,6 +119,70 @@ export class InventoryController {
       }
       throw new HttpException(
         this.getErrorMessage(error, 'Failed to delete inventory upload'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /inventory/fast-moving-skus
+   * Get fast-moving SKUs with availability analysis
+   * 
+   * Query params:
+   * - warehouse: filter by warehouse (optional, "ALL" or specific warehouse)
+   * - productCategory: filter by product category (optional, "ALL" or specific category)
+   * - minAvgQty: minimum average quantity threshold (optional, default: 50)
+   * - limit: maximum number of results (optional, default: 50)
+   */
+  @Get('fast-moving-skus')
+  async getFastMovingSkus(
+    @Query('warehouse') warehouse?: string,
+    @Query('productCategory') productCategory?: string,
+    @Query('minAvgQty') minAvgQty?: string,
+    @Query('limit') limit?: string,
+  ) {
+    try {
+      const minQty = minAvgQty ? parseInt(minAvgQty, 10) : undefined;
+      const resultLimit = limit ? parseInt(limit, 10) : undefined;
+      return await this.inventoryService.getFastMovingSkus(warehouse, productCategory, minQty, resultLimit);
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to fetch fast-moving SKUs'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /inventory/zero-order-products
+   * Get products with zero orders (in inventory but not in outbound)
+   * 
+   * Query params:
+   * - warehouse: filter by warehouse (optional, "ALL" or specific warehouse)
+   * - productCategory: filter by product category (optional, "ALL" or specific category)
+   * - minDaysInStock: minimum days in stock threshold (optional, default: 7)
+   * - limit: maximum number of results (optional, default: 50)
+   */
+  @Get('zero-order-products')
+  async getZeroOrderProducts(
+    @Query('warehouse') warehouse?: string,
+    @Query('productCategory') productCategory?: string,
+    @Query('minDaysInStock') minDaysInStock?: string,
+    @Query('limit') limit?: string,
+  ) {
+    try {
+      const minDays = minDaysInStock ? parseInt(minDaysInStock, 10) : undefined;
+      const resultLimit = limit ? parseInt(limit, 10) : undefined;
+      return await this.inventoryService.getZeroOrderProducts(warehouse, productCategory, minDays, resultLimit);
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to fetch zero-order products'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
