@@ -176,66 +176,131 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
-          <h1 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
-            {isLogin ? 'Login' : 'Register'}
-          </h1>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
+      {/* Aurora Background Effect - matching dashboard */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Primary gradient blob - top right */}
+        <div className="absolute -top-60 -right-60 w-[700px] h-[700px] bg-gradient-to-br from-brandRed/30 via-orange-500/30 to-brandYellow/30 rounded-full blur-[100px] animate-pulse" />
+        {/* Secondary gradient blob - bottom left */}
+        <div className="absolute -bottom-60 -left-60 w-[700px] h-[700px] bg-gradient-to-tr from-brandYellow/30 via-red-500/30 to-orange-400/30 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        {/* Center accent */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] bg-gradient-to-r from-red-500/10 via-orange-400/10 to-yellow-500/10 rounded-full blur-[120px]" />
+        {/* Top left accent */}
+        <div className="absolute -top-32 -left-32 w-[500px] h-[500px] bg-gradient-to-br from-orange-400/20 via-brandRed/20 to-yellow-500/20 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '2s' }} />
+      </div>
 
-          {/* Auth Method Selection */}
-          <div className="mb-4 flex gap-2 border-b border-gray-200 dark:border-gray-700">
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod('email-password');
-                resetOTP();
-              }}
-              className={`flex-1 py-2 text-sm font-medium ${
-                authMethod === 'email-password'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Email/Password
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod('email-otp');
-                resetOTP();
-              }}
-              className={`flex-1 py-2 text-sm font-medium ${
-                authMethod === 'email-otp'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              Email OTP
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setAuthMethod('phone-otp');
-                resetOTP();
-                // Reset phone to +91 when switching to phone-otp (will be auto-filled if user has phone)
-                if (!user || !user.phone) {
-                  setPhone('+91');
-                }
-              }}
-              className={`flex-1 py-2 text-sm font-medium ${
-                authMethod === 'phone-otp'
-                  ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-            >
-              🇮🇳 Mobile OTP
-            </button>
+      <style jsx>{`
+        @media (prefers-reduced-motion: reduce) {
+          .animate-pulse {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
+      {/* Main Content */}
+      <div className="relative z-10 w-full max-w-6xl mx-auto px-4 py-4 md:py-8">
+        <div className="grid lg:grid-cols-2 gap-8 items-center">
+          {/* Left Side - Branding */}
+          <div className="hidden lg:flex flex-col items-center justify-center text-center space-y-6" role="complementary" aria-label="Brand information">
+            <div className="relative">
+              <img
+                src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
+                alt="Drona MIS logo"
+                className="h-32 w-32 rounded-3xl object-cover shadow-2xl ring-4 ring-brandRed/20"
+              />
+              <div className="absolute -inset-4 bg-gradient-to-r from-brandRed/20 to-brandYellow/20 rounded-full blur-xl -z-10"></div>
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-brandRed to-orange-600 bg-clip-text text-transparent">
+                Drona Logitech
+              </h1>
+              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-md">
+                Welcome to your comprehensive management dashboard. Streamline your operations with our powerful suite of tools.
+              </p>
+              <div className="flex flex-wrap gap-2 justify-center">
+                <span className="px-3 py-1 bg-red-100/80 dark:bg-red-900/30 text-brandRed dark:text-red-300 rounded-full text-sm font-medium">Inventory Management</span>
+                <span className="px-3 py-1 bg-orange-100/80 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-full text-sm font-medium">Billing System</span>
+                <span className="px-3 py-1 bg-yellow-100/80 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-full text-sm font-medium">Attendance Tracking</span>
+              </div>
+            </div>
           </div>
 
+          {/* Right Side - Login Form */}
+          <div className="w-full max-w-md mx-auto">
+            <div className="relative">
+              {/* Glassmorphism Card */}
+              <div className="relative bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl backdrop-saturate-[180%] border border-white/20 dark:border-slate-700/50 rounded-2xl shadow-2xl shadow-brandRed/10 dark:shadow-black/40 p-6 md:p-8">
+                {/* Gradient Border Effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-brandRed/20 via-orange-500/20 to-brandYellow/20 rounded-2xl -z-10 blur-sm"></div>
+                
+                <div className="relative z-10">
+                  <div className="mb-4 flex justify-center">
+                    <span className="inline-flex items-center rounded-full border border-red-100 bg-red-50/80 text-brandRed text-xs font-semibold px-3 py-1 shadow-sm">
+                      {isLogin ? 'Login to Drona Logitech' : 'Create your Drona Logitech account'}
+                    </span>
+                  </div>
+                  <h1 className="text-3xl font-bold text-center bg-gradient-to-r from-gray-900 via-brandRed to-orange-600 dark:from-white dark:to-gray-300 bg-clip-text text-transparent">
+                    {isLogin ? 'Welcome back' : 'Welcome to Drona Logitech'}
+                  </h1>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center mb-4 md:mb-6">
+                    Use your work email or mobile number to access the dashboard.
+                  </p>
+
+          {/* Auth Method Selection */}
+                  <div className="mb-4 md:mb-6 flex gap-2 p-1 rounded-full bg-white/95 dark:bg-slate-900/90 border border-gray-200/70 dark:border-slate-700/80 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMethod('email-password');
+                        resetOTP();
+                      }}
+                      className={`flex-1 py-2.5 px-3 text-sm font-medium rounded-full transition-all duration-200 ${
+                        authMethod === 'email-password'
+                          ? 'bg-brandRed text-white shadow-md ring-1 ring-brandRed/40'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-slate-800/80'
+                      }`}
+                    >
+                      Email/Password
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMethod('email-otp');
+                        resetOTP();
+                      }}
+                      className={`flex-1 py-2.5 px-3 text-sm font-medium rounded-full transition-all duration-200 ${
+                        authMethod === 'email-otp'
+                          ? 'bg-brandRed text-white shadow-md ring-1 ring-brandRed/40'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-slate-800/80'
+                      }`}
+                    >
+                      Email OTP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthMethod('phone-otp');
+                        resetOTP();
+                        if (!user || !user.phone) {
+                          setPhone('+91');
+                        }
+                      }}
+                      className={`flex-1 py-2.5 px-3 text-sm font-medium rounded-full transition-all duration-200 ${
+                        authMethod === 'phone-otp'
+                          ? 'bg-brandRed text-white shadow-md ring-1 ring-brandRed/40'
+                          : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-50/80 dark:hover:bg-slate-800/80'
+                      }`}
+                    >
+                      🇮🇳 Mobile OTP
+                    </button>
+                  </div>
+
           {error && (
-            <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-800 text-red-700 dark:text-red-400 rounded">
-              {error}
+            <div className="mb-4 md:mb-6 p-4 bg-red-50/80 dark:bg-red-900/20 backdrop-blur-sm border border-red-200/50 dark:border-red-800/50 text-red-700 dark:text-red-400 rounded-xl shadow-sm">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-sm font-medium">{error}</span>
+              </div>
             </div>
           )}
 
@@ -244,21 +309,21 @@ export default function LoginPage() {
             <form onSubmit={handleEmailPasswordSubmit} className="space-y-4">
               {!isLogin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Name (Optional)
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                    className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                     placeholder="Your name"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Email
                 </label>
                 <input
@@ -266,13 +331,13 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                   placeholder="you@example.com"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Password
                 </label>
                 <input
@@ -281,7 +346,7 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={8}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                  className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                   placeholder="••••••••"
                 />
               </div>
@@ -289,7 +354,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
+                className="w-full py-3 px-4 bg-gradient-to-r from-brandRed to-brandYellow hover:from-red-600 hover:to-yellow-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brandRed/20 hover:shadow-xl hover:shadow-brandRed/30 disabled:shadow-none transform hover:-translate-y-0.5 disabled:translate-y-0"
               >
                 {loading ? 'Loading...' : isLogin ? 'Login' : 'Register'}
               </button>
@@ -302,7 +367,7 @@ export default function LoginPage() {
               {!otpSent ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Email
                     </label>
                     <input
@@ -310,25 +375,27 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                       placeholder="you@example.com"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-brandRed to-brandYellow hover:from-red-600 hover:to-yellow-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brandRed/20 hover:shadow-xl hover:shadow-brandRed/30 disabled:shadow-none transform hover:-translate-y-0.5 disabled:translate-y-0"
                   >
                     {loading ? 'Sending...' : 'Send OTP'}
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="mb-2 text-sm text-gray-600 dark:text-gray-400">
-                    OTP sent to {email}
+                  <div className="mb-4 p-4 bg-orange-50/80 dark:bg-orange-900/20 backdrop-blur-sm border border-orange-200/50 dark:border-orange-800/50 rounded-xl">
+                    <p className="text-sm text-orange-800 dark:text-orange-300 font-medium">
+                      OTP sent to {email}
+                    </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Enter OTP
                     </label>
                     <input
@@ -337,21 +404,21 @@ export default function LoginPage() {
                       onChange={(e) => setOtp(e.target.value)}
                       required
                       maxLength={6}
-                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-2xl tracking-widest"
+                      className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white text-center text-2xl tracking-widest placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                       placeholder="000000"
                     />
                   </div>
                   <button
                     type="submit"
                     disabled={loading}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium rounded-md transition-colors"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-brandRed to-brandYellow hover:from-red-600 hover:to-yellow-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brandRed/20 hover:shadow-xl hover:shadow-brandRed/30 disabled:shadow-none transform hover:-translate-y-0.5 disabled:translate-y-0"
                   >
                     {loading ? 'Verifying...' : 'Verify OTP'}
                   </button>
                   <button
                     type="button"
                     onClick={resetOTP}
-                    className="w-full py-2 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    className="w-full py-2 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-brandRed dark:hover:text-brandYellow transition-colors"
                   >
                     Change Email
                   </button>
@@ -366,11 +433,11 @@ export default function LoginPage() {
               {!otpSent ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Mobile Number (India)
                     </label>
                     <div className="relative">
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 flex items-center gap-1.5 pointer-events-none z-10">
+                      <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center gap-2 pointer-events-none z-10">
                         <span className="text-lg">🇮🇳</span>
                         <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">+91</span>
                       </div>
@@ -380,26 +447,29 @@ export default function LoginPage() {
                         onChange={handlePhoneChange}
                         required
                         maxLength={13}
-                        className="w-full pl-20 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-full pl-24 pr-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                         placeholder="9876543210"
                       />
                     </div>
-                    <div className="mt-2 space-y-1">
+                    <div className="mt-3 space-y-2">
                       <p className="text-xs text-gray-500 dark:text-gray-400">
                         Enter your 10-digit mobile number
                       </p>
                       {phone.length > 3 && phone.length < 13 && (
-                        <p className="text-xs text-amber-600 dark:text-amber-400">
+                        <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                          <div className="w-1 h-1 bg-amber-500 rounded-full animate-pulse"></div>
                           {phone.length - 3} digits entered. Need {13 - phone.length} more.
                         </p>
                       )}
                       {phone.length === 13 && !validateIndianPhone(phone) && (
-                        <p className="text-xs text-red-600 dark:text-red-400">
+                        <p className="text-xs text-red-600 dark:text-red-400 flex items-center gap-1">
+                          <div className="w-1 h-1 bg-red-500 rounded-full animate-pulse"></div>
                           Invalid number. Indian mobile numbers start with 6, 7, 8, or 9.
                         </p>
                       )}
                       {phone.length === 13 && validateIndianPhone(phone) && (
-                        <p className="text-xs text-green-600 dark:text-green-400">
+                        <p className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1">
+                          <div className="w-1 h-1 bg-green-500 rounded-full animate-pulse"></div>
                           ✓ Valid Indian mobile number
                         </p>
                       )}
@@ -408,23 +478,23 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={loading || !validateIndianPhone(phone)}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-brandRed to-brandYellow hover:from-red-600 hover:to-yellow-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brandRed/20 hover:shadow-xl hover:shadow-brandRed/30 disabled:shadow-none transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Sending OTP...' : 'Send OTP'}
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
-                    <p className="text-sm text-blue-700 dark:text-blue-400">
+                  <div className="mb-4 p-4 bg-orange-50/80 dark:bg-orange-900/20 backdrop-blur-sm border border-orange-200/50 dark:border-orange-800/50 rounded-xl">
+                    <p className="text-sm text-orange-800 dark:text-orange-300 font-medium">
                       <span className="font-medium">OTP sent to:</span> {phone}
                     </p>
-                    <p className="text-xs text-blue-600 dark:text-blue-500 mt-1">
+                    <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
                       Please check your SMS for the 6-digit OTP code
                     </p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Enter 6-Digit OTP
                     </label>
                     <input
@@ -436,7 +506,7 @@ export default function LoginPage() {
                       }}
                       required
                       maxLength={6}
-                      className="w-full px-3 py-3 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-center text-3xl tracking-[0.5em] font-semibold focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="w-full px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm text-gray-900 dark:text-white text-center text-3xl tracking-[0.5em] font-semibold placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed transition-all duration-200"
                       placeholder="000000"
                       autoFocus
                     />
@@ -444,14 +514,14 @@ export default function LoginPage() {
                   <button
                     type="submit"
                     disabled={loading || otp.length !== 6}
-                    className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white font-medium rounded-md transition-colors"
+                    className="w-full py-3 px-4 bg-gradient-to-r from-brandRed to-brandYellow hover:from-red-600 hover:to-yellow-500 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold rounded-xl transition-all duration-200 shadow-lg shadow-brandRed/20 hover:shadow-xl hover:shadow-brandRed/30 disabled:shadow-none transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:cursor-not-allowed"
                   >
                     {loading ? 'Verifying OTP...' : 'Verify OTP'}
                   </button>
                   <button
                     type="button"
                     onClick={resetOTP}
-                    className="w-full py-2 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+                    className="w-full py-2 px-4 text-sm text-gray-600 dark:text-gray-400 hover:text-brandRed dark:hover:text-brandYellow transition-colors"
                   >
                     ← Change Mobile Number
                   </button>
@@ -471,7 +541,7 @@ export default function LoginPage() {
                         }
                       }}
                       disabled={loading}
-                      className="text-xs text-blue-600 dark:text-blue-400 hover:underline disabled:opacity-50"
+                      className="text-xs text-brandRed dark:text-orange-400 hover:underline disabled:opacity-50 transition-colors"
                     >
                       Didn&apos;t receive OTP? Resend
                     </button>
@@ -482,14 +552,14 @@ export default function LoginPage() {
           )}
 
           {authMethod === 'email-password' && (
-            <div className="mt-4 text-center">
+            <div className="mt-4 md:mt-6 text-center">
               <button
                 type="button"
                 onClick={() => {
                   setIsLogin(!isLogin);
                   setError('');
                 }}
-                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+                className="text-sm text-brandRed dark:text-orange-400 hover:text-red-700 dark:hover:text-orange-300 font-medium transition-colors"
               >
                 {isLogin ? "Don't have an account? Register" : 'Already have an account? Login'}
               </button>
@@ -497,19 +567,14 @@ export default function LoginPage() {
           )}
 
           {/* Google Login Button */}
-          <div className="mt-6">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300 dark:border-gray-600"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white dark:bg-gray-800 text-gray-500 dark:text-gray-400">
-                  Or continue with
-                </span>
-              </div>
+          <div className="mt-6 md:mt-8">
+            <div className="flex justify-center text-sm">
+              <span className="inline-flex items-center rounded-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-slate-900 px-4 py-1.5 text-xs font-medium text-gray-600 dark:text-gray-300 shadow-md">
+                Or continue with
+              </span>
             </div>
 
-            <div className="mt-4 space-y-3">
+            <div className="mt-4 md:mt-6 space-y-3">
               <button
                 type="button"
                 onClick={async () => {
@@ -523,7 +588,7 @@ export default function LoginPage() {
                   }
                 }}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm hover:bg-gray-50/80 dark:hover:bg-gray-600/80 hover:border-brandRed/30 text-gray-700 dark:text-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" viewBox="0 0 24 24">
                   <path
@@ -559,7 +624,7 @@ export default function LoginPage() {
                   }
                 }}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-3 px-4 py-2.5 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-3 px-4 py-3 border border-gray-200/50 dark:border-gray-600/50 rounded-xl bg-white/50 dark:bg-gray-700/50 backdrop-blur-sm hover:bg-gray-50/80 dark:hover:bg-gray-600/80 hover:border-brandRed/30 text-gray-700 dark:text-gray-200 font-medium transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg className="w-5 h-5" viewBox="0 0 21 21">
                   <rect x="0" y="0" width="10" height="10" fill="#F25022" />
@@ -569,6 +634,10 @@ export default function LoginPage() {
                 </svg>
                 <span>Continue with Microsoft</span>
               </button>
+            </div>
+          </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
