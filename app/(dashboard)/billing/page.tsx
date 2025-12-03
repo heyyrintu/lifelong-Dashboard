@@ -22,7 +22,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 // Types
 interface BillingLineItem {
@@ -563,7 +563,7 @@ export default function BillingPage() {
             No Billing Data Found
           </h3>
           <p className="text-sm text-gray-600 dark:text-slate-400 mb-4">
-            Click "Generate Billing" to create a billing invoice for the selected month.
+            Click &quot;Generate Billing&quot; to create a billing invoice for the selected month.
           </p>
         </div>
       )}
@@ -740,7 +740,7 @@ export default function BillingPage() {
                         colSpan={6}
                         className="px-4 py-6 text-center text-sm text-gray-400 dark:text-slate-500 italic"
                       >
-                        No additional expenses. Click "Add Item" to add one.
+                        No additional expenses. Click &quot;Add Item&quot; to add one.
                       </td>
                     </tr>
                   ) : (
@@ -885,7 +885,7 @@ export default function BillingPage() {
               >
                 <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                 <p className="text-sm text-amber-700 dark:text-amber-300">
-                  You have unsaved changes. Click "Save Changes" to persist them.
+                  You have unsaved changes. Click &quot;Save Changes&quot; to persist them.
                 </p>
               </motion.div>
             )}

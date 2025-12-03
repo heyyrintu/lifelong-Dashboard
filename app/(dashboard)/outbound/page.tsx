@@ -103,7 +103,7 @@ interface TopProduct {
   percentageOfTotal: number;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
@@ -1358,7 +1358,7 @@ export default function OutboundPage() {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={topProducts.slice(0, 10).map((product, index) => ({
+                      data={topProducts.slice(0, 10).map((product) => ({
                         name: product.deliveryNoteItem.length > 20 
                           ? product.deliveryNoteItem.substring(0, 20) + '...' 
                           : product.deliveryNoteItem,
@@ -1368,7 +1368,7 @@ export default function OutboundPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${(percent * 100).toFixed(1)}%`}
+                      label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
                       outerRadius={100}
                       innerRadius={40}
                       fill="#8884d8"
@@ -1478,7 +1478,7 @@ export default function OutboundPage() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={({ name, percent }) => `${(percent * 100).toFixed(1)}%`}
+                      label={({ percent }: { percent?: number }) => `${((percent ?? 0) * 100).toFixed(1)}%`}
                       outerRadius={100}
                       innerRadius={40}
                       fill="#8884d8"

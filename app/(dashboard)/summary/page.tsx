@@ -37,7 +37,7 @@ interface QuickSummaryData {
   productCategories: string[];
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 type TimeFilter = '24h' | '48h' | 'month';
 

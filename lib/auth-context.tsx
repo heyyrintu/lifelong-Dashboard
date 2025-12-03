@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { account } from './appwrite';
-import { Models } from 'appwrite';
+import { Models, OAuthProvider } from 'appwrite';
 
 type User = Models.User<Models.Preferences>;
 
@@ -88,7 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const sendEmailOTP = async (email: string) => {
     try {
-      const token = await account.createEmailToken(email);
+      const token = await account.createEmailToken('unique()', email);
       return token;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send email OTP');
@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyEmailOTP = async (userId: string, secret: string) => {
     try {
-      await account.createEmailTokenSession(userId, secret);
+      await account.createSession(userId, secret);
       const currentUser = await account.get();
       setUser(currentUser);
     } catch (error: any) {
@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyPhoneOTP = async (userId: string, secret: string) => {
     try {
-      await account.updatePhoneSession(userId, secret);
+      await account.createSession(userId, secret);
       const currentUser = await account.get();
       setUser(currentUser);
     } catch (error: any) {
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const successUrl = `${window.location.origin}/summary`;
       const failureUrl = `${window.location.origin}/login`;
       
-      account.createOAuth2Session('google', successUrl, failureUrl);
+      account.createOAuth2Session(OAuthProvider.Google, successUrl, failureUrl);
     } catch (error: any) {
       throw new Error(error.message || 'Google login failed');
     }
@@ -156,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const successUrl = `${window.location.origin}/summary`;
       const failureUrl = `${window.location.origin}/login`;
       
-      account.createOAuth2Session('microsoft', successUrl, failureUrl);
+      account.createOAuth2Session(OAuthProvider.Microsoft, successUrl, failureUrl);
     } catch (error: any) {
       throw new Error(error.message || 'Microsoft login failed');
     }

@@ -14,7 +14,7 @@ interface UploadInfo {
   type?: 'item-master' | 'inbound' | 'outbound' | 'inventory';
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
 export default function UploadPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
