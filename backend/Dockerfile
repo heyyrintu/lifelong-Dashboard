@@ -44,7 +44,7 @@ RUN npx prisma generate
 COPY --from=builder /app/dist ./dist
 
 # Copy Item Master file
-COPY --from=builder /app/Item\ master.xlsx ./Item\ master.xlsx
+COPY --from=builder /app/Item\ master.xlsx ./
 
 # Set environment variables
 ENV NODE_ENV=production
