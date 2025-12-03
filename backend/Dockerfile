@@ -43,6 +43,9 @@ RUN npx prisma generate
 # Copy built application from builder stage
 COPY --from=builder /app/dist ./dist
 
+# Copy Item Master file
+COPY --from=builder /app/Item\ master.xlsx ./Item\ master.xlsx
+
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001

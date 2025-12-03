@@ -78,8 +78,8 @@ export interface InboundSummaryResponse {
   summaryTotals: SummaryTotals;
 }
 
-// Path to the static Item Master file
-const ITEM_MASTER_PATH = path.resolve(__dirname, '../../Item master.xlsx');
+// Path to the static Item Master file - configurable via environment variable
+const ITEM_MASTER_PATH = process.env.ITEM_MASTER_PATH || path.resolve(__dirname, '../../Item master.xlsx');
 
 @Injectable()
 export class InboundService implements OnModuleInit {
