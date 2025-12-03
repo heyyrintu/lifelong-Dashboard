@@ -8,6 +8,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { BillingModule } from './billing/billing.module';
 import { AttendanceModule } from './attendance/attendance.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { HealthModule } from './health/health.module';
 // Auth module with JWT authentication and RBAC
 import { AuthModule } from './auth/auth.module';
 
@@ -39,6 +40,7 @@ import { AuthModule } from './auth/auth.module';
     ]),
     
     PrismaModule,
+    HealthModule, // Health check endpoint for Docker/Coolify
     OutboundModule,
     InboundModule,
     InventoryModule,
