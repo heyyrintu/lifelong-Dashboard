@@ -56,6 +56,8 @@ interface TimeSeriesPoint {
 interface DayData {
   date: string;
   label: string;
+  soQty: number;
+  soCbm: number;
   dnQty: number;
   dnCbm: number;
   edelDnQty: number;
@@ -63,6 +65,8 @@ interface DayData {
 }
 
 interface SummaryTotals {
+  totalSoQty: number;
+  totalSoCbm: number;
   totalDnQty: number;
   totalDnCbm: number;
   totalEdelDnQty: number;
@@ -2326,20 +2330,20 @@ export default function OutboundPage() {
                           </div>
                         </div>
 
-                        {/* Pending Qty (DN - EDEL DN) */}
+                        {/* Pending Qty (SO - DN) */}
                         <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
                             <span className="text-red-600 dark:text-red-400 text-sm font-medium font-mono">
-                              {formatNumber((day.dnQty || 0) - (day.edelDnQty || 0))}
+                              {formatNumber((day.soQty || 0) - (day.dnQty || 0))}
                             </span>
                           </div>
                         </div>
 
-                        {/* Pending CBM (DN - EDEL DN) */}
+                        {/* Pending CBM (SO - DN) */}
                         <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
                             <span className="text-amber-600 dark:text-amber-400 text-sm font-medium font-mono">
-                              {formatNumber((day.dnCbm || 0) - (day.edelDnCbm || 0), 2)}
+                              {formatNumber((day.soCbm || 0) - (day.dnCbm || 0), 2)}
                             </span>
                           </div>
                         </div>
@@ -2406,14 +2410,14 @@ export default function OutboundPage() {
                       <div className="col-span-1">
                         <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
                           <span className="text-red-600 dark:text-red-400 text-sm font-medium">
-                            {formatNumber((data.summaryTotals.totalDnQty || 0) - (data.summaryTotals.totalEdelDnQty || 0))}
+                            {formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}
                           </span>
                         </div>
                       </div>
                       <div className="col-span-1">
                         <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
                           <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">
-                            {formatNumber((data.summaryTotals.totalDnCbm || 0) - (data.summaryTotals.totalEdelDnCbm || 0), 2)}
+                            {formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}
                           </span>
                         </div>
                       </div>

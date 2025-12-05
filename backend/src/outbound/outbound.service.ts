@@ -50,6 +50,8 @@ export interface TimeSeriesData {
 export interface DayData {
   date: string;
   label: string;
+  soQty: number;
+  soCbm: number;
   dnQty: number;
   dnCbm: number;
   edelDnQty: number;
@@ -57,6 +59,8 @@ export interface DayData {
 }
 
 export interface SummaryTotals {
+  totalSoQty: number;
+  totalSoCbm: number;
   totalDnQty: number;
   totalDnCbm: number;
   totalEdelDnQty: number;
@@ -925,6 +929,8 @@ export class OutboundService {
     const dayResults = await this.prisma.$queryRawUnsafe<Array<{
       day_date: Date;
       day_label: string;
+      so_qty: number;
+      so_cbm: number;
       dn_qty: number;
       dn_cbm: number;
       edel_dn_qty: number;
@@ -933,6 +939,8 @@ export class OutboundService {
       SELECT 
         DATE(delivery_note_date) as day_date,
         TO_CHAR(delivery_note_date, 'YYYY-MM-DD') as day_label,
+        COALESCE(SUM(sales_order_qty), 0) as so_qty,
+        COALESCE(SUM(so_total_cbm), 0) as so_cbm,
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
         COALESCE(SUM(dn_total_cbm), 0) as dn_cbm,
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN delivery_note_qty ELSE 0 END), 0) as edel_dn_qty,
@@ -948,6 +956,8 @@ export class OutboundService {
     const dayData: DayData[] = dayResults.map(row => ({
       date: row.day_label,
       label: row.day_label,
+      soQty: Math.round(Number(row.so_qty)),
+      soCbm: Math.round(Number(row.so_cbm) * 100) / 100,
       dnQty: Math.round(Number(row.dn_qty)),
       dnCbm: Math.round(Number(row.dn_cbm) * 100) / 100,
       edelDnQty: Math.round(Number(row.edel_dn_qty)),
@@ -955,12 +965,16 @@ export class OutboundService {
     }));
 
     // Calculate totals
+    const totalSoQty = dayData.reduce((sum, d) => sum + d.soQty, 0);
+    const totalSoCbm = dayData.reduce((sum, d) => sum + d.soCbm, 0);
     const totalDnQty = dayData.reduce((sum, d) => sum + d.dnQty, 0);
     const totalDnCbm = dayData.reduce((sum, d) => sum + d.dnCbm, 0);
     const totalEdelDnQty = dayData.reduce((sum, d) => sum + d.edelDnQty, 0);
     const totalEdelDnCbm = dayData.reduce((sum, d) => sum + d.edelDnCbm, 0);
 
     return {
+      totalSoQty,
+      totalSoCbm: Math.round(totalSoCbm * 100) / 100,
       totalDnQty,
       totalDnCbm: Math.round(totalDnCbm * 100) / 100,
       totalEdelDnQty,
@@ -1056,23 +1070,31 @@ export class OutboundService {
     const totals = summary.summaryTotals;
     const totalsWsData = [
       ['Metric', 'Value'],
+      ['Total SO Qty', totals.totalSoQty],
+      ['Total SO CBM', totals.totalSoCbm],
       ['Total DN Qty', totals.totalDnQty],
       ['Total DN CBM', totals.totalDnCbm],
       ['Total EDEL DN Qty', totals.totalEdelDnQty],
       ['Total EDEL DN CBM', totals.totalEdelDnCbm],
+      ['Pending Qty (SO - DN)', totals.totalSoQty - totals.totalDnQty],
+      ['Pending CBM (SO - DN)', Math.round((totals.totalSoCbm - totals.totalDnCbm) * 100) / 100],
     ];
 
     const totalsWs = XLSX.utils.aoa_to_sheet(totalsWsData);
     XLSX.utils.book_append_sheet(workbook, totalsWs, 'Summary Totals');
 
     // Add day-by-day breakdown sheet
-    const dayHeader = ['Date', 'DN Qty', 'DN CBM', 'EDEL DN Qty', 'EDEL DN CBM'];
+    const dayHeader = ['Date', 'SO Qty', 'SO CBM', 'DN Qty', 'DN CBM', 'EDEL DN Qty', 'EDEL DN CBM', 'Pending Qty', 'Pending CBM'];
     const dayRows = summary.summaryTotals.dayData.map(d => [
       d.date,
+      d.soQty,
+      d.soCbm,
       d.dnQty,
       d.dnCbm,
       d.edelDnQty,
       d.edelDnCbm,
+      d.soQty - d.dnQty,
+      Math.round((d.soCbm - d.dnCbm) * 100) / 100,
     ]);
 
     const dayWs = XLSX.utils.aoa_to_sheet([
