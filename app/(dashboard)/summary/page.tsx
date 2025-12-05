@@ -16,6 +16,7 @@ import {
   Calendar,
   RefreshCw,
   Search,
+  ArrowRightLeft,
 } from 'lucide-react';
 
 interface QuickSummaryData {
@@ -39,16 +40,19 @@ interface QuickSummaryData {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
-type TimeFilter = '24h' | '48h' | 'month';
-
 export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<QuickSummaryData | null>(null);
-  const [timeFilter, setTimeFilter] = useState<TimeFilter>('month');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('ALL');
+  const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
+  const [availableMonths, setAvailableMonths] = useState<string[]>(['ALL']);
+  const [availableWarehouses, setAvailableWarehouses] = useState<string[]>(['ALL']);
 
   useEffect(() => {
     fetchSummary();
@@ -66,44 +70,37 @@ export default function SummaryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const getDateRangeForFilter = (filter: TimeFilter) => {
-    const now = new Date();
-    let fromDate: string;
-    const toDate: string = now.toISOString().split('T')[0];
-
-    if (filter === '24h') {
-      const yesterday = new Date(now);
-      yesterday.setDate(yesterday.getDate() - 1);
-      fromDate = yesterday.toISOString().split('T')[0];
-    } else if (filter === '48h') {
-      const twoDaysAgo = new Date(now);
-      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
-      fromDate = twoDaysAgo.toISOString().split('T')[0];
-    } else {
-      // Current month
-      const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      fromDate = firstDayOfMonth.toISOString().split('T')[0];
-    }
-
-    return { fromDate, toDate };
-  };
-
   const fetchSummary = async (useFilters = false) => {
     try {
       setLoading(true);
 
-      const { fromDate, toDate } = getDateRangeForFilter(timeFilter);
-
       // Build query params
       const buildParams = () => {
         const params = new URLSearchParams();
+
         if (useFilters) {
-          params.append('fromDate', fromDate);
-          params.append('toDate', toDate);
+          if (selectedMonth && selectedMonth !== 'ALL') {
+            const [year, month] = selectedMonth.split('-').map(Number);
+            if (year && month) {
+              const startDate = new Date(year, month - 1, 1);
+              const endDate = new Date(year, month, 0, 23, 59, 59);
+              params.append('fromDate', startDate.toISOString().split('T')[0]);
+              params.append('toDate', endDate.toISOString().split('T')[0]);
+            }
+          } else {
+            if (fromDate) params.append('fromDate', fromDate);
+            if (toDate) params.append('toDate', toDate);
+          }
+
           if (selectedProductCategories.length > 0) {
             selectedProductCategories.forEach(cat => params.append('productCategory', cat));
           }
+
+          if (selectedWarehouse && selectedWarehouse !== 'ALL') {
+            params.append('warehouse', selectedWarehouse);
+          }
         }
+
         return params.toString();
       };
 
@@ -121,8 +118,11 @@ export default function SummaryPage() {
       const inventoryData = inventoryRes?.ok ? await inventoryRes.json() : null;
       const outboundData = outboundRes?.ok ? await outboundRes.json() : null;
 
-      // Collect product categories from all sources
+      // Collect product categories, warehouses, and months from all sources
       const categories = new Set<string>();
+      const warehouses = new Set<string>();
+      const months = new Set<string>();
+
       if (inboundData?.productCategories) {
         inboundData.productCategories.forEach((c: string) => categories.add(c));
       }
@@ -132,7 +132,27 @@ export default function SummaryPage() {
       if (outboundData?.productCategories) {
         outboundData.productCategories.forEach((c: string) => categories.add(c));
       }
+
+      if (inboundData?.availableWarehouses) {
+        inboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+      }
+      if (inventoryData?.availableWarehouses) {
+        inventoryData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+      }
+      if (outboundData?.availableWarehouses) {
+        outboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+      }
+
+      if (inboundData?.availableMonths) {
+        inboundData.availableMonths.forEach((m: string) => months.add(m));
+      }
+      if (outboundData?.availableMonths) {
+        outboundData.availableMonths.forEach((m: string) => months.add(m));
+      }
+
       setAvailableCategories(Array.from(categories).filter(c => c !== 'ALL'));
+      setAvailableWarehouses(['ALL', ...Array.from(warehouses)]);
+      setAvailableMonths(['ALL', ...Array.from(months).sort()]);
 
       // Combine data
       const summaryData: QuickSummaryData = {
@@ -168,7 +188,10 @@ export default function SummaryPage() {
   };
 
   const handleReset = () => {
-    setTimeFilter('month');
+    setFromDate('');
+    setToDate('');
+    setSelectedMonth('ALL');
+    setSelectedWarehouse('ALL');
     setSelectedProductCategories([]);
     fetchSummary(false);
   };
@@ -247,12 +270,22 @@ export default function SummaryPage() {
     return `${thousands.toFixed(decimals)} K`;
   };
 
-  const getTimeFilterLabel = (filter: TimeFilter) => {
-    switch (filter) {
-      case '24h': return '24 Hours';
-      case '48h': return '48 Hours';
-      case 'month': return 'Current Month';
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+  const formatMonthLabel = (month: string): string => {
+    if (month === 'ALL') return 'All Months';
+
+    const match = month.match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const [, yearStr, monthStr] = match;
+      const monthIndex = parseInt(monthStr, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        const shortYear = yearStr.slice(2);
+        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
+      }
     }
+
+    return month;
   };
 
   return (
@@ -273,33 +306,107 @@ export default function SummaryPage() {
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
-          {/* Time Filter */}
-          <div className="md:col-span-5 space-y-2">
+          {/* Date Range - Unified Control */}
+          <div className="md:col-span-3 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
-              <Clock className="w-3.5 h-3.5" /> Time Period
+              <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
-            <div className="flex items-center gap-2 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm">
-              {(['24h', '48h', 'month'] as const).map((filter) => (
-                <motion.button
-                  key={filter}
-                  onClick={() => setTimeFilter(filter)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className={`flex-1 px-4 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                    timeFilter === filter
-                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
-                  }`}
+            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={fromDate}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setSelectedMonth('ALL');
+                  }}
+                  className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
+                  suppressHydrationWarning={true}
+                />
+              </div>
+              <div className="px-1.5 text-gray-300 dark:text-slate-600">
+                <ArrowRightLeft className="w-3.5 h-3.5" />
+              </div>
+              <div className="relative flex-1">
+                <input
+                  type="date"
+                  value={toDate}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setSelectedMonth('ALL');
+                  }}
+                  className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
+                  suppressHydrationWarning={true}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Month Selector */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+              <Calendar className="w-3.5 h-3.5" /> Quick Select
+            </label>
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+              <div className="relative flex-1">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    if (e.target.value !== 'ALL') {
+                      const [year, month] = e.target.value.split('-').map(Number);
+                      if (year && month) {
+                        const startDate = new Date(year, month - 1, 1);
+                        const endDate = new Date(year, month, 0, 23, 59, 59);
+                        setFromDate(startDate.toISOString().split('T')[0]);
+                        setToDate(endDate.toISOString().split('T')[0]);
+                      }
+                    }
+                  }}
+                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
-                  {getTimeFilterLabel(filter)}
-                </motion.button>
-              ))}
+                  {availableMonths.map((month) => (
+                    <option key={month} value={month}>
+                      {formatMonthLabel(month)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+                <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
+              </div>
+            </div>
+          </div>
+
+          {/* Warehouse Filter */}
+          <div className="md:col-span-2 space-y-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+              <Box className="w-3.5 h-3.5" /> Warehouse
+            </label>
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+              <div className="relative flex-1">
+                <select
+                  value={selectedWarehouse}
+                  onChange={(e) => setSelectedWarehouse(e.target.value)}
+                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
+                  suppressHydrationWarning={true}
+                >
+                  {availableWarehouses.map((warehouse) => (
+                    <option key={warehouse} value={warehouse}>
+                      {warehouse}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+                <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
+              </div>
             </div>
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-4 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -382,35 +489,35 @@ export default function SummaryPage() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-3 flex gap-2">
+          <div className="md:col-span-2 flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.02, translateY: -2 }}
-              whileTap={{ scale: 0.98, translateY: 0 }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[40px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              className="flex-1 h-[32px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-lg text-[11px] font-bold tracking-wide shadow-md shadow-brandRed/20 flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/30"
               suppressHydrationWarning={true}
             >
               {loading ? (
                 <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-3 h-3 border-[1.5px] border-white/30 border-t-white rounded-full animate-spin" />
                   <span>Loading...</span>
                 </>
               ) : (
                 <>
-                  <Search className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <Search className="w-3 h-3 stroke-[2.5]" />
                   <span>Apply Filter</span>
                 </>
               )}
             </motion.button>
-            {(timeFilter !== 'month' || selectedProductCategories.length > 0) && (
+            {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
-                whileHover={{ scale: 1.02, translateY: -2 }}
-                whileTap={{ scale: 0.98, translateY: 0 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={handleReset}
-                className="h-[40px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5"
+                className="h-[32px] px-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-lg text-[11px] font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1 group"
               >
-                <RefreshCw className="w-3.5 h-3.5 transition-transform group-hover:rotate-180" />
+                <RefreshCw className="w-3 h-3 transition-transform group-hover:rotate-180" />
                 <span className="hidden sm:inline">Reset</span>
               </motion.button>
             )}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
+import { AdminRoute } from '@/components/auth/AdminRoute';
 import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
 
 interface UploadInfo {
@@ -16,7 +17,7 @@ interface UploadInfo {
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
 
-export default function UploadPage() {
+function UploadPageContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<string>('');
   const [isDragging, setIsDragging] = useState(false);
@@ -515,5 +516,13 @@ export default function UploadPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function UploadPage() {
+  return (
+    <AdminRoute>
+      <UploadPageContent />
+    </AdminRoute>
   );
 }

@@ -85,9 +85,41 @@ export default function InboundPage() {
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
 
+  // Combine initial data fetch to avoid duplicate API calls
   useEffect(() => {
-    fetchSummary();
-    fetchChartData(timeGranularity);
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        setChartLoading(true);
+        
+        const params = new URLSearchParams();
+        params.append('timeGranularity', timeGranularity);
+        
+        const response = await fetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setSummaryData(null);
+            setChartData(null);
+            return;
+          }
+          throw new Error('Failed to fetch data');
+        }
+        
+        const result: InboundSummaryResponse = await response.json();
+        setSummaryData(result);
+        setChartData(result.timeSeries);
+      } catch (err: any) {
+        console.error('Initial data fetch error:', err.message);
+        setSummaryData(null);
+        setChartData(null);
+      } finally {
+        setLoading(false);
+        setChartLoading(false);
+      }
+    };
+    
+    fetchInitialData();
   }, []);
 
   // Close dropdown when clicking outside

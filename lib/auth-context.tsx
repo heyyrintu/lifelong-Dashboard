@@ -1,7 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { account } from './appwrite';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
+import { account, teams, ADMIN_TEAM_ID } from './appwrite';
 import { Models, OAuthProvider } from 'appwrite';
 
 type User = Models.User<Models.Preferences>;
@@ -9,6 +9,7 @@ type User = Models.User<Models.Preferences>;
 interface AuthContextType {
   user: User | null;
   loading: boolean;
+  isAdmin: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name?: string) => Promise<void>;
   sendEmailOTP: (email: string) => Promise<Models.Token>;
@@ -26,6 +27,20 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Check if user is member of admin team
+  const checkAdminStatus = useCallback(async () => {
+    try {
+      // Get user's memberships in the admin team
+      const memberships = await teams.listMemberships(ADMIN_TEAM_ID);
+      // If user has any membership in admin team, they are admin
+      setIsAdmin(memberships.total > 0);
+    } catch (error) {
+      // User is not in admin team or team doesn't exist
+      setIsAdmin(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Check for OAuth callback first
@@ -39,8 +54,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .then(() => {
           return account.get();
         })
-        .then((currentUser) => {
+        .then(async (currentUser) => {
           setUser(currentUser);
+          await checkAdminStatus();
           setLoading(false);
           // Clean up URL
           window.history.replaceState({}, '', window.location.pathname);
@@ -58,54 +74,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const currentUser = await account.get();
       setUser(currentUser);
+      await checkAdminStatus();
     } catch (error) {
       setUser(null);
+      setIsAdmin(false);
     } finally {
       setLoading(false);
     }
   };
 
-  const login = async (email: string, password: string) => {
+  const login = useCallback(async (email: string, password: string) => {
     try {
       await account.createEmailPasswordSession(email, password);
       const currentUser = await account.get();
       setUser(currentUser);
+      await checkAdminStatus();
     } catch (error: any) {
       throw new Error(error.message || 'Login failed');
     }
-  };
+  }, [checkAdminStatus]);
 
-  const register = async (email: string, password: string, name?: string) => {
+  const register = useCallback(async (email: string, password: string, name?: string) => {
     try {
       await account.create('unique()', email, password, name);
       await account.createEmailPasswordSession(email, password);
       const currentUser = await account.get();
       setUser(currentUser);
+      await checkAdminStatus();
     } catch (error: any) {
       throw new Error(error.message || 'Registration failed');
     }
-  };
+  }, [checkAdminStatus]);
 
-  const sendEmailOTP = async (email: string) => {
+  const sendEmailOTP = useCallback(async (email: string) => {
     try {
       const token = await account.createEmailToken('unique()', email);
       return token;
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send email OTP');
     }
-  };
+  }, []);
 
-  const verifyEmailOTP = async (userId: string, secret: string) => {
+  const verifyEmailOTP = useCallback(async (userId: string, secret: string) => {
     try {
       await account.createSession(userId, secret);
       const currentUser = await account.get();
       setUser(currentUser);
+      await checkAdminStatus();
     } catch (error: any) {
       throw new Error(error.message || 'Invalid OTP');
     }
-  };
+  }, [checkAdminStatus]);
 
-  const sendPhoneOTP = async (phone: string) => {
+  const sendPhoneOTP = useCallback(async (phone: string) => {
     try {
       // Ensure phone number always has +91 country code
       let formattedPhone = phone.trim();
@@ -128,19 +149,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       throw new Error(error.message || 'Failed to send phone OTP');
     }
-  };
+  }, []);
 
-  const verifyPhoneOTP = async (userId: string, secret: string) => {
+  const verifyPhoneOTP = useCallback(async (userId: string, secret: string) => {
     try {
       await account.createSession(userId, secret);
       const currentUser = await account.get();
       setUser(currentUser);
+      await checkAdminStatus();
     } catch (error: any) {
       throw new Error(error.message || 'Invalid OTP');
     }
-  };
+  }, [checkAdminStatus]);
 
-  const loginWithGoogle = async () => {
+  const loginWithGoogle = useCallback(async () => {
     try {
       const successUrl = `${window.location.origin}/summary`;
       const failureUrl = `${window.location.origin}/login`;
@@ -149,9 +171,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       throw new Error(error.message || 'Google login failed');
     }
-  };
+  }, []);
 
-  const loginWithMicrosoft = async () => {
+  const loginWithMicrosoft = useCallback(async () => {
     try {
       const successUrl = `${window.location.origin}/summary`;
       const failureUrl = `${window.location.origin}/login`;
@@ -160,34 +182,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error: any) {
       throw new Error(error.message || 'Microsoft login failed');
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await account.deleteSession('current');
       setUser(null);
+      setIsAdmin(false);
     } catch (error: any) {
       throw new Error(error.message || 'Logout failed');
     }
-  };
+  }, []);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    isAdmin,
+    login,
+    register,
+    sendEmailOTP,
+    verifyEmailOTP,
+    sendPhoneOTP,
+    verifyPhoneOTP,
+    loginWithGoogle,
+    loginWithMicrosoft,
+    logout,
+    isAuthenticated: !!user,
+  }), [user, loading, isAdmin, login, register, sendEmailOTP, verifyEmailOTP, sendPhoneOTP, verifyPhoneOTP, loginWithGoogle, loginWithMicrosoft, logout]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        sendEmailOTP,
-        verifyEmailOTP,
-        sendPhoneOTP,
-        verifyPhoneOTP,
-        loginWithGoogle,
-        loginWithMicrosoft,
-        logout,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

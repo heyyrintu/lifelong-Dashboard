@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
   UserPlus,
   Users,
@@ -53,7 +54,7 @@ const statusOptions = [
   { value: 'HALF_DAY', label: 'Half Day', icon: Clock, color: 'text-purple-600 bg-purple-50 border-purple-200' },
 ];
 
-export default function TakeAttendancePage() {
+function TakeAttendancePageContent() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -796,5 +797,13 @@ export default function TakeAttendancePage() {
         )}
       </AnimatePresence>
     </div>
+  );
+}
+
+export default function TakeAttendancePage() {
+  return (
+    <AdminRoute>
+      <TakeAttendancePageContent />
+    </AdminRoute>
   );
 }

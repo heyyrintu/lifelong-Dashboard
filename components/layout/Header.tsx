@@ -41,13 +41,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 relative isolate overflow-hidden
+    <header className="sticky top-0 z-10 isolate overflow-hidden
       bg-white/5 dark:bg-slate-800/50
       bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/[0.02] dark:to-transparent
       backdrop-blur-xl backdrop-saturate-[180%]
       border-b border-black/10 dark:border-slate-700/50
       shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.3)]
-      will-change-transform translate-z-0
+      will-change-transform
       transition-all duration-300">
       <div className="flex items-center justify-between px-6 py-4
         bg-gradient-to-br from-black/[0.05] to-transparent dark:from-slate-700/30 dark:to-slate-800/10
@@ -78,9 +78,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
               border border-gray-200/50 dark:border-slate-700/50
               rounded-xl shadow-sm
               hover:shadow-md transition-all duration-200
-              bg-gradient-to-br from-white/90 to-blue-50/30 
-              dark:from-slate-800/90 dark:to-blue-900/20">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full flex items-center justify-center shadow-md ring-2 ring-white/50 dark:ring-slate-700/50">
+              bg-gradient-to-br from-white/95 to-amber-50/40 
+              dark:from-slate-800/95 dark:to-rose-900/25">
+              <div className="w-10 h-10 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center shadow-md ring-2 ring-white/50 dark:ring-slate-700/50">
                 <UserIcon className="w-5 h-5 text-white" />
               </div>
               <div className="flex flex-col min-w-0">

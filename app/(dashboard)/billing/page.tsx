@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
+import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
   FileText,
   DollarSign,
@@ -107,7 +108,7 @@ const getMonthOptions = () => {
   return options.reverse(); // Most recent first
 };
 
-export default function BillingPage() {
+function BillingPageContent() {
   // Filter states
   const [customerName, setCustomerName] = useState('Lifelong');
   const [location, setLocation] = useState('HR-11 & HR12 (Farukh Nagar & Daboda)');
@@ -903,5 +904,13 @@ export default function BillingPage() {
         </>
       )}
     </div>
+  );
+}
+
+export default function BillingPage() {
+  return (
+    <AdminRoute>
+      <BillingPageContent />
+    </AdminRoute>
   );
 }

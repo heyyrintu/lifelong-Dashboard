@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { cn } from "@/lib/utils";
 import { LucideIcon } from "lucide-react";
 
@@ -9,7 +10,7 @@ interface MetricCardProps {
     className?: string;
 }
 
-export function MetricCard({
+export const MetricCard = memo(function MetricCard({
     title,
     value,
     subtitle,
@@ -25,7 +26,7 @@ export function MetricCard({
                 "backdrop-blur-xl backdrop-saturate-[180%]",
                 "border border-black/10 dark:border-slate-700/50",
                 "shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.3)]",
-                "will-change-transform translate-z-0",
+                "will-change-transform",
                 "transition-all duration-300",
                 className
             )}
@@ -38,7 +39,7 @@ export function MetricCard({
                     "border border-black/[0.05] dark:border-slate-600/30",
                     "text-black/90 dark:text-white",
                     "shadow-sm",
-                    "will-change-transform translate-z-0",
+                    "will-change-transform",
                     "before:absolute before:inset-0 before:bg-gradient-to-br before:from-black/[0.02] before:to-black/[0.01] dark:before:from-white/[0.02] dark:before:to-transparent before:opacity-0 before:transition-opacity before:pointer-events-none",
                     "hover:before:opacity-100"
                 )}
@@ -69,4 +70,4 @@ export function MetricCard({
             </div>
         </div>
     );
-}
+});

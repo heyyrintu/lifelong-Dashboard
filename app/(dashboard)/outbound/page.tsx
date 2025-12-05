@@ -1065,6 +1065,199 @@ export default function OutboundPage() {
         </motion.div>
       </div>
 
+      {/* Fulfillment Half Donut Charts - SO to DN */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        {/* Qty Fulfillment Half Donut */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.35 }}
+          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+        >
+          {/* Decorative gradient */}
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+              <TrendingUp className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Qty Fulfillment</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Quantity Ratio</p>
+            </div>
+          </div>
+          
+          <div className="h-52 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { 
+                      name: 'Fulfilled (DN)', 
+                      value: data?.cards.dnQty || 0,
+                      fill: '#10b981'
+                    },
+                    { 
+                      name: 'Pending', 
+                      value: Math.max(0, (data?.cards.soQty || 0) - (data?.cards.dnQty || 0)),
+                      fill: '#f59e0b'
+                    },
+                  ]}
+                  cx="50%"
+                  cy="80%"
+                  startAngle={180}
+                  endAngle={0}
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  <Cell fill="#10b981" />
+                  <Cell fill="#f59e0b" />
+                </Pie>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const item = payload[0].payload as { name: string; value: number };
+                      const soQtyTotal = data?.cards.soQty || 0;
+                      const percentOfSo = soQtyTotal > 0 ? (item.value / soQtyTotal) * 100 : 0;
+                      return (
+                        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                            {item.name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                            Qty: <span className="font-mono font-semibold">{formatInLakhs(item.value)}</span>
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">
+                            Share of SO: <span className="font-mono font-semibold">{percentOfSo.toFixed(1)}%</span>
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+              <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                {loading ? '-' : `${((data?.cards.dnQty || 0) / (data?.cards.soQty || 1) * 100).toFixed(1)}%`}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
+            </div>
+          </div>
+          
+          {/* Legend */}
+          <div className="flex justify-center gap-6 mt-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-emerald-500" />
+              <span className="text-xs text-gray-600 dark:text-slate-400">DN Qty: {formatInLakhs(data?.cards.dnQty)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-amber-500" />
+              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInLakhs(Math.max(0, (data?.cards.soQty || 0) - (data?.cards.dnQty || 0)))}</span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* CBM Fulfillment Half Donut */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.4 }}
+          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+        >
+          {/* Decorative gradient */}
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <Box className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">CBM Fulfillment</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Volume Ratio</p>
+            </div>
+          </div>
+          
+          <div className="h-52 relative">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={[
+                    { 
+                      name: 'Fulfilled (DN)', 
+                      value: data?.cards.dnTotalCbm || 0,
+                      fill: '#3b82f6'
+                    },
+                    { 
+                      name: 'Pending', 
+                      value: Math.max(0, (data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)),
+                      fill: '#f59e0b'
+                    },
+                  ]}
+                  cx="50%"
+                  cy="80%"
+                  startAngle={180}
+                  endAngle={0}
+                  innerRadius={70}
+                  outerRadius={100}
+                  paddingAngle={2}
+                  dataKey="value"
+                >
+                  <Cell fill="#3b82f6" />
+                  <Cell fill="#f59e0b" />
+                </Pie>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const item = payload[0].payload as { name: string; value: number };
+                      const soCbmTotal = data?.cards.soTotalCbm || 0;
+                      const percentOfSo = soCbmTotal > 0 ? (item.value / soCbmTotal) * 100 : 0;
+                      return (
+                        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                            {item.name}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400">
+                            CBM: <span className="font-mono font-semibold">{formatInThousands(item.value)}</span>
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-slate-400 mt-0.5">
+                            Share of SO CBM: <span className="font-mono font-semibold">{percentOfSo.toFixed(1)}%</span>
+                          </p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+              <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                {loading ? '-' : `${((data?.cards.dnTotalCbm || 0) / (data?.cards.soTotalCbm || 1) * 100).toFixed(1)}%`}
+              </span>
+              <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
+            </div>
+          </div>
+          
+          {/* Legend */}
+          <div className="flex justify-center gap-6 mt-2">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-blue-500" />
+              <span className="text-xs text-gray-600 dark:text-slate-400">DN CBM: {formatInThousands(data?.cards.dnTotalCbm)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-amber-500" />
+              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInThousands(Math.max(0, (data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)))}</span>
+            </div>
+          </div>
+        </motion.div>
+      </div>
+
       {/* Product Catagory Table - Premium Glassmorphism Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -2022,13 +2215,15 @@ export default function OutboundPage() {
               animate="visible"
             >
               {/* Headers */}
-              <div className="grid grid-cols-12 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
+              <div className="grid grid-cols-9 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
                 <div className="col-span-1">No</div>
-                <div className="col-span-3">Date</div>
-                <div className="col-span-2">DN Qty</div>
-                <div className="col-span-2">DN CBM</div>
-                <div className="col-span-2">EDEL DN Qty</div>
-                <div className="col-span-2">EDEL DN CBM</div>
+                <div className="col-span-2">Date</div>
+                <div className="col-span-1">DN Qty</div>
+                <div className="col-span-1">DN CBM</div>
+                <div className="col-span-1">EDEL DN Qty</div>
+                <div className="col-span-1">EDEL DN CBM</div>
+                <div className="col-span-1">Pending Qty</div>
+                <div className="col-span-1">Pending CBM</div>
               </div>
 
               {/* Data Rows */}
@@ -2077,7 +2272,7 @@ export default function OutboundPage() {
                       />
 
                       {/* Grid Content */}
-                      <div className="relative grid grid-cols-12 gap-4 items-center">
+                      <div className="relative grid grid-cols-9 gap-4 items-center">
                         {/* Number */}
                         <div className="col-span-1">
                           <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">
@@ -2086,7 +2281,7 @@ export default function OutboundPage() {
                         </div>
 
                         {/* Date */}
-                        <div className="col-span-3 flex items-center gap-3">
+                        <div className="col-span-2 flex items-center gap-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
                             <ArrowUpFromLine className="w-4 h-4 text-white" />
                           </div>
@@ -2096,7 +2291,7 @@ export default function OutboundPage() {
                         </div>
 
                         {/* DN Qty */}
-                        <div className="col-span-2 flex justify-center">
+                        <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
                             <span className="text-green-600 dark:text-green-400 text-sm font-medium font-mono">
                               {formatNumber(day.dnQty)}
@@ -2105,7 +2300,7 @@ export default function OutboundPage() {
                         </div>
 
                         {/* DN CBM */}
-                        <div className="col-span-2 flex justify-center">
+                        <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
                             <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
                               {formatNumber(day.dnCbm, 2)}
@@ -2114,7 +2309,7 @@ export default function OutboundPage() {
                         </div>
 
                         {/* EDEL DN Qty */}
-                        <div className="col-span-2 flex justify-center">
+                        <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
                             <span className="text-purple-600 dark:text-purple-400 text-sm font-medium font-mono">
                               {formatNumber(day.edelDnQty)}
@@ -2123,10 +2318,28 @@ export default function OutboundPage() {
                         </div>
 
                         {/* EDEL DN CBM */}
-                        <div className="col-span-2 flex justify-center">
+                        <div className="col-span-1 flex justify-center">
                           <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
                             <span className="text-orange-600 dark:text-orange-400 text-sm font-medium font-mono">
                               {formatNumber(day.edelDnCbm, 2)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Pending Qty (DN - EDEL DN) */}
+                        <div className="col-span-1 flex justify-center">
+                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                            <span className="text-red-600 dark:text-red-400 text-sm font-medium font-mono">
+                              {formatNumber((day.dnQty || 0) - (day.edelDnQty || 0))}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Pending CBM (DN - EDEL DN) */}
+                        <div className="col-span-1 flex justify-center">
+                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                            <span className="text-amber-600 dark:text-amber-400 text-sm font-medium font-mono">
+                              {formatNumber((day.dnCbm || 0) - (day.edelDnCbm || 0), 2)}
                             </span>
                           </div>
                         </div>
@@ -2137,40 +2350,70 @@ export default function OutboundPage() {
               ) : (
                 <motion.div
                   variants={{
-                    hidden: { opacity: 0, x: -25, scale: 0.95, filter: "blur(4px)" },
-                    visible: { opacity: 1, x: 0, scale: 1, filter: "blur(0px)", transition: { type: "spring", stiffness: 400, damping: 28, mass: 0.6 } },
+                    hidden: {
+                      opacity: 0,
+                      x: -25,
+                      scale: 0.95,
+                      filter: "blur(4px)"
+                    },
+                    visible: {
+                      opacity: 1,
+                      x: 0,
+                      scale: 1,
+                      filter: "blur(0px)",
+                      transition: {
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 28,
+                        mass: 0.6,
+                      },
+                    },
                   }}
                   className="relative"
                 >
                   <div className="relative bg-gradient-to-r from-green-50/80 via-green-50/40 to-transparent dark:from-green-900/20 dark:via-green-900/10 dark:to-transparent backdrop-blur-md border-2 border-green-500/30 dark:border-green-500/20 rounded-xl p-4 shadow-lg shadow-green-500/10">
-                    <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="grid grid-cols-8 gap-4 items-center">
                       <div className="col-span-1">
                         <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">01</span>
                       </div>
-                      <div className="col-span-3">
+                      <div className="col-span-1">
                         <span className="text-gray-900 dark:text-slate-200 font-medium">Total</span>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
                           {formatNumber(data.summaryTotals.totalDnQty)}
                         </span>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
                           <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
                             {formatNumber(data.summaryTotals.totalDnCbm, 2)}
                           </span>
                         </div>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
                           {formatNumber(data.summaryTotals.totalEdelDnQty)}
                         </span>
                       </div>
-                      <div className="col-span-2">
+                      <div className="col-span-1">
                         <div className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
                           <span className="text-green-600 dark:text-green-400 text-sm font-medium">
                             {formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-1">
+                        <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                          <span className="text-red-600 dark:text-red-400 text-sm font-medium">
+                            {formatNumber((data.summaryTotals.totalDnQty || 0) - (data.summaryTotals.totalEdelDnQty || 0))}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="col-span-1">
+                        <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                          <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+                            {formatNumber((data.summaryTotals.totalDnCbm || 0) - (data.summaryTotals.totalEdelDnCbm || 0), 2)}
                           </span>
                         </div>
                       </div>

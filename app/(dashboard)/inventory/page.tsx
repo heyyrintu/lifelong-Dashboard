@@ -604,7 +604,7 @@ function InventoryPageContent() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="md:col-span-3 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
@@ -712,7 +712,7 @@ function InventoryPageContent() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-2 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -795,7 +795,7 @@ function InventoryPageContent() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-3 flex gap-2 items-end">
+          <div className="md:col-span-2 flex gap-2 items-end">
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -1184,32 +1184,6 @@ function InventoryPageContent() {
 
           {showFastMovingSection && (
             <>
-              {/* Summary Cards */}
-              {fastMovingData && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{fastMovingData.summary.totalFastMovingSkus}</div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400">Total Fast-Moving</div>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{fastMovingData.summary.criticalCount}</div>
-                    <div className="text-xs text-red-600 dark:text-red-400">Critical (&lt;7 days)</div>
-                  </div>
-                  <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200/50 dark:border-orange-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{fastMovingData.summary.lowCount}</div>
-                    <div className="text-xs text-orange-600 dark:text-orange-400">Low (7-14 days)</div>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200/50 dark:border-green-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{fastMovingData.summary.adequateCount}</div>
-                    <div className="text-xs text-green-600 dark:text-green-400">Adequate (14-30 days)</div>
-                  </div>
-                  <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200/50 dark:border-blue-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{fastMovingData.summary.highCount}</div>
-                    <div className="text-xs text-blue-600 dark:text-blue-400">High (&gt;30 days)</div>
-                  </div>
-                </div>
-              )}
-
               {/* Filters */}
               <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-slate-700/40 rounded-xl p-4 mb-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4">
@@ -1277,15 +1251,12 @@ function InventoryPageContent() {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Item</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Warehouse</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Category</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Min/Max</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Average Daily Sales (units/day) from Outbound">Sales/Day</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty">DN Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM">DN CBM</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Days of Stock</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Status</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM</th>
                           </tr>
                         </thead>
@@ -1301,11 +1272,6 @@ function InventoryPageContent() {
                                 <div className="text-xs text-gray-500 dark:text-slate-400">{sku.itemGroup}</div>
                               </td>
                               <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{sku.warehouse}</td>
-                              <td className="px-4 py-3">
-                                <span className="px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-xs font-medium text-gray-700 dark:text-slate-300">
-                                  {formatProductCategory(sku.productCategory)}
-                                </span>
-                              </td>
                               <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgDailyQty)}</td>
                               <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.latestQty)}</td>
                               <td className="px-4 py-3 text-right text-xs text-gray-500 dark:text-slate-400">
@@ -1320,16 +1286,6 @@ function InventoryPageContent() {
                               </td>
                               <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                 {formatNumber(sku.totalSalesCbm, 2)}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="font-bold text-gray-900 dark:text-white">
-                                  {sku.daysOfStock === 999 ? '∞' : sku.daysOfStock}
-                                </span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getStockStatusColor(sku.stockStatus)}`}>
-                                  {getStockStatusIcon(sku.stockStatus)} {sku.stockStatus.charAt(0).toUpperCase() + sku.stockStatus.slice(1)}
-                                </span>
                               </td>
                               <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.totalCbm, 2)}</td>
                             </tr>
@@ -1420,32 +1376,6 @@ function InventoryPageContent() {
 
           {showZeroOrderSection && (
             <>
-              {/* Summary Cards */}
-              {zeroOrderData && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                  <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-gray-900 dark:text-white">{zeroOrderData.summary.totalZeroOrderProducts}</div>
-                    <div className="text-xs text-gray-500 dark:text-slate-400">Total Zero-Order</div>
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-900/20 border border-red-200/50 dark:border-red-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">{zeroOrderData.summary.highValueCount}</div>
-                    <div className="text-xs text-red-600 dark:text-red-400">High Value (≥1 CBM)</div>
-                  </div>
-                  <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200/50 dark:border-yellow-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{zeroOrderData.summary.mediumValueCount}</div>
-                    <div className="text-xs text-yellow-600 dark:text-yellow-400">Medium (0.1-1 CBM)</div>
-                  </div>
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200/50 dark:border-green-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">{zeroOrderData.summary.lowValueCount}</div>
-                    <div className="text-xs text-green-600 dark:text-green-400">Low (&lt;0.1 CBM)</div>
-                  </div>
-                  <div className="bg-purple-50 dark:bg-purple-900/20 border border-purple-200/50 dark:border-purple-800/50 rounded-xl p-4 shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{formatNumber(zeroOrderData.summary.totalCbmBlocked, 2)}</div>
-                    <div className="text-xs text-purple-600 dark:text-purple-400">Total CBM Blocked</div>
-                  </div>
-                </div>
-              )}
-
               {/* Filters */}
               <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-slate-700/40 rounded-xl p-4 mb-6 shadow-sm">
                 <div className="flex flex-wrap items-center gap-4">
@@ -1513,11 +1443,8 @@ function InventoryPageContent() {
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Item</th>
                             <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Warehouse</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Category</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Stock</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Stock</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Days in Stock</th>
-                            <th className="px-4 py-3 text-center text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Value</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM Blocked</th>
                           </tr>
                         </thead>
@@ -1533,21 +1460,8 @@ function InventoryPageContent() {
                                 <div className="text-xs text-gray-500 dark:text-slate-400">{product.itemGroup}</div>
                               </td>
                               <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
-                              <td className="px-4 py-3">
-                                <span className="px-2 py-1 bg-gray-100 dark:bg-slate-700 rounded text-xs font-medium text-gray-700 dark:text-slate-300">
-                                  {formatProductCategory(product.productCategory)}
-                                </span>
-                              </td>
                               <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.avgStockQty)}</td>
                               <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="font-bold text-gray-900 dark:text-white">{product.daysInStock}</span>
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${getStockValueColor(product.stockValue)}`}>
-                                  {getStockValueIcon(product.stockValue)} {product.stockValue.charAt(0).toUpperCase() + product.stockValue.slice(1)}
-                                </span>
-                              </td>
                               <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
                             </tr>
                           ))}

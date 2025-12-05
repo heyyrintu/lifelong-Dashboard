@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
   Upload,
   Calendar,
@@ -85,7 +86,7 @@ const statusLabels: Record<string, string> = {
   HALF_DAY: 'Half Day',
 };
 
-export default function ViewAttendancePage() {
+function ViewAttendancePageContent() {
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [summary, setSummary] = useState<AttendanceSummary | null>(null);
   const [loading, setLoading] = useState(true);
@@ -651,5 +652,13 @@ export default function ViewAttendancePage() {
         )}
       </motion.div>
     </div>
+  );
+}
+
+export default function ViewAttendancePage() {
+  return (
+    <AdminRoute>
+      <ViewAttendancePageContent />
+    </AdminRoute>
   );
 }

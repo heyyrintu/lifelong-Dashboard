@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react'
 
 type Theme = 'light' | 'dark'
 
@@ -16,6 +16,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<Theme>('light')
   const [mounted, setMounted] = useState(false)
 
+  const applyTheme = useCallback((newTheme: Theme) => {
+    const root = document.documentElement
+    if (newTheme === 'dark') {
+      root.classList.add('dark')
+    } else {
+      root.classList.remove('dark')
+    }
+  }, [])
+
   useEffect(() => {
     setMounted(true)
     const stored = localStorage.getItem('theme') as Theme | null
@@ -24,34 +33,29 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const initialTheme = stored || (prefersDark ? 'dark' : 'light')
     setThemeState(initialTheme)
     applyTheme(initialTheme)
-  }, [])
+  }, [applyTheme])
 
-  const applyTheme = (newTheme: Theme) => {
-    const root = document.documentElement
-    if (newTheme === 'dark') {
-      root.classList.add('dark')
-    } else {
-      root.classList.remove('dark')
-    }
-  }
-
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme)
     localStorage.setItem('theme', newTheme)
     applyTheme(newTheme)
-  }
+  }, [applyTheme])
 
-  const toggleTheme = () => {
-    const newTheme = theme === 'light' ? 'dark' : 'light'
-    setTheme(newTheme)
-  }
+  const toggleTheme = useCallback(() => {
+    setThemeState(prev => {
+      const newTheme = prev === 'light' ? 'dark' : 'light'
+      localStorage.setItem('theme', newTheme)
+      applyTheme(newTheme)
+      return newTheme
+    })
+  }, [applyTheme])
 
-  // Always provide context, even before mounting
-  const contextValue: ThemeContextType = {
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
     theme,
     setTheme,
     toggleTheme,
-  }
+  }), [theme, setTheme, toggleTheme])
 
   return (
     <ThemeContext.Provider value={contextValue}>

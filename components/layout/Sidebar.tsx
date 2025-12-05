@@ -1,7 +1,9 @@
 'use client';
 
+import { useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/auth-context';
 import {
   LayoutDashboard,
   ArrowDownToLine,
@@ -19,7 +21,14 @@ interface SidebarProps {
   onClose: () => void;
 }
 
-const menuItems = [
+interface MenuItem {
+  name: string;
+  path: string;
+  icon: typeof LayoutDashboard;
+  adminOnly?: boolean;
+}
+
+const menuItems: MenuItem[] = [
   {
     name: 'Quick Summary',
     path: '/summary',
@@ -44,26 +53,44 @@ const menuItems = [
     name: 'Upload',
     path: '/upload',
     icon: Upload,
+    adminOnly: true,
   },
   {
     name: 'Billing',
     path: '/billing',
     icon: FileText,
+    adminOnly: true,
   },
   {
     name: 'Take Attendance',
     path: '/attendance/take',
     icon: UserCheck,
+    adminOnly: true,
   },
   {
     name: 'View Attendance',
     path: '/attendance/view',
     icon: ClipboardList,
+    adminOnly: true,
   },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
+
+  // Memoize filtered menu items to prevent recalculation on every render
+  const visibleMenuItems = useMemo(() => 
+    menuItems.filter(item => !item.adminOnly || isAdmin),
+    [isAdmin]
+  );
+
+  // Memoize click handler for mobile menu close
+  const handleLinkClick = useCallback(() => {
+    if (window.innerWidth < 1024) {
+      onClose();
+    }
+  }, [onClose]);
 
   return (
     <>
@@ -82,8 +109,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           fixed lg:sticky top-0 left-0 z-30 h-screen
           w-64
           bg-gradient-to-br 
-          from-white via-blue-50/30 to-cyan-50/20
-          dark:from-slate-800/50 dark:via-blue-900/20 dark:to-cyan-900/10
+          from-white via-rose-50/70 to-amber-50/50
+          dark:from-slate-900/70 dark:via-rose-900/35 dark:to-amber-900/25
           border-r border-gray-200 dark:border-slate-700
           shadow-sm dark:shadow-none
           transform transition-all duration-300 ease-in-out
@@ -111,7 +138,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4">
             <ul className="space-y-1">
-              {menuItems.map((item) => {
+              {visibleMenuItems.map((item) => {
                 const isActive = pathname === item.path;
                 const Icon = item.icon;
 
@@ -119,12 +146,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                   <li key={item.path}>
                     <Link
                       href={item.path}
-                      onClick={() => {
-                        // Close mobile menu on navigation
-                        if (window.innerWidth < 1024) {
-                          onClose();
-                        }
-                      }}
+                      onClick={handleLinkClick}
                       className={`
                         flex items-center gap-3 px-4 py-3 rounded-lg
                         transition-all duration-200 group
