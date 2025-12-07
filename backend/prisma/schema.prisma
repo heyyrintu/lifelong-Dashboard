@@ -49,6 +49,8 @@ model OutboundRow {
   categoryRaw         String?            @map("category_raw")
   salesOrderQty       Float              @default(0) @map("sales_order_qty")
   soTotalCbm          Float              @default(0) @map("so_total_cbm")
+  soDate              DateTime?          @map("so_date")
+  dispatchByDate      DateTime?          @map("dispatch_by_date")
   deliveryNoteDate    DateTime?          @map("delivery_note_date")
   deliveryNoteItem    String?            @map("delivery_note_item")
   deliveryNoteQty     Float              @default(0) @map("delivery_note_qty")
@@ -62,10 +64,13 @@ model OutboundRow {
 
   @@index([uploadId])
   @@index([deliveryNoteDate])
+  @@index([soDate])
+  @@index([dispatchByDate])
   @@index([normalizedCategory])
   @@index([productCategory])
   // Composite index for getSummary date filtering: WHERE uploadId = ? AND deliveryNoteDate BETWEEN ? AND ?
   @@index([uploadId, deliveryNoteDate])
+  @@index([uploadId, soDate])
   // Composite index for category filtering: WHERE uploadId = ? AND normalizedCategory = ?
   @@index([uploadId, normalizedCategory])
   @@map("outbound_rows")

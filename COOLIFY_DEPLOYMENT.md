@@ -381,6 +381,8 @@ async function bootstrap() {
 CREATE INDEX idx_outbound_rows_delivery_note_date ON outbound_rows(delivery_note_date);
 CREATE INDEX idx_outbound_rows_upload_id ON outbound_rows(upload_id);
 CREATE INDEX idx_outbound_rows_normalized_category ON outbound_rows(normalized_category);
+CREATE INDEX idx_outbound_rows_so_date ON outbound_rows(so_date);
+CREATE INDEX idx_outbound_rows_dispatch_by_date ON outbound_rows(dispatch_by_date);
 ```
 
 ### 2. Caching

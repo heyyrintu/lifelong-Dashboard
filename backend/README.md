@@ -193,6 +193,8 @@ Customer groups are automatically classified into these categories:
 - `category_raw` - Raw category from Excel
 - `sales_order_qty` - SO quantity (numeric)
 - `so_total_cbm` - SO volume (numeric)
+ - `so_date` - SO Date (from column F)
+ - `dispatch_by_date` - Dispatch By Date (from column G)
 - `delivery_note_date` - DN date
 - `delivery_note_item` - DN item code
 - `delivery_note_qty` - DN quantity (numeric)

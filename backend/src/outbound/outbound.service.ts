@@ -134,6 +134,8 @@ export class OutboundService {
         sourceWarehouse: string | null;
         soItem: string | null;
         categoryRaw: string | null;
+        soDate: Date | null;
+        dispatchByDate: Date | null;
         salesOrderQty: number;
         soTotalCbm: number;
         deliveryNoteDate: Date | null;
@@ -151,13 +153,15 @@ export class OutboundService {
 
         // Excel columns (0-indexed) - matching actual MIS file structure:
         // Customer Group=column C (2), Source Warehouse=column K (10), SO Item=column L (11)
-        // Category Raw=column M (12), Sales Order Qty=column N (13), SO Total CBM=column P (15)
+        // Category Raw=column M (12), Sales Order Qty=column N (13), SO Date=column F (5), Dispatch By Date=column G (6), SO Total CBM=column P (15)
         // Delivery Note Date=column S (18), Delivery Note Item=column U (20), Delivery Note Qty=column V (21)
         // DN Total CBM=column W (22), Transporter=column X (23)
         const customerGroup = this.getCellValue(row[2]); // C
         const sourceWarehouse = this.getCellValue(row[10]); // K
         const soItem = this.getCellValue(row[11]); // L
         const categoryRaw = this.getCellValue(row[12]); // M
+        const soDate = this.parseExcelDate(row[5]); // F - SO Date
+        const dispatchByDate = this.parseExcelDate(row[6]); // G - Dispatch By Date
         const salesOrderQty = this.parseNumber(row[13]); // N
         const soTotalCbm = this.parseNumber(row[15]); // P
         const deliveryNoteDate = this.parseExcelDate(row[18]); // S - Fixed date parsing
@@ -176,6 +180,8 @@ export class OutboundService {
           sourceWarehouse,
           soItem,
           categoryRaw,
+          soDate,
+          dispatchByDate,
           salesOrderQty,
           soTotalCbm,
           deliveryNoteDate,

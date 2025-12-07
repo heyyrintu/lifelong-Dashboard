@@ -11,6 +11,8 @@ Your outbound Excel file must have these specific columns. The **column letters*
 | **L** | SO Item | Text | Yes | SKU-12345 |
 | **M** | Category | Text | Optional | Electronics |
 | **N** | Sales Order Qty | Number | Yes | 100 |
+| **F** | SO Date | Date | Optional | 2025-01-10 |
+| **G** | Dispatch By Date | Date | Optional | 2025-01-12 |
 | **P** | SO Total CBM | Number | Yes | 5.75 |
 | **S** | DELIVERY Note DATE | Date | Yes | 2025-01-15 |
 | **U** | DELIVERY Note ITEM | Text | Yes | SKU-12345 |
@@ -79,9 +81,9 @@ Anything that doesn't match above keywords
 ```
 | A | B | C           | D | E | F | G | H | I | J | K        | L       | M           | N   | O | P    | Q | R | S          | T | U       | V  | W    | X          |
 |---|---|-------------|---|---|---|---|---|---|---|----------|---------|-------------|-----|---|------|---|---|------------|---|---------|----|----- |------------|
-| 1 | 2 | Amazon      | - | - | - | - | - | - | - | WH-MUM-1 | SKU-100 | Electronics | 150 | - | 7.5  | - | - | 2025-01-10 | - | SKU-100 | 145| 7.25 | BlueDart   |
-| 2 | 3 | Blinkit     | - | - | - | - | - | - | - | WH-DEL-2 | SKU-200 | Grocery     | 200 | - | 10.0 | - | - | 2025-01-11 | - | SKU-200 | 200| 10.0 | Delhivery  |
-| 3 | 4 | Offline-GT  | - | - | - | - | - | - | - | WH-BLR-1 | SKU-300 | Fashion     | 75  | - | 3.2  | - | - | 2025-01-12 | - | SKU-300 | 70 | 3.0  | FedEx      |
+| 1 | 2 | Amazon      | - | - | 2025-01-05 | 2025-01-08 | - | - | - | WH-MUM-1 | SKU-100 | Electronics | 150 | - | 7.5  | - | - | 2025-01-10 | - | SKU-100 | 145| 7.25 | BlueDart   |
+| 2 | 3 | Blinkit     | - | - | 2025-01-01 | 2025-01-05 | - | - | - | WH-DEL-2 | SKU-200 | Grocery     | 200 | - | 10.0 | - | - | 2025-01-11 | - | SKU-200 | 200| 10.0 | Delhivery  |
+| 3 | 4 | Offline-GT  | - | - | 2025-01-03 | 2025-01-07 | - | - | - | WH-BLR-1 | SKU-300 | Fashion     | 75  | - | 3.2  | - | - | 2025-01-12 | - | SKU-300 | 70 | 3.0  | FedEx      |
 ```
 
 ## Validation Rules
@@ -99,7 +101,7 @@ The backend will:
 **"Upload failed"**
 - Check file is .xlsx or .xls format
 - Verify file size is under 10MB
-- Ensure columns C, K, L, M, N, P, S, U, V, W, X exist
+- Ensure columns C, F, G, K, L, M, N, P, S, U, V, W, X exist
 
 **"No data visible after upload"**
 - Check that row 1 has headers
@@ -115,7 +117,7 @@ The backend will:
 
 Before uploading to production:
 
-1. **Check Column Letters**: Verify C, K, L, M, N, P, S, U, V, W, X are in correct positions
+1. **Check Column Letters**: Verify C, F, G, K, L, M, N, P, S, U, V, W, X are in correct positions
 2. **Check Data Types**: Numbers in number columns, dates in date column
 3. **Check Dates**: Column S should have valid dates (most important for filtering)
 4. **Sample Upload**: Upload a small sample (10-20 rows) first

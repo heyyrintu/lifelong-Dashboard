@@ -83,7 +83,7 @@ export class OutboundService {
 
     // Process rows (skip header row)
     const rowsToInsert = [];
-    for (let i = 1; i < data.length; i++) {
+      for (let i = 1; i < data.length; i++) {
       const row = data[i] as any[];
       if (!row[2]) continue; // Skip empty rows
 
@@ -95,6 +95,8 @@ export class OutboundService {
         source_warehouse: row[10] || null,
         so_item: row[11] || null,
         category_raw: row[12] || null,
+        so_date: this.parseDate(row[5]),
+        dispatch_by_date: this.parseDate(row[6]),
         sales_order_qty: row[13] ? parseFloat(row[13]) : 0,
         so_total_cbm: row[15] ? parseFloat(row[15]) : 0,
         delivery_note_date: this.parseDate(row[18]),
@@ -115,10 +117,11 @@ export class OutboundService {
           await client.query(`
             INSERT INTO outbound_rows (
               upload_id, customer_group, source_warehouse, so_item, category_raw,
+              so_date, dispatch_by_date,
               sales_order_qty, so_total_cbm, delivery_note_date, delivery_note_item,
               delivery_note_qty, dn_total_cbm, transporter, normalized_category
             ) VALUES (
-              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13
+              $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14
             )
           `, Object.values(row));
         }
