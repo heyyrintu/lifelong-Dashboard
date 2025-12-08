@@ -4,7 +4,7 @@ import { CategoryNormalizerService } from './category-normalizer.service';
 import { NormalizedCategory, ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
-import { parseLocalDateStart, parseLocalDateEnd, getMonthStart, getMonthEnd } from '../common/utils/date-utils';
+import { parseLocalDateStart, parseLocalDateEnd, getMonthStart, getMonthEnd, formatDateAsISO } from '../common/utils/date-utils';
 
 export interface UploadResult {
   uploadId: string;
@@ -870,22 +870,22 @@ export class OutboundService {
       
       switch (granularity) {
         case 'day':
-          startDate = period.toISOString().split('T')[0];
+          startDate = formatDateAsISO(period);
           endDate = startDate;
           label = row.period_label;
           break;
         case 'week':
-          startDate = period.toISOString().split('T')[0];
+          startDate = formatDateAsISO(period);
           const weekEnd = new Date(period);
           weekEnd.setDate(weekEnd.getDate() + 6);
-          endDate = weekEnd.toISOString().split('T')[0];
+          endDate = formatDateAsISO(weekEnd);
           label = `Week ${row.period_label.split('-')[1]}`;
           break;
         case 'month':
         default:
-          startDate = period.toISOString().split('T')[0];
+          startDate = formatDateAsISO(period);
           const monthEnd = new Date(period.getFullYear(), period.getMonth() + 1, 0);
-          endDate = monthEnd.toISOString().split('T')[0];
+          endDate = formatDateAsISO(monthEnd);
           // Format as "Aug'25", "Sep'25", etc.
           const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
           label = `${monthNames[period.getMonth()]}'${period.getFullYear().toString().slice(-2)}`;

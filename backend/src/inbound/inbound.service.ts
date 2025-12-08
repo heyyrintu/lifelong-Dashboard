@@ -5,6 +5,7 @@ import { ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import * as path from 'path';
+import { formatDateAsISO } from '../common/utils/date-utils';
 
 export interface ItemMasterUploadResult {
   uploadId: string;
@@ -626,8 +627,8 @@ export class InboundService implements OnModuleInit {
     });
 
     return {
-      minDate: result._min.dateOfUnload ? result._min.dateOfUnload.toISOString().split('T')[0] : null,
-      maxDate: result._max.dateOfUnload ? result._max.dateOfUnload.toISOString().split('T')[0] : null,
+      minDate: result._min.dateOfUnload ? formatDateAsISO(result._min.dateOfUnload) : null,
+      maxDate: result._max.dateOfUnload ? formatDateAsISO(result._max.dateOfUnload) : null,
     };
   }
 
@@ -704,7 +705,7 @@ export class InboundService implements OnModuleInit {
           bucketKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
           break;
         case 'day':
-          bucketKey = date.toISOString().split('T')[0];
+          bucketKey = formatDateAsISO(date);
           break;
       }
 
@@ -719,7 +720,7 @@ export class InboundService implements OnModuleInit {
         groupedData[bucketKey].edelReceivedQty += received;
         groupedData[bucketKey].edelTotalCbm += cbm;
       }
-      groupedData[bucketKey].dates.push(date.toISOString().split('T')[0]);
+      groupedData[bucketKey].dates.push(formatDateAsISO(date));
     });
 
     const points: TimeSeriesPoint[] = Object.keys(groupedData).sort().map(bucketKey => {

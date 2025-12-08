@@ -4,7 +4,7 @@ import { CategoryNormalizerService } from '../outbound/category-normalizer.servi
 import { ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
-import { parseLocalDateStart, parseLocalDateEnd } from '../common/utils/date-utils';
+import { parseLocalDateStart, parseLocalDateEnd, formatDateAsISO } from '../common/utils/date-utils';
 
 export interface InventoryUploadResult {
   uploadId: string;
@@ -762,12 +762,12 @@ export class InventoryService {
 
     if (fromDate) {
       paramIdx++;
-      params.push(new Date(fromDate));
+      params.push(parseLocalDateStart(fromDate));
       dateFilter += ` AND ids.stock_date >= $${paramIdx}`;
     }
     if (toDate) {
       paramIdx++;
-      params.push(new Date(toDate));
+      params.push(parseLocalDateEnd(toDate));
       dateFilter += ` AND ids.stock_date <= $${paramIdx}`;
     }
     if (productCategories && productCategories.length > 0) {
@@ -811,7 +811,7 @@ export class InventoryService {
 
     const points: InventoryTimeSeriesPoint[] = results.map((row) => {
       const date = new Date(row.stock_date);
-      const dateKey = date.toISOString().split('T')[0];
+      const dateKey = formatDateAsISO(date);
       return {
         date: dateKey,
         label: `${date.getDate()} ${monthNames[date.getMonth()]}`,
@@ -841,8 +841,8 @@ export class InventoryService {
     });
 
     return {
-      minDate: result._min.stockDate ? result._min.stockDate.toISOString().split('T')[0] : null,
-      maxDate: result._max.stockDate ? result._max.stockDate.toISOString().split('T')[0] : null,
+      minDate: result._min.stockDate ? formatDateAsISO(result._min.stockDate) : null,
+      maxDate: result._max.stockDate ? formatDateAsISO(result._max.stockDate) : null,
     };
   }
 

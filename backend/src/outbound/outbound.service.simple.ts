@@ -3,6 +3,7 @@ import { CategoryNormalizerService } from './category-normalizer.service';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
 import { Pool } from 'pg';
+import { formatDateAsISO } from '../common/utils/date-utils';
 
 export interface UploadResult {
   uploadId: string;
@@ -261,14 +262,14 @@ export class OutboundService {
     if (typeof dateValue === 'number') {
       // Excel date number
       const date = new Date((dateValue - 25569) * 86400 * 1000);
-      return date.toISOString().split('T')[0];
+      return formatDateAsISO(date);
     }
     
     if (typeof dateValue === 'string') {
       // Try to parse as date string
       const date = new Date(dateValue);
       if (!isNaN(date.getTime())) {
-        return date.toISOString().split('T')[0];
+        return formatDateAsISO(date);
       }
     }
     

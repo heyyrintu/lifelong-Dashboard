@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeType } from './dto/employee.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto, AttendanceStatus, BulkAttendanceDto } from './dto/attendance.dto';
 import * as XLSX from 'xlsx';
-import { parseLocalDateStart, parseLocalDateEnd } from '../common/utils/date-utils';
+import { parseLocalDateStart, parseLocalDateEnd, formatDateAsISO } from '../common/utils/date-utils';
 
 const STANDARD_WORKING_HOURS = 9;
 
@@ -269,10 +269,10 @@ export class AttendanceService {
     let outTime = attendance.outTime;
 
     if (dto.inTime !== undefined) {
-      inTime = dto.inTime ? this.parseTime(attendance.date.toISOString().split('T')[0], dto.inTime) : null;
+      inTime = dto.inTime ? this.parseTime(formatDateAsISO(attendance.date), dto.inTime) : null;
     }
     if (dto.outTime !== undefined) {
-      outTime = dto.outTime ? this.parseTime(attendance.date.toISOString().split('T')[0], dto.outTime) : null;
+      outTime = dto.outTime ? this.parseTime(formatDateAsISO(attendance.date), dto.outTime) : null;
     }
 
     const { totalHours, overtimeHours } = this.calculateHours(inTime, outTime);
