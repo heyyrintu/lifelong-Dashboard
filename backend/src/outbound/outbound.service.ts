@@ -1059,17 +1059,17 @@ export class OutboundService {
     //    (only count deliveries that happened on or before the dispatch date)
     // Note: Using timezone 'Asia/Kolkata' to match IST dates from Excel
     const fulfillmentData = await this.prisma.$queryRawUnsafe<Array<{
-      dispatch_date: Date;
+      dispatch_date: string;
       so_qty: number;
       dn_qty: number;
     }>>(`
       SELECT 
-        DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') as dispatch_date,
+        TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') as dispatch_date,
         COALESCE(SUM(sales_order_qty), 0) as so_qty,
         COALESCE(SUM(
           CASE 
             WHEN delivery_note_date IS NOT NULL 
-              AND DATE(delivery_note_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') <= DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') 
+              AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') <= TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') 
             THEN delivery_note_qty 
             ELSE 0 
           END
@@ -1079,8 +1079,8 @@ export class OutboundService {
         AND dispatch_by_date IS NOT NULL
         ${filterCondition}
         ${dispatchDateCondition}
-      GROUP BY DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')
-      ORDER BY dispatch_date DESC
+      GROUP BY TO_CHAR(dispatch_by_date, 'YYYY-MM-DD')
+      ORDER BY dispatch_date ASC
       LIMIT 30
     `, ...params);
 
@@ -1095,9 +1095,9 @@ export class OutboundService {
       const pending = soQty - dnQty;
       const percentage = soQty > 0 ? Math.round((dnQty / soQty) * 10000) / 100 : 0;
 
-      // Format date as DD-MM-YYYY (using UTC to preserve the correct date)
-      const dateObj = new Date(row.dispatch_date);
-      const formattedDate = `${String(dateObj.getUTCDate()).padStart(2, '0')}-${String(dateObj.getUTCMonth() + 1).padStart(2, '0')}-${dateObj.getUTCFullYear()}`;
+      // Format date as DD-MM-YYYY from ISO string (dispatch_date is already in correct timezone from DB)
+      const [year, month, day] = row.dispatch_date.split('-');
+      const formattedDate = `${day}-${month}-${year}`;
 
       return {
         date: formattedDate,
