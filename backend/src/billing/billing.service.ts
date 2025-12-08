@@ -46,10 +46,10 @@ export class BillingService {
   ) {}
 
   /**
-   * Get Inventory CBM for a given date range
+   * Get Inventory CBM for a given date range and warehouse
    * Uses the InventoryService internally (no HTTP call)
    */
-  async getInventoryCbm(fromDate: string, toDate: string): Promise<number> {
+  async getInventoryCbm(fromDate: string, toDate: string, warehouse?: string): Promise<number> {
     try {
       const summary = await this.inventoryService.getSummary(
         undefined, // uploadId - use latest
@@ -57,6 +57,7 @@ export class BillingService {
         toDate,
         undefined, // itemGroup
         undefined, // productCategories
+        warehouse, // Pass warehouse to filter by location
       );
       return summary.cards.totalCbm || 0;
     } catch (error) {
@@ -66,10 +67,10 @@ export class BillingService {
   }
 
   /**
-   * Get Outbound DN Total CBM for a given date range
+   * Get Outbound DN Total CBM for a given date range and warehouse
    * Uses the OutboundService internally (no HTTP call)
    */
-  async getOutboundCbm(fromDate: string, toDate: string): Promise<number> {
+  async getOutboundCbm(fromDate: string, toDate: string, warehouse?: string): Promise<number> {
     try {
       const summary = await this.outboundService.getSummary(
         undefined, // uploadId - use latest
@@ -78,6 +79,7 @@ export class BillingService {
         undefined, // month
         undefined, // productCategories
         'month', // timeGranularity
+        warehouse, // Pass warehouse to filter by location
       );
       return summary.cards.dnTotalCbm || 0;
     } catch (error) {
@@ -102,6 +104,7 @@ export class BillingService {
   /**
    * Recalculate billing period
    * Creates or updates a BillingPeriod with fresh CBM data from Inventory and Outbound modules
+   * CBM values are filtered by location/warehouse for accuracy
    */
   async recalculate(dto: RecalculateBillingDto) {
     const { customerName, location, year, month } = dto;
@@ -116,10 +119,10 @@ export class BillingService {
       toDate = toDate || range.toDate;
     }
 
-    // Get CBM values from existing modules
+    // Get CBM values from existing modules, filtered by location/warehouse
     const [inventoryCbm, outboundCbm] = await Promise.all([
-      this.getInventoryCbm(fromDate, toDate),
-      this.getOutboundCbm(fromDate, toDate),
+      this.getInventoryCbm(fromDate, toDate, location),
+      this.getOutboundCbm(fromDate, toDate, location),
     ]);
 
     // Use provided rates or defaults
