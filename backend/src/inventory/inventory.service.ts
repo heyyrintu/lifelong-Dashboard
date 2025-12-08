@@ -473,13 +473,15 @@ export class InventoryService {
 
     if (fromDate) {
       paramIdx++;
-      params.push(parseLocalDateStart(fromDate));
-      dateFilter += ` AND ids.stock_date >= $${paramIdx}`;
+      const startDate = formatDateAsISO(parseLocalDateStart(fromDate));
+      params.push(startDate);
+      dateFilter += ` AND TO_CHAR(ids.stock_date, 'YYYY-MM-DD') >= $${paramIdx}`;
     }
     if (toDate) {
       paramIdx++;
-      params.push(parseLocalDateEnd(toDate));
-      dateFilter += ` AND ids.stock_date <= $${paramIdx}`;
+      const endDate = formatDateAsISO(parseLocalDateEnd(toDate));
+      params.push(endDate);
+      dateFilter += ` AND TO_CHAR(ids.stock_date, 'YYYY-MM-DD') <= $${paramIdx}`;
     }
     if (itemGroup && itemGroup !== 'ALL') {
       paramIdx++;
@@ -762,13 +764,15 @@ export class InventoryService {
 
     if (fromDate) {
       paramIdx++;
-      params.push(parseLocalDateStart(fromDate));
-      dateFilter += ` AND ids.stock_date >= $${paramIdx}`;
+      const startDate = formatDateAsISO(parseLocalDateStart(fromDate));
+      params.push(startDate);
+      dateFilter += ` AND TO_CHAR(ids.stock_date, 'YYYY-MM-DD') >= $${paramIdx}`;
     }
     if (toDate) {
       paramIdx++;
-      params.push(parseLocalDateEnd(toDate));
-      dateFilter += ` AND ids.stock_date <= $${paramIdx}`;
+      const endDate = formatDateAsISO(parseLocalDateEnd(toDate));
+      params.push(endDate);
+      dateFilter += ` AND TO_CHAR(ids.stock_date, 'YYYY-MM-DD') <= $${paramIdx}`;
     }
     if (productCategories && productCategories.length > 0) {
       const placeholders = productCategories.map((_, i) => `$${paramIdx + i + 1}::"ProductCategory"`).join(', ');

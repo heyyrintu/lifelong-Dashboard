@@ -923,13 +923,17 @@ export class OutboundService {
     let dateCondition = '';
     const params: any[] = [uploadIds];
     
+    // Convert Date objects to ISO strings for proper timezone handling
+    // This ensures the database comparison is done against the correct dates
     if (dateFilter.gte) {
-      params.push(dateFilter.gte);
-      dateCondition += ` AND delivery_note_date >= $${params.length}`;
+      const gteDate = formatDateAsISO(dateFilter.gte);
+      params.push(gteDate);
+      dateCondition += ` AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') >= $${params.length}`;
     }
     if (dateFilter.lte) {
-      params.push(dateFilter.lte);
-      dateCondition += ` AND delivery_note_date <= $${params.length}`;
+      const lteDate = formatDateAsISO(dateFilter.lte);
+      params.push(lteDate);
+      dateCondition += ` AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') <= $${params.length}`;
     }
     if (productCategoryFilter && productCategoryFilter.length > 0) {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
@@ -1038,12 +1042,14 @@ export class OutboundService {
     // Apply date filter on dispatch_by_date
     let dispatchDateCondition = '';
     if (dateFilter.gte) {
-      params.push(dateFilter.gte);
-      dispatchDateCondition += ` AND dispatch_by_date >= $${params.length}`;
+      const gteDate = formatDateAsISO(dateFilter.gte);
+      params.push(gteDate);
+      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') >= $${params.length}`;
     }
     if (dateFilter.lte) {
-      params.push(dateFilter.lte);
-      dispatchDateCondition += ` AND dispatch_by_date <= $${params.length}`;
+      const lteDate = formatDateAsISO(dateFilter.lte);
+      params.push(lteDate);
+      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') <= $${params.length}`;
     }
 
     // Single optimized query that calculates both SO Qty and DN Qty correctly
