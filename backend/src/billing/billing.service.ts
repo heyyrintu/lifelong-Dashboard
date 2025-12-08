@@ -59,7 +59,9 @@ export class BillingService {
         undefined, // productCategories
       );
       const cbm = summary.cards.totalCbm || 0;
-      console.log(`[Billing] Inventory CBM for ${fromDate} to ${toDate}: ${cbm}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Billing] Inventory CBM for ${fromDate} to ${toDate}: ${cbm}`);
+      }
       return cbm;
     } catch (error) {
       console.error('Error fetching inventory CBM:', error);
@@ -82,7 +84,9 @@ export class BillingService {
         'month', // timeGranularity
       );
       const cbm = summary.cards.dnTotalCbm || 0;
-      console.log(`[Billing] Outbound CBM for ${fromDate} to ${toDate}: ${cbm}`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`[Billing] Outbound CBM for ${fromDate} to ${toDate}: ${cbm}`);
+      }
       return cbm;
     } catch (error) {
       console.error('Error fetching outbound CBM:', error);
@@ -136,8 +140,10 @@ export class BillingService {
       this.getOutboundCbm(fromDate, toDate),
     ]);
 
-    console.log(`[Billing] Recalculating for ${customerName} at ${location}, period: ${fromDate} to ${toDate} (year: ${year}, month: ${month})`);
-    console.log(`[Billing] Date objects - fromDate: ${fromDate}, toDate: ${toDate}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Billing] Recalculating for ${customerName} at ${location}, period: ${fromDate} to ${toDate} (year: ${year}, month: ${month})`);
+      console.log(`[Billing] Date objects - fromDate: ${fromDate}, toDate: ${toDate}`);
+    }
 
     // Use provided rates or defaults
     const inventoryRate = dto.inventoryRate ?? DEFAULT_INVENTORY_RATE;

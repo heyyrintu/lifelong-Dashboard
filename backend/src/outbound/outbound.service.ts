@@ -254,7 +254,10 @@ export class OutboundService {
       this.cache.clear();
 
       const elapsed = Date.now() - startTime;
-      console.log(`Outbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
+      // Performance metric for development only
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Outbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
+      }
 
       return result;
     } catch (error) {
@@ -394,7 +397,10 @@ export class OutboundService {
     this.cache.set(cacheKey, result);
 
     const elapsed = Date.now() - startTime;
-    console.log(`Outbound getSummary: ${elapsed}ms`);
+    // Performance metric for development only
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Outbound getSummary: ${elapsed}ms`);
+    }
 
     return result;
   }

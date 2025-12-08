@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { GlobalExceptionFilter } from './common/filters/http-exception.filter';
+import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import helmet from 'helmet';
 
 async function bootstrap() {
@@ -58,6 +59,10 @@ async function bootstrap() {
 
   // Global exception filter - sanitizes error responses
   app.useGlobalFilters(new GlobalExceptionFilter());
+
+  // Global JWT authentication guard (checks @Public() decorator for exceptions)
+  const reflector = app.get(require('@nestjs/core').Reflector);
+  app.useGlobalGuards(new JwtAuthGuard(reflector));
 
   // Note: No API prefix to maintain backward compatibility with frontend
   // If adding prefix later, update all frontend API calls accordingly

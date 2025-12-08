@@ -15,10 +15,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { AttendanceService } from './attendance.service';
 import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeType } from './dto/employee.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto, AttendanceStatus, BulkAttendanceDto } from './dto/attendance.dto';
-import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('attendance')
-@Public() // Make all attendance endpoints public for now
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 

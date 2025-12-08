@@ -198,7 +198,9 @@ export class InboundService implements OnModuleInit {
     this.cache.clear();
 
     const elapsed = Date.now() - startTime;
-    console.log(`ItemMaster loaded: ${uniqueRecords.length} rows in ${elapsed}ms`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`ItemMaster loaded: ${uniqueRecords.length} rows in ${elapsed}ms`);
+    }
 
     return { 
       uploadId: 'item-master-' + Date.now(), 
@@ -414,7 +416,9 @@ export class InboundService implements OnModuleInit {
       this.cache.clear();
 
       const elapsed = Date.now() - startTime;
-      console.log(`Inbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Inbound upload: ${result.rowsInserted} rows in ${elapsed}ms`);
+      }
 
       return result;
     } catch (error) {
@@ -542,7 +546,9 @@ export class InboundService implements OnModuleInit {
     this.cache.set(cacheKey, result);
 
     const elapsed = Date.now() - startTime;
-    console.log(`Inbound getSummary: ${elapsed}ms`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`Inbound getSummary: ${elapsed}ms`);
+    }
 
     return result;
   }
