@@ -92,14 +92,23 @@ export class BillingService {
 
   /**
    * Get month date range (first and last day of month)
+   * Returns dates in YYYY-MM-DD format (local timezone, not UTC)
    */
   private getMonthDateRange(year: number, month: number): { fromDate: string; toDate: string } {
     const firstDay = getMonthStart(year, month);
     const lastDay = getMonthEnd(year, month);
 
+    // Format as YYYY-MM-DD in local timezone
+    const formatDate = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     return {
-      fromDate: firstDay.toISOString().split('T')[0],
-      toDate: lastDay.toISOString().split('T')[0],
+      fromDate: formatDate(firstDay),
+      toDate: formatDate(lastDay),
     };
   }
 
@@ -127,8 +136,8 @@ export class BillingService {
       this.getOutboundCbm(fromDate, toDate),
     ]);
 
-    console.log(`[Billing] Recalculating for ${customerName} at ${location}, period: ${fromDate} to ${toDate}`);
-    console.log(`[Billing] Fetched CBM values - Inventory: ${inventoryCbm}, Outbound: ${outboundCbm}`);
+    console.log(`[Billing] Recalculating for ${customerName} at ${location}, period: ${fromDate} to ${toDate} (year: ${year}, month: ${month})`);
+    console.log(`[Billing] Date objects - fromDate: ${fromDate}, toDate: ${toDate}`);
 
     // Use provided rates or defaults
     const inventoryRate = dto.inventoryRate ?? DEFAULT_INVENTORY_RATE;
@@ -700,12 +709,20 @@ export class BillingService {
     const monthName = monthNames[billingPeriod.month - 1];
     const monthShort = monthName.substring(0, 3);
 
+    // Helper to format Date as YYYY-MM-DD in local timezone
+    const formatDateLocal = (d: Date): string => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     // Get date range
     const fromDate = billingPeriod.fromDate 
-      ? billingPeriod.fromDate.toISOString().split('T')[0] 
+      ? formatDateLocal(billingPeriod.fromDate) 
       : this.getMonthDateRange(billingPeriod.year, billingPeriod.month).fromDate;
     const toDate = billingPeriod.toDate 
-      ? billingPeriod.toDate.toISOString().split('T')[0] 
+      ? formatDateLocal(billingPeriod.toDate) 
       : this.getMonthDateRange(billingPeriod.year, billingPeriod.month).toDate;
 
     // Create workbook
