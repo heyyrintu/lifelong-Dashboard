@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../inventory/inventory.service';
 import { OutboundService } from '../outbound/outbound.service';
 import * as XLSX from 'xlsx-js-style';
+import { parseLocalDateStart, parseLocalDateEnd, getMonthStart, getMonthEnd } from '../common/utils/date-utils';
 
 export interface RecalculateBillingDto {
   customerName: string;
@@ -89,8 +90,8 @@ export class BillingService {
    * Get month date range (first and last day of month)
    */
   private getMonthDateRange(year: number, month: number): { fromDate: string; toDate: string } {
-    const firstDay = new Date(year, month - 1, 1);
-    const lastDay = new Date(year, month, 0); // Last day of the month
+    const firstDay = getMonthStart(year, month);
+    const lastDay = getMonthEnd(year, month);
 
     return {
       fromDate: firstDay.toISOString().split('T')[0],
@@ -184,8 +185,8 @@ export class BillingService {
       const updatedPeriod = await this.prisma.billingPeriod.update({
         where: { id: existingPeriod.id },
         data: {
-          fromDate: new Date(fromDate),
-          toDate: new Date(toDate),
+          fromDate: parseLocalDateStart(fromDate),
+          toDate: parseLocalDateEnd(toDate),
           inventoryCbm,
           outboundCbm,
           inventoryRate,
@@ -209,8 +210,8 @@ export class BillingService {
         location,
         year,
         month,
-        fromDate: new Date(fromDate),
-        toDate: new Date(toDate),
+        fromDate: parseLocalDateStart(fromDate),
+        toDate: parseLocalDateEnd(toDate),
         inventoryCbm,
         outboundCbm,
         inventoryRate,
@@ -999,8 +1000,8 @@ export class BillingService {
         dailyStocks: {
           where: {
             stockDate: {
-              gte: new Date(fromDate),
-              lte: new Date(toDate),
+              gte: parseLocalDateStart(fromDate),
+              lte: parseLocalDateEnd(toDate),
             },
           },
           orderBy: { stockDate: 'asc' },
@@ -1037,8 +1038,8 @@ export class BillingService {
       where: {
         sourceWarehouse: { contains: warehouseCode },
         deliveryNoteDate: {
-          gte: new Date(fromDate),
-          lte: new Date(toDate),
+          gte: parseLocalDateStart(fromDate),
+          lte: parseLocalDateEnd(toDate),
         },
       },
       orderBy: { deliveryNoteDate: 'asc' },

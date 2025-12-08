@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto, UpdateEmployeeDto, EmployeeType } from './dto/employee.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto, AttendanceStatus, BulkAttendanceDto } from './dto/attendance.dto';
 import * as XLSX from 'xlsx';
+import { parseLocalDateStart, parseLocalDateEnd } from '../common/utils/date-utils';
 
 const STANDARD_WORKING_HOURS = 9;
 
@@ -350,10 +351,10 @@ export class AttendanceService {
     if (filters.fromDate || filters.toDate) {
       where.date = {};
       if (filters.fromDate) {
-        where.date.gte = new Date(filters.fromDate);
+        where.date.gte = parseLocalDateStart(filters.fromDate);
       }
       if (filters.toDate) {
-        where.date.lte = new Date(filters.toDate);
+        where.date.lte = parseLocalDateEnd(filters.toDate);
       }
     }
 

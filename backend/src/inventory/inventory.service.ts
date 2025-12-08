@@ -4,6 +4,7 @@ import { CategoryNormalizerService } from '../outbound/category-normalizer.servi
 import { ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import { parseLocalDateStart, parseLocalDateEnd } from '../common/utils/date-utils';
 
 export interface InventoryUploadResult {
   uploadId: string;
@@ -472,12 +473,12 @@ export class InventoryService {
 
     if (fromDate) {
       paramIdx++;
-      params.push(new Date(fromDate));
+      params.push(parseLocalDateStart(fromDate));
       dateFilter += ` AND ids.stock_date >= $${paramIdx}`;
     }
     if (toDate) {
       paramIdx++;
-      params.push(new Date(toDate));
+      params.push(parseLocalDateEnd(toDate));
       dateFilter += ` AND ids.stock_date <= $${paramIdx}`;
     }
     if (itemGroup && itemGroup !== 'ALL') {

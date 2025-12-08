@@ -4,6 +4,7 @@ import { CategoryNormalizerService } from './category-normalizer.service';
 import { NormalizedCategory, ProductCategory } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
+import { parseLocalDateStart, parseLocalDateEnd, getMonthStart, getMonthEnd } from '../common/utils/date-utils';
 
 export interface UploadResult {
   uploadId: string;
@@ -337,23 +338,21 @@ export class OutboundService {
         : this.parseMonthName(month);
       
       if (year && monthNum) {
-        // Create dates using ISO string format to ensure correct timezone handling
-        const startDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-01T00:00:00`);
-        // Get last day of month
-        const lastDay = new Date(year, monthNum, 0).getDate();
-        const endDate = new Date(`${year}-${String(monthNum).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}T23:59:59`);
+        // Use date utility for proper timezone-aware date handling
+        const startDate = getMonthStart(year, monthNum);
+        const endDate = getMonthEnd(year, monthNum);
         dateFilter.gte = startDate;
         dateFilter.lte = endDate;
       }
     } else {
       if (fromDate) {
         // Parse date and set to start of day in local timezone
-        const from = new Date(fromDate + 'T00:00:00');
+        const from = parseLocalDateStart(fromDate);
         dateFilter.gte = from;
       }
       if (toDate) {
         // Parse date and set to end of day in local timezone
-        const to = new Date(toDate + 'T23:59:59');
+        const to = parseLocalDateEnd(toDate);
         dateFilter.lte = to;
       }
     }
