@@ -49,6 +49,7 @@ COPY ["Item master.xlsx", "./"]
 # Set environment variables
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV TZ=Asia/Kolkata
 
 # Expose port
 EXPOSE 3001
