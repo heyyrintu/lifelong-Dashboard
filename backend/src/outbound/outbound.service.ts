@@ -77,6 +77,7 @@ export interface SummaryResponse {
   availableWarehouses: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
+  fulfillmentTable: FulfillmentRow[];
 }
 
 export interface TopProduct {
@@ -86,6 +87,14 @@ export interface TopProduct {
   totalQty: number;
   productCategory: string;
   percentageOfTotal: number;
+}
+
+export interface FulfillmentRow {
+  date: string;
+  soQty: number;
+  dnQty: number;
+  pending: number;
+  percentage: number;
 }
 
 @Injectable()
@@ -358,7 +367,7 @@ export class OutboundService {
     const warehouseFilter = warehouse && warehouse !== 'ALL' ? warehouse : undefined;
 
     // Run parallel queries for all data (aggregating across all uploads if multiple)
-    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, availableWarehouses, timeSeries, summaryTotals] = await Promise.all([
+    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, availableWarehouses, timeSeries, summaryTotals, fulfillmentTable] = await Promise.all([
       this.calculateCardMetricsOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
       this.calculateCategoryTableOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
       this.calculateProductCategoryTable(targetUploadIds, dateFilter, warehouseFilter),
@@ -367,6 +376,7 @@ export class OutboundService {
       this.getAvailableWarehouses(targetUploadIds),
       this.calculateTimeSeries(targetUploadIds, timeGranularity, warehouseFilter),
       this.calculateSummaryTotals(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
+      this.calculateFulfillmentTable(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
     ]);
 
     const result = {
@@ -378,6 +388,7 @@ export class OutboundService {
       availableWarehouses,
       timeSeries,
       summaryTotals,
+      fulfillmentTable,
     };
 
     // Store in cache
@@ -987,6 +998,112 @@ export class OutboundService {
       totalEdelDnCbm: Math.round(totalEdelDnCbm * 100) / 100,
       dayData,
     };
+  }
+
+  /**
+   * Calculate Fulfillment Table
+   * 
+   * Logic (matching Excel calculation):
+   * 1. Filter rows by dispatch_by_date = specific date
+   * 2. Sum all sales_order_qty -> SO Qty for that date
+   * 3. Add additional filter: delivery_note_date <= dispatch_by_date
+   * 4. Sum delivery_note_qty from rows matching BOTH filters -> DN Qty
+   * 5. Pending = SO Qty - DN Qty
+   * 6. Percentage = (DN Qty / SO Qty) * 100
+   * 
+   * Example: For dispatch_by_date = 7th Dec:
+   * - SO Qty = sum of sales_order_qty for all rows where dispatch_by_date = 7th Dec
+   * - DN Qty = sum of delivery_note_qty for rows where dispatch_by_date = 7th Dec
+   *            AND delivery_note_date <= 7th Dec (delivered on time or early)
+   */
+  private async calculateFulfillmentTable(
+    uploadIds: string[],
+    dateFilter: { gte?: Date; lte?: Date },
+    productCategoryFilter?: ProductCategory[],
+    warehouse?: string,
+  ): Promise<FulfillmentRow[]> {
+    // Build common filter conditions
+    let filterCondition = '';
+    const params: any[] = [uploadIds];
+    
+    if (productCategoryFilter && productCategoryFilter.length > 0) {
+      const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategoryFilter);
+      filterCondition += ` AND product_category IN (${placeholders})`;
+    }
+    if (warehouse) {
+      params.push(warehouse);
+      filterCondition += ` AND source_warehouse = $${params.length}`;
+    }
+
+    // Apply date filter on dispatch_by_date
+    let dispatchDateCondition = '';
+    if (dateFilter.gte) {
+      params.push(dateFilter.gte);
+      dispatchDateCondition += ` AND dispatch_by_date >= $${params.length}`;
+    }
+    if (dateFilter.lte) {
+      params.push(dateFilter.lte);
+      dispatchDateCondition += ` AND dispatch_by_date <= $${params.length}`;
+    }
+
+    // Single optimized query that calculates both SO Qty and DN Qty correctly
+    // Matching Excel logic:
+    // 1. Filter by dispatch_by_date = specific date, sum all sales_order_qty -> SO Qty
+    // 2. For DN Qty: additionally filter by delivery_note_date <= dispatch_by_date
+    //    (only count deliveries that happened on or before the dispatch date)
+    // Note: Using timezone 'Asia/Kolkata' to match IST dates from Excel
+    const fulfillmentData = await this.prisma.$queryRawUnsafe<Array<{
+      dispatch_date: Date;
+      so_qty: number;
+      dn_qty: number;
+    }>>(`
+      SELECT 
+        DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') as dispatch_date,
+        COALESCE(SUM(sales_order_qty), 0) as so_qty,
+        COALESCE(SUM(
+          CASE 
+            WHEN delivery_note_date IS NOT NULL 
+              AND DATE(delivery_note_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') <= DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata') 
+            THEN delivery_note_qty 
+            ELSE 0 
+          END
+        ), 0) as dn_qty
+      FROM outbound_rows
+      WHERE upload_id = ANY($1)
+        AND dispatch_by_date IS NOT NULL
+        ${filterCondition}
+        ${dispatchDateCondition}
+      GROUP BY DATE(dispatch_by_date AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Kolkata')
+      ORDER BY dispatch_date DESC
+      LIMIT 30
+    `, ...params);
+
+    if (fulfillmentData.length === 0) {
+      return [];
+    }
+
+    // Transform to FulfillmentRow format
+    const fulfillmentRows: FulfillmentRow[] = fulfillmentData.map(row => {
+      const soQty = Math.round(Number(row.so_qty));
+      const dnQty = Math.round(Number(row.dn_qty));
+      const pending = soQty - dnQty;
+      const percentage = soQty > 0 ? Math.round((dnQty / soQty) * 10000) / 100 : 0;
+
+      // Format date as DD-MM-YYYY (using UTC to preserve the correct date)
+      const dateObj = new Date(row.dispatch_date);
+      const formattedDate = `${String(dateObj.getUTCDate()).padStart(2, '0')}-${String(dateObj.getUTCMonth() + 1).padStart(2, '0')}-${dateObj.getUTCFullYear()}`;
+
+      return {
+        date: formattedDate,
+        soQty,
+        dnQty,
+        pending,
+        percentage,
+      };
+    });
+
+    return fulfillmentRows;
   }
 
   /**

@@ -192,8 +192,6 @@ export class InventoryService {
         }
       }
 
-      console.log(`Detected ${dateColumns.length} date columns`);
-
       // Parse data rows
       const parsedRows: ParsedInventoryRow[] = [];
 
@@ -242,8 +240,6 @@ export class InventoryService {
           dailyQuantities,
         });
       }
-
-      console.log(`Parsed ${parsedRows.length} inventory rows`);
 
       // OPTIMIZATION: Batch insert all rows in a single transaction
       // Previous: O(2*N) queries (create row + createMany stocks per row)
@@ -320,9 +316,6 @@ export class InventoryService {
 
       // Get date range for response
       const dateRange = await this.getAvailableDateRange([upload.id]);
-
-      const elapsed = Date.now() - startTime;
-      console.log(`Inventory upload complete: ${parsedRows.length} rows, ${totalDailyStocksInserted} daily stocks in ${elapsed}ms`);
 
       return {
         uploadId: upload.id,
@@ -431,9 +424,6 @@ export class InventoryService {
 
     // Store in cache
     this.cache.set(cacheKey, result);
-
-    const elapsed = Date.now() - startTime;
-    console.log(`getSummary: ${elapsed}ms (uploadIds=${targetUploadIds.length} uploads)`);
 
     return result;
   }
@@ -566,12 +556,6 @@ export class InventoryService {
       `, ...params),
     ]);
 
-    console.log('RAW RESULTS:', {
-      inboundSkuResult: inboundSkuResult[0],
-      inventoryQtyResult: inventoryQtyResult[0],
-      totalCbmResult: totalCbmResult[0],
-    });
-
     // Handle Prisma Decimal type - convert to string first then to number
     const inboundSkuCount = Number(inboundSkuResult[0]?.count ?? 0);
     const qtyRaw = (inventoryQtyResult[0] as any)?.total_avg_qty;
@@ -580,8 +564,6 @@ export class InventoryService {
     // Prisma Decimal has toString() method
     const inventoryQtyTotal = qtyRaw ? Number(String(qtyRaw)) : 0;
     const totalCbm = cbmRaw ? Number(String(cbmRaw)) : 0;
-
-    console.log('PARSED VALUES:', { inboundSkuCount, inventoryQtyTotal, totalCbm });
 
     return {
       inboundSkuCount,
@@ -1165,9 +1147,6 @@ export class InventoryService {
       this.getAvailableProductCategories(uploadIds),
     ]);
 
-    const elapsed = Date.now() - startTime;
-    console.log(`getFastMovingSkus: ${elapsed}ms, found ${skus.length} SKUs`);
-
     return {
       skus,
       summary,
@@ -1414,9 +1393,6 @@ export class InventoryService {
       this.getAvailableWarehouses(inventoryUploadIds),
       this.getAvailableProductCategories(inventoryUploadIds),
     ]);
-
-    const elapsed = Date.now() - startTime;
-    console.log(`getZeroOrderProducts: ${elapsed}ms, found ${products.length} products`);
 
     return {
       products,

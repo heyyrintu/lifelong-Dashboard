@@ -104,24 +104,19 @@ export class InboundService implements OnModuleInit {
     try {
       // Check if Item Master file exists
       if (!fs.existsSync(ITEM_MASTER_PATH)) {
-        console.log(`Item Master file not found at: ${ITEM_MASTER_PATH}`);
         return;
       }
 
       // Check if Item Master table already has data
       const existingCount = await this.prisma.itemMaster.count();
       if (existingCount > 0) {
-        console.log(`Item Master already loaded (${existingCount} items). Skipping auto-load.`);
         return;
       }
 
-      console.log('Loading Item Master from file...');
-      const result = await this.loadItemMasterInternal(ITEM_MASTER_PATH, false);
-      console.log(`Item Master auto-loaded: ${result.rowsProcessed} items`);
+      await this.loadItemMasterInternal(ITEM_MASTER_PATH, false);
     } catch (error) {
       const message = this.getErrorMessage(error);
-      console.error('Failed to auto-load Item Master:', error);
-      console.error(message);
+      console.error('Failed to auto-load Item Master:', error, message);
     }
   }
 

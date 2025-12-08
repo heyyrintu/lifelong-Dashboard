@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import {
@@ -17,7 +17,18 @@ import {
   RefreshCw,
   Search,
   ArrowRightLeft,
+  Download,
 } from 'lucide-react';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import * as XLSX from 'xlsx';
+
+interface FulfillmentRow {
+  date: string;
+  soQty: number;
+  dnQty: number;
+  pending: number;
+  percentage: number;
+}
 
 interface QuickSummaryData {
   inbound: {
@@ -36,9 +47,133 @@ interface QuickSummaryData {
     dnTotalCbm: number;
   };
   productCategories: string[];
+  fulfillmentTable?: FulfillmentRow[];
 }
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
+const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  
+  // Prepare data with headers
+  const wsData = [
+    ['Fulfillment Report'],
+    ['Generated on: ' + new Date().toLocaleString()],
+    [],
+    ['Date', 'SO Qty', 'DN Qty', 'Pending', 'Fulfillment %'],
+    ...data.map(row => [
+      row.date,
+      row.soQty,
+      row.dnQty,
+      row.pending,
+      row.percentage.toFixed(2) + '%'
+    ])
+  ];
+  
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 }, // Date
+    { wch: 12 }, // SO Qty
+    { wch: 12 }, // DN Qty
+    { wch: 12 }, // Pending
+    { wch: 15 }, // Fulfillment %
+  ];
+  
+  // Merge cells for title
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title row
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Date row
+  ];
+  
+  // Apply styles (cell formatting)
+  // Title cell
+  ws['A1'] = { 
+    v: 'Fulfillment Report', 
+    t: 's',
+    s: {
+      font: { bold: true, sz: 16, color: { rgb: "4B5563" } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      fill: { fgColor: { rgb: "E0E7FF" } }
+    }
+  };
+  
+  // Date cell
+  ws['A2'] = {
+    v: 'Generated on: ' + new Date().toLocaleString(),
+    t: 's',
+    s: {
+      font: { italic: true, sz: 10, color: { rgb: "6B7280" } },
+      alignment: { horizontal: 'center' }
+    }
+  };
+  
+  // Header row styling
+  ['A4', 'B4', 'C4', 'D4', 'E4'].forEach(cell => {
+    if (ws[cell]) {
+      ws[cell].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "6366F1" } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        }
+      };
+    }
+  });
+  
+  // Data row styling with conditional formatting based on percentage
+  data.forEach((row, index) => {
+    const rowNum = index + 5; // Starting from row 5 (0-indexed + 4 header rows + 1)
+    
+    // Determine color based on percentage
+    let bgColor = 'FFFFFF';
+    if (row.percentage >= 100) bgColor = 'D1FAE5'; // Green
+    else if (row.percentage >= 90) bgColor = 'DBEAFE'; // Blue
+    else if (row.percentage >= 75) bgColor = 'FEF3C7'; // Yellow
+    else bgColor = 'FEE2E2'; // Red
+    
+    ['A', 'B', 'C', 'D', 'E'].forEach(col => {
+      const cellRef = col + rowNum;
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          fill: { fgColor: { rgb: bgColor } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } }
+          }
+        };
+        
+        // Bold numbers in qty columns
+        if (col === 'B' || col === 'C' || col === 'D') {
+          ws[cellRef].s.font = { bold: true };
+        }
+        
+        // Percentage column special formatting
+        if (col === 'E') {
+          ws[cellRef].s.font = { bold: true, color: { rgb: row.percentage >= 90 ? '059669' : 'DC2626' } };
+        }
+      }
+    });
+  });
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Fulfillment Report');
+  
+  // Generate filename with current date
+  const fileName = `Fulfillment_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+  
+  // Download file
+  XLSX.writeFile(wb, fileName);
+};
 
 export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
@@ -172,6 +307,7 @@ export default function SummaryPage() {
           dnTotalCbm: outboundData?.cards?.dnTotalCbm || 0,
         },
         productCategories: Array.from(categories),
+        fulfillmentTable: outboundData?.fulfillmentTable || [],
       };
 
       setData(summaryData);
@@ -269,6 +405,13 @@ export default function SummaryPage() {
     const thousands = value / 1000;
     return `${thousands.toFixed(decimals)} K`;
   };
+
+  const averageFulfillment = useMemo(() => {
+    const rows = data?.fulfillmentTable || [];
+    if (!rows.length) return 0;
+    const total = rows.reduce((sum, row) => sum + (row.percentage || 0), 0);
+    return total / rows.length;
+  }, [data?.fulfillmentTable]);
 
   const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
@@ -769,6 +912,282 @@ export default function SummaryPage() {
             </div>
           </motion.div>
         </div>
+      )}
+
+      {/* Fulfillment Rate Half Donut */}
+      {!loading && data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+          className="w-full mb-8"
+        >
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fulfillment Rate</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Average across fulfillment table</p>
+                </div>
+              </div>
+              <div className="px-3 py-1.5 bg-emerald-50/80 dark:bg-emerald-900/30 backdrop-blur-sm rounded-lg border border-emerald-200/50 dark:border-emerald-700/40 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                {data.fulfillmentTable.length} Dates
+              </div>
+            </div>
+
+            <div className="h-52 relative">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Fulfilled', value: Math.min(100, Math.max(0, averageFulfillment)), fill: '#10b981' },
+                      { name: 'Gap', value: Math.max(0, 100 - Math.max(0, averageFulfillment)), fill: '#f59e0b' },
+                    ]}
+                    cx="50%"
+                    cy="80%"
+                    startAngle={180}
+                    endAngle={0}
+                    innerRadius={70}
+                    outerRadius={100}
+                    paddingAngle={2}
+                    dataKey="value"
+                  >
+                    <Cell fill="#10b981" />
+                    <Cell fill="#f59e0b" />
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const item = payload[0].payload as { name: string; value: number };
+                        return (
+                          <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.name}</p>
+                            <p className="text-sm text-gray-600 dark:text-slate-400">
+                              {item.value.toFixed(2)}%
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+                <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {averageFulfillment.toFixed(1)}%
+                </span>
+                <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Avg Fulfillment</span>
+              </div>
+            </div>
+
+            <div className="flex justify-center gap-6 mt-2">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-amber-500" />
+                <span className="text-xs text-gray-600 dark:text-slate-400">Gap to 100%</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Fulfillment Table */}
+      {!loading && data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
+          className="w-full mb-8"
+        >
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+            {/* Decorative gradient blobs */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
+                </div>
+                <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
+                  {data.fulfillmentTable.length} Dates
+                </div>
+              </div>
+              <motion.button
+                onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Excel</span>
+              </motion.button>
+            </div>
+
+            <motion.div
+              className="space-y-2 max-h-96 overflow-y-auto pr-2"
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.08,
+                    delayChildren: 0.1,
+                  }
+                }
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Headers */}
+              <div className="grid grid-cols-5 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
+                <div className="text-center">Date</div>
+                <div className="text-center">SO Qty</div>
+                <div className="text-center">DN Qty</div>
+                <div className="text-center">Pending</div>
+                <div className="text-center">%</div>
+              </div>
+
+              {/* Data Rows */}
+              {data.fulfillmentTable.map((row, index) => (
+                <motion.div
+                  key={row.date}
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      x: -25,
+                      scale: 0.95,
+                      filter: "blur(4px)"
+                    },
+                    visible: {
+                      opacity: 1,
+                      x: 0,
+                      scale: 1,
+                      filter: "blur(0px)",
+                      transition: {
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 28,
+                        mass: 0.6,
+                      },
+                    },
+                  }}
+                  className="relative"
+                >
+                  <motion.div
+                    className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
+                    whileHover={{
+                      y: -2,
+                      scale: 1.01,
+                      transition: { type: "spring", stiffness: 400, damping: 25 }
+                    }}
+                  >
+                    {/* Status gradient overlay based on percentage */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-l ${
+                        row.percentage >= 100 
+                          ? 'from-green-500/20 via-green-500/10 to-transparent' 
+                          : row.percentage >= 90 
+                            ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                            : row.percentage >= 75
+                              ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                              : 'from-red-500/15 via-red-500/5 to-transparent'
+                      } pointer-events-none`}
+                      style={{
+                        backgroundSize: "30% 100%",
+                        backgroundPosition: "right",
+                        backgroundRepeat: "no-repeat"
+                      }}
+                    />
+
+                    {/* Grid Content */}
+                    <div className="relative grid grid-cols-5 gap-4 items-center text-center">
+                      {/* Date */}
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                          <Calendar className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
+                          {row.date}
+                        </span>
+                      </div>
+
+                      {/* SO Qty */}
+                      <div className="flex justify-center">
+                        <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                          <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
+                            {formatNumber(row.soQty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* DN Qty */}
+                      <div className="flex justify-center">
+                        <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                          <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
+                            {formatNumber(row.dnQty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pending */}
+                      <div className="flex justify-center">
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
+                          row.pending === 0 
+                            ? 'bg-green-500/10 border border-green-500/30' 
+                            : 'bg-red-500/10 border border-red-500/30'
+                        }`}>
+                          <span className={`text-sm font-medium font-mono ${
+                            row.pending === 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatNumber(row.pending)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Percentage */}
+                      <div className="flex justify-center">
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
+                          row.percentage >= 100 
+                            ? 'bg-green-500/20 border-2 border-green-500/50' 
+                            : row.percentage >= 90 
+                              ? 'bg-blue-500/10 border border-blue-500/30'
+                              : row.percentage >= 75
+                                ? 'bg-yellow-500/10 border border-yellow-500/30'
+                                : 'bg-red-500/10 border border-red-500/30'
+                        }`}>
+                          <span className={`text-sm font-bold font-mono ${
+                            row.percentage >= 100 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : row.percentage >= 90 
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : row.percentage >= 75
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {row.percentage.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+          </div>
+        </motion.div>
       )}
 
       {/* No Data State */}

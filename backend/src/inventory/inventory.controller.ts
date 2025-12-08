@@ -32,13 +32,6 @@ export class InventoryController {
       throw new HttpException('No file uploaded', HttpStatus.BAD_REQUEST);
     }
 
-    console.log('Inventory upload received:', {
-      originalname: file.originalname,
-      path: file.path,
-      mimetype: file.mimetype,
-      size: file.size,
-    });
-
     try {
       const result = await this.inventoryService.uploadInventory(file.path, file.originalname);
       return result;

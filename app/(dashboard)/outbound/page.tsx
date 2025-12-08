@@ -20,6 +20,7 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
+import * as XLSX from 'xlsx';
 
 interface CardMetrics {
   soSku: number;
@@ -74,6 +75,137 @@ interface SummaryTotals {
   dayData?: DayData[];
 }
 
+interface FulfillmentRow {
+  date: string;
+  soQty: number;
+  dnQty: number;
+  pending: number;
+  percentage: number;
+}
+
+const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
+  // Create workbook and worksheet
+  const wb = XLSX.utils.book_new();
+  
+  // Prepare data with headers
+  const wsData = [
+    ['Fulfillment Report'],
+    ['Generated on: ' + new Date().toLocaleString()],
+    [],
+    ['Date', 'SO Qty', 'DN Qty', 'Pending', 'Fulfillment %'],
+    ...data.map(row => [
+      row.date,
+      row.soQty,
+      row.dnQty,
+      row.pending,
+      row.percentage.toFixed(2) + '%'
+    ])
+  ];
+  
+  const ws = XLSX.utils.aoa_to_sheet(wsData);
+  
+  // Set column widths
+  ws['!cols'] = [
+    { wch: 15 }, // Date
+    { wch: 12 }, // SO Qty
+    { wch: 12 }, // DN Qty
+    { wch: 12 }, // Pending
+    { wch: 15 }, // Fulfillment %
+  ];
+  
+  // Merge cells for title
+  ws['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title row
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Date row
+  ];
+  
+  // Apply styles (cell formatting)
+  // Title cell
+  ws['A1'] = { 
+    v: 'Fulfillment Report', 
+    t: 's',
+    s: {
+      font: { bold: true, sz: 16, color: { rgb: "4B5563" } },
+      alignment: { horizontal: 'center', vertical: 'center' },
+      fill: { fgColor: { rgb: "E0E7FF" } }
+    }
+  };
+  
+  // Date cell
+  ws['A2'] = {
+    v: 'Generated on: ' + new Date().toLocaleString(),
+    t: 's',
+    s: {
+      font: { italic: true, sz: 10, color: { rgb: "6B7280" } },
+      alignment: { horizontal: 'center' }
+    }
+  };
+  
+  // Header row styling
+  ['A4', 'B4', 'C4', 'D4', 'E4'].forEach(cell => {
+    if (ws[cell]) {
+      ws[cell].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "6366F1" } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin', color: { rgb: '000000' } },
+          bottom: { style: 'thin', color: { rgb: '000000' } },
+          left: { style: 'thin', color: { rgb: '000000' } },
+          right: { style: 'thin', color: { rgb: '000000' } }
+        }
+      };
+    }
+  });
+  
+  // Data row styling with conditional formatting based on percentage
+  data.forEach((row, index) => {
+    const rowNum = index + 5; // Starting from row 5 (0-indexed + 4 header rows + 1)
+    
+    // Determine color based on percentage
+    let bgColor = 'FFFFFF';
+    if (row.percentage >= 100) bgColor = 'D1FAE5'; // Green
+    else if (row.percentage >= 90) bgColor = 'DBEAFE'; // Blue
+    else if (row.percentage >= 75) bgColor = 'FEF3C7'; // Yellow
+    else bgColor = 'FEE2E2'; // Red
+    
+    ['A', 'B', 'C', 'D', 'E'].forEach(col => {
+      const cellRef = col + rowNum;
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          fill: { fgColor: { rgb: bgColor } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } }
+          }
+        };
+        
+        // Bold numbers in qty columns
+        if (col === 'B' || col === 'C' || col === 'D') {
+          ws[cellRef].s.font = { bold: true };
+        }
+        
+        // Percentage column special formatting
+        if (col === 'E') {
+          ws[cellRef].s.font = { bold: true, color: { rgb: row.percentage >= 90 ? '059669' : 'DC2626' } };
+        }
+      }
+    });
+  });
+  
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'Fulfillment Report');
+  
+  // Generate filename with current date
+  const fileName = `Fulfillment_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
+  
+  // Download file
+  XLSX.writeFile(wb, fileName);
+};
+
 interface TimeSeriesData {
   granularity: 'month' | 'week' | 'day';
   points: TimeSeriesPoint[];
@@ -88,6 +220,7 @@ interface SummaryResponse {
   availableWarehouses: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
+  fulfillmentTable?: FulfillmentRow[];
 }
 
 interface UploadInfo {
@@ -144,6 +277,66 @@ export default function OutboundPage() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
 
+  const categoryRows = useMemo(() => {
+    return (data?.categoryTable || []).filter(row => row.categoryLabel !== 'TOTAL');
+  }, [data?.categoryTable]);
+
+  const categoryTotals = useMemo(() => {
+    return categoryRows.reduce(
+      (acc, row) => {
+        acc.soCount += row.soCount || 0;
+        acc.soQty += row.soQty || 0;
+        acc.soTotalCbm += row.soTotalCbm || 0;
+        acc.dnCount += row.dnCount || 0;
+        acc.dnQty += row.dnQty || 0;
+        acc.dnTotalCbm += row.dnTotalCbm || 0;
+        return acc;
+      },
+      {
+        soCount: 0,
+        soQty: 0,
+        soTotalCbm: 0,
+        dnCount: 0,
+        dnQty: 0,
+        dnTotalCbm: 0,
+      }
+    );
+  }, [categoryRows]);
+
+  const categoryTableWithTotal = useMemo(() => {
+    if (!categoryRows.length) return [];
+
+    return [
+      ...categoryRows,
+      {
+        categoryLabel: 'TOTAL',
+        soCount: categoryTotals.soCount,
+        soQty: categoryTotals.soQty,
+        soTotalCbm: categoryTotals.soTotalCbm,
+        dnCount: categoryTotals.dnCount,
+        dnQty: categoryTotals.dnQty,
+        dnTotalCbm: categoryTotals.dnTotalCbm,
+        soMinusDnQty: categoryTotals.soQty - categoryTotals.dnQty,
+      },
+    ];
+  }, [categoryRows, categoryTotals]);
+
+  const derivedCards = useMemo(() => {
+    if (categoryRows.length) {
+      return {
+        ...data?.cards,
+        soSku: categoryTotals.soCount,
+        dnSku: categoryTotals.dnCount,
+        soQty: categoryTotals.soQty,
+        dnQty: categoryTotals.dnQty,
+        soTotalCbm: categoryTotals.soTotalCbm,
+        dnTotalCbm: categoryTotals.dnTotalCbm,
+        soMinusDnQty: categoryTotals.soQty - categoryTotals.dnQty,
+      } as CardMetrics;
+    }
+    return data?.cards as CardMetrics | undefined;
+  }, [categoryRows.length, categoryTotals, data?.cards]);
+
   const productCategoryDonutData = useMemo(
     () => {
       const fixedCategories = [
@@ -156,8 +349,8 @@ export default function OutboundPage() {
       ];
 
       const cbmByCategory = new Map<string, number>();
-      if (data?.categoryTable) {
-        for (const category of data.categoryTable) {
+      if (categoryRows.length) {
+        for (const category of categoryRows) {
           cbmByCategory.set(category.categoryLabel, category.dnTotalCbm ?? 0);
         }
       }
@@ -167,7 +360,7 @@ export default function OutboundPage() {
         value: cbmByCategory.get(name) ?? 0,
       }));
     },
-    [data?.categoryTable]
+    [categoryRows]
   );
 
   // Combine initial data fetch - avoid duplicate API calls
@@ -471,6 +664,15 @@ export default function OutboundPage() {
     const value = typeof num === 'string' ? parseFloat(num) : num;
     if (isNaN(value)) return '0 K';
     return `${(value / 1000).toFixed(decimals)} K`;
+  }, []);
+
+  const formatCbmForChart = useCallback((num: number | string | undefined | null): string => {
+    if (num === undefined || num === null || num === '') return '0k';
+    const value = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(value)) return '0k';
+    const thousands = value / 1000;
+    const formatted = thousands.toFixed(1);
+    return `${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}k`;
   }, []);
 
   // Static label map - defined outside component would be even better
@@ -822,7 +1024,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
-                {loading ? '-' : formatNumber(data?.cards.soSku)}
+                {loading ? '-' : formatNumber(derivedCards?.soSku)}
               </span>
             </div>
             
@@ -837,7 +1039,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
-                {loading ? '-' : formatInLakhs(data?.cards.soQty)}
+                {loading ? '-' : formatInLakhs(derivedCards?.soQty)}
               </span>
             </div>
             
@@ -852,7 +1054,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
-                {loading ? '-' : formatInThousands(data?.cards.soTotalCbm)}
+                {loading ? '-' : formatInThousands(derivedCards?.soTotalCbm)}
               </span>
             </div>
           </div>
@@ -891,7 +1093,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                {loading ? '-' : formatNumber(data?.cards.dnSku)}
+                {loading ? '-' : formatNumber(derivedCards?.dnSku)}
               </span>
             </div>
             
@@ -906,7 +1108,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                {loading ? '-' : formatInLakhs(data?.cards.dnQty)}
+                {loading ? '-' : formatInLakhs(derivedCards?.dnQty)}
               </span>
             </div>
             
@@ -921,7 +1123,7 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                {loading ? '-' : formatInThousands(data?.cards.dnTotalCbm)}
+                {loading ? '-' : formatInThousands(derivedCards?.dnTotalCbm)}
               </span>
             </div>
           </div>
@@ -950,24 +1152,24 @@ export default function OutboundPage() {
           
           <div className="space-y-4">
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) > 0
+              (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) < 0
+                : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) > 0
+                  (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) < 0
+                    : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
                 }`}>
                   <Package className={`w-5 h-5 ${
-                    (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) > 0
+                    (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                       ? 'text-orange-600 dark:text-orange-400'
-                      : (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) < 0
+                      : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
                   }`} />
@@ -978,35 +1180,35 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${
-                (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) > 0 
+                (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0 
                   ? 'text-orange-600 dark:text-orange-400' 
-                  : (data?.cards.soSku || 0) - (data?.cards.dnSku || 0) < 0
+                  : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
               }`}>
-                {loading ? '-' : formatNumber((data?.cards.soSku || 0) - (data?.cards.dnSku || 0))}
+                {loading ? '-' : formatNumber((derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0))}
               </span>
             </div>
             
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              (data?.cards.soMinusDnQty || 0) > 0
+              (derivedCards?.soMinusDnQty || 0) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : (data?.cards.soMinusDnQty || 0) < 0
+                : (derivedCards?.soMinusDnQty || 0) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  (data?.cards.soMinusDnQty || 0) > 0
+                  (derivedCards?.soMinusDnQty || 0) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : (data?.cards.soMinusDnQty || 0) < 0
+                    : (derivedCards?.soMinusDnQty || 0) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
                 }`}>
                   <TrendingUp className={`w-5 h-5 ${
-                    (data?.cards.soMinusDnQty || 0) > 0
+                    (derivedCards?.soMinusDnQty || 0) > 0
                       ? 'text-orange-600 dark:text-orange-400'
-                      : (data?.cards.soMinusDnQty || 0) < 0
+                      : (derivedCards?.soMinusDnQty || 0) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
                   }`} />
@@ -1017,35 +1219,35 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${
-                (data?.cards.soMinusDnQty || 0) > 0 
+                (derivedCards?.soMinusDnQty || 0) > 0 
                   ? 'text-orange-600 dark:text-orange-400' 
-                  : (data?.cards.soMinusDnQty || 0) < 0
+                  : (derivedCards?.soMinusDnQty || 0) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
               }`}>
-                {loading ? '-' : formatInLakhs(data?.cards.soMinusDnQty)}
+                {loading ? '-' : formatInLakhs(derivedCards?.soMinusDnQty)}
               </span>
             </div>
             
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) > 0
+              ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) < 0
+                : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
             }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) > 0
+                  ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) < 0
+                    : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
                 }`}>
                   <Box className={`w-5 h-5 ${
-                    ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) > 0
+                    ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                       ? 'text-orange-600 dark:text-orange-400'
-                      : ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) < 0
+                      : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
                   }`} />
@@ -1056,13 +1258,13 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${
-                ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) > 0 
+                ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0 
                   ? 'text-orange-600 dark:text-orange-400' 
-                  : ((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)) < 0
+                  : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
               }`}>
-                {loading ? '-' : formatInThousands((data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0))}
+                {loading ? '-' : formatInThousands((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0))}
               </span>
             </div>
           </div>
@@ -1099,12 +1301,12 @@ export default function OutboundPage() {
                   data={[
                     { 
                       name: 'Fulfilled (DN)', 
-                      value: data?.cards.dnQty || 0,
+                      value: derivedCards?.dnQty || 0,
                       fill: '#10b981'
                     },
                     { 
                       name: 'Pending', 
-                      value: Math.max(0, (data?.cards.soQty || 0) - (data?.cards.dnQty || 0)),
+                      value: Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)),
                       fill: '#f59e0b'
                     },
                   ]}
@@ -1124,7 +1326,7 @@ export default function OutboundPage() {
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const item = payload[0].payload as { name: string; value: number };
-                      const soQtyTotal = data?.cards.soQty || 0;
+                      const soQtyTotal = derivedCards?.soQty || 0;
                       const percentOfSo = soQtyTotal > 0 ? (item.value / soQtyTotal) * 100 : 0;
                       return (
                         <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
@@ -1147,7 +1349,7 @@ export default function OutboundPage() {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
               <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                {loading ? '-' : `${((data?.cards.dnQty || 0) / (data?.cards.soQty || 1) * 100).toFixed(1)}%`}
+                {loading ? '-' : `${((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100).toFixed(1)}%`}
               </span>
               <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
             </div>
@@ -1157,11 +1359,11 @@ export default function OutboundPage() {
           <div className="flex justify-center gap-6 mt-2">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">DN Qty: {formatInLakhs(data?.cards.dnQty)}</span>
+              <span className="text-xs text-gray-600 dark:text-slate-400">DN Qty: {formatInLakhs(derivedCards?.dnQty)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInLakhs(Math.max(0, (data?.cards.soQty || 0) - (data?.cards.dnQty || 0)))}</span>
+              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInLakhs(Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)))}</span>
             </div>
           </div>
         </motion.div>
@@ -1194,12 +1396,12 @@ export default function OutboundPage() {
                   data={[
                     { 
                       name: 'Fulfilled (DN)', 
-                      value: data?.cards.dnTotalCbm || 0,
+                      value: derivedCards?.dnTotalCbm || 0,
                       fill: '#3b82f6'
                     },
                     { 
                       name: 'Pending', 
-                      value: Math.max(0, (data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)),
+                      value: Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)),
                       fill: '#f59e0b'
                     },
                   ]}
@@ -1219,7 +1421,7 @@ export default function OutboundPage() {
                   content={({ active, payload }) => {
                     if (active && payload && payload.length) {
                       const item = payload[0].payload as { name: string; value: number };
-                      const soCbmTotal = data?.cards.soTotalCbm || 0;
+                      const soCbmTotal = derivedCards?.soTotalCbm || 0;
                       const percentOfSo = soCbmTotal > 0 ? (item.value / soCbmTotal) * 100 : 0;
                       return (
                         <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
@@ -1242,7 +1444,7 @@ export default function OutboundPage() {
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
               <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-                {loading ? '-' : `${((data?.cards.dnTotalCbm || 0) / (data?.cards.soTotalCbm || 1) * 100).toFixed(1)}%`}
+                {loading ? '-' : `${((derivedCards?.dnTotalCbm || 0) / (derivedCards?.soTotalCbm || 1) * 100).toFixed(1)}%`}
               </span>
               <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
             </div>
@@ -1252,11 +1454,11 @@ export default function OutboundPage() {
           <div className="flex justify-center gap-6 mt-2">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">DN CBM: {formatInThousands(data?.cards.dnTotalCbm)}</span>
+              <span className="text-xs text-gray-600 dark:text-slate-400">DN CBM: {formatInThousands(derivedCards?.dnTotalCbm)}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInThousands(Math.max(0, (data?.cards.soTotalCbm || 0) - (data?.cards.dnTotalCbm || 0)))}</span>
+              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInThousands(Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)))}</span>
             </div>
           </div>
         </motion.div>
@@ -1282,7 +1484,7 @@ export default function OutboundPage() {
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Product Catagory</h3>
               </div>
               <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
-                {data?.categoryTable?.length || 0} Categories
+                {categoryRows.length} Categories
               </div>
             </div>
           </div>
@@ -1291,7 +1493,7 @@ export default function OutboundPage() {
             <div className="h-32 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
-          ) : data?.categoryTable && data.categoryTable.length > 0 ? (
+          ) : categoryTableWithTotal.length > 0 ? (
             <motion.div
               className="space-y-2"
               variants={{
@@ -1318,7 +1520,7 @@ export default function OutboundPage() {
               </div>
 
               {/* Data Rows */}
-              {data.categoryTable.map((row, index) => (
+              {categoryTableWithTotal.map((row, index) => (
                 <motion.div
                   key={row.categoryLabel}
                   variants={{
@@ -2111,6 +2313,7 @@ export default function OutboundPage() {
                       tick={{ fontSize: 11, fill: 'currentColor' }}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      tickFormatter={(value: number) => formatCbmForChart(value)}
                     />
                     <Tooltip
                       contentStyle={{
@@ -2139,7 +2342,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: any) => formatCbmForChart(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2147,7 +2350,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: any) => formatCbmForChart(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2431,6 +2634,209 @@ export default function OutboundPage() {
               <div className="text-center">
                 <ArrowUpFromLine className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No summary data available</p>
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+
+      {/* Fulfillment Table - Shows SO Qty by Dispatch Date vs DN Qty delivered by that date */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.15 }}
+        className="w-full mb-8"
+      >
+        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          {/* Decorative gradient blobs */}
+          <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
+              </div>
+              <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
+                {data?.fulfillmentTable?.length || 0} Dates
+              </div>
+            </div>
+            {data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
+              <motion.button
+                onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Download className="w-4 h-4" />
+                <span>Download Excel</span>
+              </motion.button>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="h-32 flex items-center justify-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
+            </div>
+          ) : data?.fulfillmentTable && data.fulfillmentTable.length > 0 ? (
+            <motion.div
+              className="space-y-2 max-h-96 overflow-y-auto pr-2"
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.08,
+                    delayChildren: 0.1,
+                  }
+                }
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Headers */}
+              <div className="grid grid-cols-5 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
+                <div className="text-center">Date</div>
+                <div className="text-center">SO Qty</div>
+                <div className="text-center">DN Qty</div>
+                <div className="text-center">Pending</div>
+                <div className="text-center">%</div>
+              </div>
+
+              {/* Data Rows */}
+              {data.fulfillmentTable.map((row, index) => (
+                <motion.div
+                  key={row.date}
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      x: -25,
+                      scale: 0.95,
+                      filter: "blur(4px)"
+                    },
+                    visible: {
+                      opacity: 1,
+                      x: 0,
+                      scale: 1,
+                      filter: "blur(0px)",
+                      transition: {
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 28,
+                        mass: 0.6,
+                      },
+                    },
+                  }}
+                  className="relative"
+                >
+                  <motion.div
+                    className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
+                    whileHover={{
+                      y: -2,
+                      scale: 1.01,
+                      transition: { type: "spring", stiffness: 400, damping: 25 }
+                    }}
+                  >
+                    {/* Status gradient overlay based on percentage */}
+                    <div
+                      className={`absolute inset-0 bg-gradient-to-l ${
+                        row.percentage >= 100 
+                          ? 'from-green-500/20 via-green-500/10 to-transparent' 
+                          : row.percentage >= 90 
+                            ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                            : row.percentage >= 75
+                              ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                              : 'from-red-500/15 via-red-500/5 to-transparent'
+                      } pointer-events-none`}
+                      style={{
+                        backgroundSize: "30% 100%",
+                        backgroundPosition: "right",
+                        backgroundRepeat: "no-repeat"
+                      }}
+                    />
+
+                    {/* Grid Content */}
+                    <div className="relative grid grid-cols-5 gap-4 items-center text-center">
+                      {/* Date */}
+                      <div className="flex items-center justify-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                          <Calendar className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
+                          {row.date}
+                        </span>
+                      </div>
+
+                      {/* SO Qty */}
+                      <div className="flex justify-center">
+                        <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                          <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
+                            {formatNumber(row.soQty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* DN Qty */}
+                      <div className="flex justify-center">
+                        <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                          <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
+                            {formatNumber(row.dnQty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pending */}
+                      <div className="flex justify-center">
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
+                          row.pending === 0 
+                            ? 'bg-green-500/10 border border-green-500/30' 
+                            : 'bg-red-500/10 border border-red-500/30'
+                        }`}>
+                          <span className={`text-sm font-medium font-mono ${
+                            row.pending === 0 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {formatNumber(row.pending)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Percentage */}
+                      <div className="flex justify-center">
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
+                          row.percentage >= 100 
+                            ? 'bg-green-500/20 border-2 border-green-500/50' 
+                            : row.percentage >= 90 
+                              ? 'bg-blue-500/10 border border-blue-500/30'
+                              : row.percentage >= 75
+                                ? 'bg-yellow-500/10 border border-yellow-500/30'
+                                : 'bg-red-500/10 border border-red-500/30'
+                        }`}>
+                          <span className={`text-sm font-bold font-mono ${
+                            row.percentage >= 100 
+                              ? 'text-green-600 dark:text-green-400' 
+                              : row.percentage >= 90 
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : row.percentage >= 75
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
+                          }`}>
+                            {row.percentage.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
+              <div className="text-center">
+                <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <p>No fulfillment data available</p>
+                <p className="text-xs mt-1">Ensure Dispatch By Date (column G) is set in your Excel file</p>
               </div>
             </div>
           )}
