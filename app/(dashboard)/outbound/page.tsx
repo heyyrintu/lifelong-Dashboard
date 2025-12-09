@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { backendFetch } from '@/lib/backendFetch';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -260,8 +261,8 @@ export default function OutboundPage() {
         params.append('timeGranularity', timeGranularity);
         
         const [summaryResponse, topProductsResponse] = await Promise.all([
-          fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`),
-          fetch(`${BACKEND_URL}/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
+          backendFetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`),
+          backendFetch(`${BACKEND_URL}/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
         ]);
         
         if (!summaryResponse.ok) {
@@ -300,7 +301,7 @@ export default function OutboundPage() {
       // Only send timeGranularity, no filters for chart data
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch chart data');
@@ -339,7 +340,7 @@ export default function OutboundPage() {
       // Always send timeGranularity
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -380,7 +381,7 @@ export default function OutboundPage() {
       // Use the passed granularity instead of state
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -427,7 +428,7 @@ export default function OutboundPage() {
         params.append('warehouse', selectedWarehouse);
       }
 
-      const response = await fetch(`${BACKEND_URL}/outbound/top-products?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/outbound/top-products?${params.toString()}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch top products');
@@ -509,7 +510,7 @@ export default function OutboundPage() {
       }
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/download-summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/outbound/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download summary');

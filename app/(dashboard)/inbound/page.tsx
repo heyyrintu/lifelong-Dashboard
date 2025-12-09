@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { backendFetch } from '@/lib/backendFetch';
 import { MetricCard } from '@/components/ui/metric-card';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box } from 'lucide-react';
 import {
@@ -95,7 +96,7 @@ export default function InboundPage() {
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
         
-        const response = await fetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
+        const response = await backendFetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -140,7 +141,7 @@ export default function InboundPage() {
       const params = new URLSearchParams();
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch chart data');
@@ -175,7 +176,7 @@ export default function InboundPage() {
       params.append('timeGranularity', timeGranularity);
 
       const url = `${BACKEND_URL}/inbound/summary${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await fetch(url);
+      const response = await backendFetch(url);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -268,7 +269,7 @@ export default function InboundPage() {
       }
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/inbound/download-summary?${params.toString()}`);
+      const response = await backendFetch(`${BACKEND_URL}/inbound/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download inbound summary');

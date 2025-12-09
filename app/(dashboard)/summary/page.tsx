@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion } from 'framer-motion';
+import { backendFetch } from '@/lib/backendFetch';
 import PageHeader from '@/components/common/PageHeader';
 import {
   ArrowDownToLine,
@@ -244,9 +245,9 @@ export default function SummaryPage() {
 
       // Fetch all three endpoints in parallel
       const [inboundRes, inventoryRes, outboundRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        fetch(`${BACKEND_URL}/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        fetch(`${BACKEND_URL}/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        backendFetch(`${BACKEND_URL}/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        backendFetch(`${BACKEND_URL}/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        backendFetch(`${BACKEND_URL}/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
       ]);
 
       // Parse responses
