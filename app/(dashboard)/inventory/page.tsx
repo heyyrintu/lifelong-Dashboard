@@ -736,7 +736,6 @@ function InventoryPageContent() {
                     }
                   }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
-                    className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
                   {getAvailableMonths().map((month) => {
@@ -795,7 +794,6 @@ function InventoryPageContent() {
               <button
                 type="button"
                 onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
-                  onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
                 className="w-full pl-3 pr-8 py-1.5 text-left bg-transparent text-xs font-semibold outline-none transition-all duration-200 flex items-center justify-between text-gray-900 dark:text-white cursor-pointer"
                 suppressHydrationWarning={true}
               >
