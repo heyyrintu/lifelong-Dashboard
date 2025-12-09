@@ -188,6 +188,7 @@ export default function SummaryPage() {
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
   const [availableMonths, setAvailableMonths] = useState<string[]>(['ALL']);
   const [availableWarehouses, setAvailableWarehouses] = useState<string[]>(['ALL']);
+  const [availableDates, setAvailableDates] = useState<{ minDate: string; maxDate: string } | null>(null);
 
   useEffect(() => {
     fetchSummary();
@@ -285,9 +286,20 @@ export default function SummaryPage() {
         outboundData.availableMonths.forEach((m: string) => months.add(m));
       }
 
+      // Extract available dates from inbound or inventory data
+      let dates: { minDate: string; maxDate: string } | null = null;
+      if (inboundData?.availableDates) {
+        dates = inboundData.availableDates;
+      } else if (inventoryData?.filters?.availableDateRange) {
+        dates = inventoryData.filters.availableDateRange;
+      } else if (outboundData?.availableDateRange) {
+        dates = outboundData.availableDateRange;
+      }
+
       setAvailableCategories(Array.from(categories).filter(c => c !== 'ALL'));
       setAvailableWarehouses(['ALL', ...Array.from(warehouses)]);
       setAvailableMonths(['ALL', ...Array.from(months).sort()]);
+      setAvailableDates(dates);
 
       // Combine data
       const summaryData: QuickSummaryData = {
@@ -463,6 +475,8 @@ export default function SummaryPage() {
                     setFromDate(e.target.value);
                     setSelectedMonth('ALL');
                   }}
+                  min={availableDates?.minDate || ''}
+                  max={availableDates?.maxDate || ''}
                   className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
                   suppressHydrationWarning={true}
                 />
@@ -478,6 +492,8 @@ export default function SummaryPage() {
                     setToDate(e.target.value);
                     setSelectedMonth('ALL');
                   }}
+                  min={availableDates?.minDate || ''}
+                  max={availableDates?.maxDate || ''}
                   className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
                   suppressHydrationWarning={true}
                 />
@@ -499,10 +515,17 @@ export default function SummaryPage() {
                     if (e.target.value !== 'ALL') {
                       const [year, month] = e.target.value.split('-').map(Number);
                       if (year && month) {
+                        // Format dates in local timezone to avoid timezone shift issues
+                        const formatLocalDate = (d: Date) => {
+                          const y = d.getFullYear();
+                          const m = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        };
                         const startDate = new Date(year, month - 1, 1);
-                        const endDate = new Date(year, month, 0, 23, 59, 59);
-                        setFromDate(startDate.toISOString().split('T')[0]);
-                        setToDate(endDate.toISOString().split('T')[0]);
+                        const endDate = new Date(year, month, 0);
+                        setFromDate(formatLocalDate(startDate));
+                        setToDate(formatLocalDate(endDate));
                       }
                     }
                   }}
@@ -634,11 +657,11 @@ export default function SummaryPage() {
           {/* Apply & Reset Buttons */}
           <div className="md:col-span-2 flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{ scale: 1.02, translateY: -2 }}
+              whileTap={{ scale: 0.98, translateY: 0 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[32px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-lg text-[11px] font-bold tracking-wide shadow-md shadow-brandRed/20 flex items-center justify-center gap-1 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/30"
+              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40 group"
               suppressHydrationWarning={true}
             >
               {loading ? (
@@ -655,10 +678,10 @@ export default function SummaryPage() {
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
+                whileHover={{ scale: 1.02, translateY: -2 }}
+                whileTap={{ scale: 0.98, translateY: 0 }}
                 onClick={handleReset}
-                className="h-[32px] px-2.5 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-lg text-[11px] font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1 group"
+                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5 group"
               >
                 <RefreshCw className="w-3 h-3 transition-transform group-hover:rotate-180" />
                 <span className="hidden sm:inline">Reset</span>
@@ -666,6 +689,15 @@ export default function SummaryPage() {
             )}
           </div>
         </div>
+
+        {/* Date range info - Bottom Right */}
+        {availableDates && (
+          <div className="flex justify-end mt-3">
+            <p className="text-xs text-gray-500 dark:text-slate-500">
+              Data available: {availableDates.minDate} to {availableDates.maxDate}
+            </p>
+          </div>
+        )}
       </motion.div>
 
       {/* Loading State */}

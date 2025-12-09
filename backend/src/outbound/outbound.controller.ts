@@ -87,13 +87,21 @@ export class OutboundController {
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
     @Query('productCategory') productCategory?: string | string[],
+    @Query('warehouse') warehouse?: string,
   ) {
     try {
       // Normalize productCategory to array
       const categories = productCategory 
         ? (Array.isArray(productCategory) ? productCategory : [productCategory])
         : undefined;
-      const excelBuffer = await this.outboundService.generateDetailedExcel(uploadId, fromDate, toDate, month, categories);
+      const excelBuffer = await this.outboundService.generateDetailedExcel(
+        uploadId,
+        fromDate,
+        toDate,
+        month,
+        categories,
+        warehouse,
+      );
       
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', 'attachment; filename=outbound-detailed-data.xlsx');

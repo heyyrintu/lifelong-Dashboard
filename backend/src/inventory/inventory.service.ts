@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
 import { ProductCategory } from '@prisma/client';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import * as fs from 'fs';
 import { parseLocalDateStart, parseLocalDateEnd, formatDateAsISO } from '../common/utils/date-utils';
 
@@ -1419,6 +1419,127 @@ export class InventoryService {
     if (cell === undefined || cell === null || cell === '') return 0;
     const num = Number(cell);
     return isNaN(num) ? 0 : num;
+  }
+
+  /**
+   * Generate styled Excel export for inventory summary
+   */
+  async generateSummaryExcel(
+    uploadId?: string,
+    fromDate?: string,
+    toDate?: string,
+    itemGroup?: string,
+    productCategories?: string[],
+    warehouse?: string,
+  ): Promise<Buffer> {
+    const summary = await this.getSummary(uploadId, fromDate, toDate, itemGroup, productCategories, warehouse);
+
+    const workbook = XLSX.utils.book_new();
+
+    const createStyledSheet = (
+      sheetName: string,
+      header: string[],
+      rows: Array<Array<string | number>>, 
+      totalsRow?: Array<string | number>,
+    ) => {
+      const data = [header, ...rows];
+      if (totalsRow) data.push(totalsRow);
+
+      const sheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Auto-fit columns based on content length (minimum width = 12)
+      const colWidths = header.map((_, colIdx) => {
+        const maxLen = data.reduce((max, row) => {
+          const cell = row[colIdx];
+          const len = String(cell ?? '').length;
+          return Math.max(max, len);
+        }, header[colIdx].length);
+        return { wch: Math.max(12, maxLen + 2) };
+      });
+      sheet['!cols'] = colWidths;
+
+      // Apply simple table styling: header fill + bold, borders, totals row highlight
+      const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          const cell = sheet[cellRef];
+          if (!cell) continue;
+
+          const style: any = cell.s || {};
+          style.border = {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          };
+
+          if (r === 0) {
+            style.font = { ...(style.font || {}), bold: true, color: { rgb: '111827' } };
+            style.fill = { fgColor: { rgb: 'E5E7EB' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else if (totalsRow && r === data.length - 1) {
+            style.font = { ...(style.font || {}), bold: true };
+            style.fill = { fgColor: { rgb: 'FEF3C7' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else {
+            style.alignment = { horizontal: 'left', vertical: 'center' };
+          }
+
+          sheet[cellRef] = { ...cell, s: style } as XLSX.CellObject;
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+    };
+
+    // Sheet 1: Summary cards
+    const cardRows: Array<Array<string | number>> = [
+      ['Inbound SKU Count', summary.cards.inboundSkuCount],
+      ['Avg Inventory Qty', summary.cards.inventoryQtyTotal],
+      ['Avg Total CBM', summary.cards.totalCbm],
+    ];
+    createStyledSheet('Summary Cards', ['Metric', 'Value'], cardRows);
+
+    // Sheet 2: Chart data (time series)
+    const chartHeader = ['Date', 'Label', 'Inventory Qty', 'Total CBM', 'EDEL Inventory Qty', 'EDEL CBM'];
+    const chartRows = (summary.timeSeries?.points || []).map((p) => [
+      p.date,
+      p.label,
+      Math.round((p.inventoryQty || 0) * 100) / 100,
+      Math.round((p.totalCbm || 0) * 100) / 100,
+      Math.round((p.edelInventoryQty || 0) * 100) / 100,
+      Math.round((p.edelTotalCbm || 0) * 100) / 100,
+    ]);
+
+    const avgCol = (idx: number) => {
+      if (!chartRows.length) return 0;
+      const sum = chartRows.reduce((acc, row) => acc + (Number(row[idx]) || 0), 0);
+      return Math.round((sum / chartRows.length) * 100) / 100;
+    };
+
+    const chartTotals = chartRows.length
+      ? ['Average', '', avgCol(2), avgCol(3), avgCol(4), avgCol(5)]
+      : undefined;
+
+    createStyledSheet('Chart Data', chartHeader, chartRows, chartTotals);
+
+    // Sheet 3: Summary totals/aggregates
+    const totalDays = chartRows.length;
+    const maxCol = (idx: number) => (chartRows.length ? Math.max(...chartRows.map(r => Number(r[idx]) || 0)) : 0);
+
+    const summaryRows: Array<Array<string | number>> = [
+      ['Total Days', totalDays],
+      ['Average Inventory Qty', avgCol(2)],
+      ['Average Total CBM', avgCol(3)],
+      ['Average EDEL Inventory Qty', avgCol(4)],
+      ['Average EDEL CBM', avgCol(5)],
+      ['Peak Inventory Qty', maxCol(2)],
+      ['Peak Total CBM', maxCol(3)],
+    ];
+    createStyledSheet('Summary Totals', ['Metric', 'Value'], summaryRows);
+
+    return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }
 
   private parseExcelDate(cell: any): Date | null {

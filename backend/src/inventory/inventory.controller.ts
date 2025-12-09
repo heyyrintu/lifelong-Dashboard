@@ -9,10 +9,11 @@ import {
   Query,
   HttpException,
   HttpStatus,
+  Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { InventoryService } from './inventory.service';
-import type { Express } from 'express';
+import type { Express, Response } from 'express';
 
 @Controller('inventory')
 export class InventoryController {
@@ -73,6 +74,48 @@ export class InventoryController {
       }
       throw new HttpException(
         this.getErrorMessage(error, 'Failed to fetch inventory summary'),
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  /**
+   * GET /inventory/download-summary
+   * Download inventory summary as Excel file
+   */
+  @Get('download-summary')
+  async downloadSummary(
+    @Res() res: Response,
+    @Query('uploadId') uploadId?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @Query('itemGroup') itemGroup?: string,
+    @Query('productCategory') productCategory?: string | string[],
+    @Query('warehouse') warehouse?: string,
+  ) {
+    try {
+      const categories = productCategory
+        ? (Array.isArray(productCategory) ? productCategory : [productCategory])
+        : undefined;
+
+      const excelBuffer = await this.inventoryService.generateSummaryExcel(
+        uploadId,
+        fromDate,
+        toDate,
+        itemGroup,
+        categories,
+        warehouse,
+      );
+
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename=inventory-summary.xlsx');
+      res.send(excelBuffer);
+    } catch (error) {
+      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
+        throw error;
+      }
+      throw new HttpException(
+        this.getErrorMessage(error, 'Failed to download inventory summary'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

@@ -20,7 +20,6 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
-import * as XLSX from 'xlsx';
 
 interface CardMetrics {
   soSku: number;
@@ -83,128 +82,7 @@ interface FulfillmentRow {
   percentage: number;
 }
 
-const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
-  // Create workbook and worksheet
-  const wb = XLSX.utils.book_new();
-  
-  // Prepare data with headers
-  const wsData = [
-    ['Fulfillment Report'],
-    ['Generated on: ' + new Date().toLocaleString()],
-    [],
-    ['Date', 'SO Qty', 'DN Qty', 'Pending', 'Fulfillment %'],
-    ...data.map(row => [
-      row.date,
-      row.soQty,
-      row.dnQty,
-      row.pending,
-      row.percentage.toFixed(2) + '%'
-    ])
-  ];
-  
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
-  // Set column widths
-  ws['!cols'] = [
-    { wch: 15 }, // Date
-    { wch: 12 }, // SO Qty
-    { wch: 12 }, // DN Qty
-    { wch: 12 }, // Pending
-    { wch: 15 }, // Fulfillment %
-  ];
-  
-  // Merge cells for title
-  ws['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title row
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Date row
-  ];
-  
-  // Apply styles (cell formatting)
-  // Title cell
-  ws['A1'] = { 
-    v: 'Fulfillment Report', 
-    t: 's',
-    s: {
-      font: { bold: true, sz: 16, color: { rgb: "4B5563" } },
-      alignment: { horizontal: 'center', vertical: 'center' },
-      fill: { fgColor: { rgb: "E0E7FF" } }
-    }
-  };
-  
-  // Date cell
-  ws['A2'] = {
-    v: 'Generated on: ' + new Date().toLocaleString(),
-    t: 's',
-    s: {
-      font: { italic: true, sz: 10, color: { rgb: "6B7280" } },
-      alignment: { horizontal: 'center' }
-    }
-  };
-  
-  // Header row styling
-  ['A4', 'B4', 'C4', 'D4', 'E4'].forEach(cell => {
-    if (ws[cell]) {
-      ws[cell].s = {
-        font: { bold: true, color: { rgb: "FFFFFF" } },
-        fill: { fgColor: { rgb: "6366F1" } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-        border: {
-          top: { style: 'thin', color: { rgb: '000000' } },
-          bottom: { style: 'thin', color: { rgb: '000000' } },
-          left: { style: 'thin', color: { rgb: '000000' } },
-          right: { style: 'thin', color: { rgb: '000000' } }
-        }
-      };
-    }
-  });
-  
-  // Data row styling with conditional formatting based on percentage
-  data.forEach((row, index) => {
-    const rowNum = index + 5; // Starting from row 5 (0-indexed + 4 header rows + 1)
-    
-    // Determine color based on percentage
-    let bgColor = 'FFFFFF';
-    if (row.percentage >= 100) bgColor = 'D1FAE5'; // Green
-    else if (row.percentage >= 90) bgColor = 'DBEAFE'; // Blue
-    else if (row.percentage >= 75) bgColor = 'FEF3C7'; // Yellow
-    else bgColor = 'FEE2E2'; // Red
-    
-    ['A', 'B', 'C', 'D', 'E'].forEach(col => {
-      const cellRef = col + rowNum;
-      if (ws[cellRef]) {
-        ws[cellRef].s = {
-          fill: { fgColor: { rgb: bgColor } },
-          alignment: { horizontal: 'center', vertical: 'center' },
-          border: {
-            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
-            right: { style: 'thin', color: { rgb: 'D1D5DB' } }
-          }
-        };
-        
-        // Bold numbers in qty columns
-        if (col === 'B' || col === 'C' || col === 'D') {
-          ws[cellRef].s.font = { bold: true };
-        }
-        
-        // Percentage column special formatting
-        if (col === 'E') {
-          ws[cellRef].s.font = { bold: true, color: { rgb: row.percentage >= 90 ? '059669' : 'DC2626' } };
-        }
-      }
-    });
-  });
-  
-  // Add worksheet to workbook
-  XLSX.utils.book_append_sheet(wb, ws, 'Fulfillment Report');
-  
-  // Generate filename with current date
-  const fileName = `Fulfillment_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
-  
-  // Download file
-  XLSX.writeFile(wb, fileName);
-};
+
 
 interface TimeSeriesData {
   granularity: 'month' | 'week' | 'day';
@@ -221,6 +99,10 @@ interface SummaryResponse {
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
   fulfillmentTable?: FulfillmentRow[];
+  availableDateRange?: {
+    minDate: string | null;
+    maxDate: string | null;
+  };
 }
 
 interface UploadInfo {
@@ -246,6 +128,8 @@ export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
+  // Normalize available date range - some endpoints use different keys
+  const availableDateRange = data?.availableDateRange ?? (data as any)?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
 
@@ -276,6 +160,7 @@ export default function OutboundPage() {
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
+  const [filtersDirty, setFiltersDirty] = useState(false);
 
   const categoryRows = useMemo(() => {
     return (data?.categoryTable || []).filter(row => row.categoryLabel !== 'TOTAL');
@@ -578,15 +463,18 @@ export default function OutboundPage() {
         return [...prev, category];
       }
     });
+    setFiltersDirty(true);
   };
 
   const clearAllCategories = () => {
     setSelectedProductCategories([]);
+    setFiltersDirty(true);
   };
 
   const selectAllCategories = () => {
     const allCategories = (data?.productCategories || []).filter(c => c !== 'ALL');
     setSelectedProductCategories(allCategories);
+    setFiltersDirty(true);
   };
 
   const getSelectedCategoriesLabel = () => {
@@ -786,11 +674,17 @@ export default function OutboundPage() {
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
-              <div className="relative flex-1">
+                <div className="relative flex-1">
                 <input
                   type="date"
                   value={fromDate}
-                  onChange={(e) => setFromDate(e.target.value)}
+                  onChange={(e) => {
+                    setFromDate(e.target.value);
+                    setSelectedMonth('ALL');
+                    setFiltersDirty(true);
+                  }}
+                  min={availableDateRange?.minDate || ''}
+                  max={availableDateRange?.maxDate || ''}
                   className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
                   suppressHydrationWarning={true}
                 />
@@ -798,11 +692,17 @@ export default function OutboundPage() {
               <div className="px-1.5 text-gray-300 dark:text-slate-600">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
-              <div className="relative flex-1">
+                <div className="relative flex-1">
                 <input
                   type="date"
                   value={toDate}
-                  onChange={(e) => setToDate(e.target.value)}
+                  onChange={(e) => {
+                    setToDate(e.target.value);
+                    setSelectedMonth('ALL');
+                    setFiltersDirty(true);
+                  }}
+                  min={availableDateRange?.minDate || ''}
+                  max={availableDateRange?.maxDate || ''}
                   className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
                   suppressHydrationWarning={true}
                 />
@@ -819,7 +719,25 @@ export default function OutboundPage() {
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setFiltersDirty(true);
+                    if (e.target.value !== 'ALL') {
+                      const [year, month] = e.target.value.split('-').map(Number);
+                      if (year && month) {
+                        const formatLocalDate = (d: Date) => {
+                          const y = d.getFullYear();
+                          const m = String(d.getMonth() + 1).padStart(2, '0');
+                          const day = String(d.getDate()).padStart(2, '0');
+                          return `${y}-${m}-${day}`;
+                        };
+                        const startDate = new Date(year, month - 1, 1);
+                        const endDate = new Date(year, month, 0);
+                        setFromDate(formatLocalDate(startDate));
+                        setToDate(formatLocalDate(endDate));
+                      }
+                    }
+                  }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
@@ -845,7 +763,10 @@ export default function OutboundPage() {
               <div className="relative flex-1">
                 <select
                   value={selectedWarehouse}
-                  onChange={(e) => setSelectedWarehouse(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedWarehouse(e.target.value);
+                    setFiltersDirty(true);
+                  }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
@@ -863,7 +784,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-2 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -946,13 +867,13 @@ export default function OutboundPage() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-2 flex gap-2">
+          <div className="md:col-span-2 flex gap-2 items-end">
             <motion.button
               whileHover={{ scale: 1.02, translateY: -2 }}
               whileTap={{ scale: 0.98, translateY: 0 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40 group"
               suppressHydrationWarning={true}
             >
               {loading ? (
@@ -967,7 +888,16 @@ export default function OutboundPage() {
                 </>
               )}
             </motion.button>
-            {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleDownloadSummary}
+              title="Download Summary Excel"
+              className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-brandRed/50 dark:hover:border-brandRed/40 shadow-sm flex items-center justify-center gap-1.5 group"
+            >
+              <Download className="w-3.5 h-3.5 group-hover:text-brandRed transition-colors" />
+            </motion.button>
+            {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
                 whileHover={{ scale: 1.02, translateY: -2 }}
                 whileTap={{ scale: 0.98, translateY: 0 }}
@@ -977,16 +907,26 @@ export default function OutboundPage() {
                   setSelectedMonth('ALL');
                   setSelectedProductCategories([]);
                   setSelectedWarehouse('ALL');
+                  setFiltersDirty(false);
                   fetchSummary(false);
                 }}
-                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5"
+                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5 group"
               >
                 <RefreshCw className="w-3.5 h-3.5 transition-transform group-hover:rotate-180" />
-                <span className="hidden sm:inline">Reset</span>
+                <span>Reset</span>
               </motion.button>
             )}
           </div>
         </div>
+
+        {/* Date range info - Bottom Right */}
+        {availableDateRange && (
+          <div className="flex justify-end mt-3">
+            <p className="text-xs text-gray-500 dark:text-slate-500">
+              Data available: {availableDateRange.minDate || 'N/A'} to {availableDateRange.maxDate || 'N/A'}
+            </p>
+          </div>
+        )}
       </motion.div >
 
       {/* Metrics Cards - Consolidated 3-Card Layout */}
@@ -2392,15 +2332,6 @@ export default function OutboundPage() {
                 {data?.summaryTotals?.dayData?.length || 0} Records
               </div>
             </div>
-            <motion.button
-              onClick={handleDownloadSummary}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="flex items-center gap-2 bg-gradient-to-r from-brandRed to-red-600 hover:from-red-600 hover:to-red-700 dark:hover:from-red-700 dark:hover:to-red-800 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-200 shadow-lg shadow-brandRed/25 hover:shadow-brandRed/40"
-            >
-              <Download className="w-4 h-4" />
-              Download Excel
-            </motion.button>
           </div>
 
           {loading ? (
@@ -2663,17 +2594,6 @@ export default function OutboundPage() {
                 {data?.fulfillmentTable?.length || 0} Dates
               </div>
             </div>
-            {data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
-              <motion.button
-                onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Download className="w-4 h-4" />
-                <span>Download Excel</span>
-              </motion.button>
-            )}
           </div>
 
           {loading ? (

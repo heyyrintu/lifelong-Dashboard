@@ -129,6 +129,7 @@ function BillingPageContent() {
   // Editable extra line items (local state)
   const [extraItems, setExtraItems] = useState<BillingLineItem[]>([]);
   const [hasChanges, setHasChanges] = useState(false);
+  const [focusedItemIndex, setFocusedItemIndex] = useState<number | null>(null);
 
   // Sync extra items when billing period changes
   useEffect(() => {
@@ -382,6 +383,7 @@ function BillingPageContent() {
 
   // Line item type options for Other Expenses (from billing template)
   const lineItemTypes = [
+    { value: 'PACKAGING_MATERIAL', label: 'Packaging Material' },
     { value: 'OT_BLUE_COLLARS', label: 'Overtime Cost Blue Collars' },
     { value: 'ADHOC_MANPOWER', label: 'Adhoc Manpower cost' },
     { value: 'SUN_MGMT', label: 'Sunday/Holiday Working Mgmt Charges' },
@@ -684,7 +686,7 @@ function BillingPageContent() {
                       colSpan={6}
                       className="px-4 py-2 text-sm font-bold text-gray-700 dark:text-slate-300"
                     >
-                      📦 Qty- Processing & Storage Footwear- B2C
+                      📦 Qty- Processing & Storage Footwear- B2B
                     </td>
                   </tr>
 
@@ -751,29 +753,44 @@ function BillingPageContent() {
                         className="border-b border-gray-100 dark:border-slate-700/50 bg-orange-50/30 dark:bg-orange-900/10"
                       >
                         <td className="px-4 py-2">
-                          <div className="flex gap-2">
-                            <select
-                              value={item.type}
-                              onChange={(e) =>
-                                handleUpdateExtraItem(index, 'type', e.target.value)
-                              }
-                              className="px-2 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-xs font-medium text-gray-700 dark:text-slate-300 outline-none focus:border-brandRed"
-                            >
-                              {lineItemTypes.map((t) => (
-                                <option key={t.value} value={t.value}>
-                                  {t.label}
-                                </option>
-                              ))}
-                            </select>
+                          <div className="relative flex-1">
                             <input
                               type="text"
                               value={item.label}
                               onChange={(e) =>
                                 handleUpdateExtraItem(index, 'label', e.target.value)
                               }
-                              placeholder="Description"
-                              className="flex-1 px-2 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-sm text-gray-900 dark:text-slate-200 outline-none focus:border-brandRed"
+                              onFocus={() => setFocusedItemIndex(index)}
+                              onBlur={() => setTimeout(() => setFocusedItemIndex(null), 200)}
+                              placeholder="Enter item name"
+                              className="w-full px-2 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded text-sm text-gray-900 dark:text-slate-200 outline-none focus:border-brandRed"
                             />
+                            {focusedItemIndex === index && (
+                              <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 rounded shadow-lg z-50 max-h-48 overflow-y-auto">
+                                {lineItemTypes
+                                  .filter(
+                                    (t) =>
+                                      item.label === '' ||
+                                      t.label
+                                        .toLowerCase()
+                                        .includes(item.label.toLowerCase())
+                                  )
+                                  .slice(0, 5)
+                                  .map((t) => (
+                                    <button
+                                      key={t.value}
+                                      type="button"
+                                      onClick={() => {
+                                        handleUpdateExtraItem(index, 'label', t.label);
+                                        setFocusedItemIndex(null);
+                                      }}
+                                      className="w-full text-left px-3 py-2 text-xs text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
+                                    >
+                                      {t.label}
+                                    </button>
+                                  ))}
+                              </div>
+                            )}
                           </div>
                         </td>
                         <td className="px-4 py-2">

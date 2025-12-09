@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CategoryNormalizerService } from './category-normalizer.service';
 import { NormalizedCategory, ProductCategory } from '@prisma/client';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import * as fs from 'fs';
 import { parseLocalDateStart, parseLocalDateEnd, getMonthStart, getMonthEnd, formatDateAsISO } from '../common/utils/date-utils';
 
@@ -1167,7 +1167,7 @@ export class OutboundService {
   }
 
   /**
-   * Generate detailed Excel export (stub for now)
+   * Generate detailed Excel export with styled sheets
    */
   async generateDetailedExcel(
     uploadId?: string,
@@ -1175,35 +1175,112 @@ export class OutboundService {
     toDate?: string,
     month?: string,
     productCategories?: string[],
+    warehouse?: string,
   ): Promise<Buffer> {
     // Get summary data
-    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month');
+    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month', warehouse);
     
     // Create workbook
     const workbook = XLSX.utils.book_new();
-    
-    // Add category table sheet
-    const wsData = [
-      ['Category', 'SO Count', 'SO Qty', 'SO CBM', 'DN Count', 'DN Qty', 'DN CBM', 'SO-DN Qty'],
-      ...summary.categoryTable.map(row => [
-        row.categoryLabel,
-        row.soCount,
-        row.soQty,
-        row.soTotalCbm,
-        row.dnCount,
-        row.dnQty,
-        row.dnTotalCbm,
-        row.soMinusDnQty,
-      ]),
-    ];
-    
-    const ws = XLSX.utils.aoa_to_sheet(wsData);
-    XLSX.utils.book_append_sheet(workbook, ws, 'Category Summary');
 
-    // Add overall summary totals sheet
+    const createStyledSheet = (
+      sheetName: string,
+      header: string[],
+      rows: Array<Array<string | number>>, 
+      totalsRow?: Array<string | number>,
+    ) => {
+      const data = [header, ...rows];
+      if (totalsRow) data.push(totalsRow);
+
+      const sheet = XLSX.utils.aoa_to_sheet(data);
+
+      // Auto-fit columns based on content length (minimum width = 12)
+      const colWidths = header.map((_, colIdx) => {
+        const maxLen = data.reduce((max, row) => {
+          const cell = row[colIdx];
+          const len = String(cell ?? '').length;
+          return Math.max(max, len);
+        }, header[colIdx].length);
+        return { wch: Math.max(12, maxLen + 2) };
+      });
+      sheet['!cols'] = colWidths;
+
+      // Apply simple table styling: header fill + bold, borders, totals row highlight
+      const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          const cell = sheet[cellRef];
+          if (!cell) continue;
+
+          const style: any = cell.s || {};
+          style.border = {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          };
+
+          if (r === 0) {
+            style.font = { ...(style.font || {}), bold: true, color: { rgb: '111827' } };
+            style.fill = { fgColor: { rgb: 'E5E7EB' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else if (totalsRow && r === data.length - 1) {
+            style.font = { ...(style.font || {}), bold: true };
+            style.fill = { fgColor: { rgb: 'FEF3C7' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else {
+            style.alignment = { horizontal: 'left', vertical: 'center' };
+          }
+
+          sheet[cellRef] = { ...cell, s: style } as XLSX.CellObject;
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+    };
+
+    // Sheet 1: Summary Cards
+    const cardRows: Array<Array<string | number>> = [
+      ['SO SKU Count', summary.cards.soSku],
+      ['SO Qty', summary.cards.soQty],
+      ['SO Total CBM', summary.cards.soTotalCbm],
+      ['DN SKU Count', summary.cards.dnSku],
+      ['DN Qty', summary.cards.dnQty],
+      ['DN Total CBM', summary.cards.dnTotalCbm],
+      ['Pending Qty (SO - DN)', summary.cards.soMinusDnQty],
+    ];
+    createStyledSheet('Summary Cards', ['Metric', 'Value'], cardRows);
+
+    // Sheet 2: Chart Data (time series)
+    const chartHeader = ['Date Start', 'Date End', 'Label', 'SO Qty', 'SO CBM', 'DN Qty', 'DN CBM', 'Pending Qty', 'Pending CBM'];
+    const chartRows = (summary.timeSeries?.points || []).map((p) => [
+      p.startDate,
+      p.endDate,
+      p.label,
+      Math.round((p.soQty || 0) * 100) / 100,
+      Math.round((p.soTotalCbm || 0) * 100) / 100,
+      Math.round((p.dnQty || 0) * 100) / 100,
+      Math.round((p.dnTotalCbm || 0) * 100) / 100,
+      Math.round(((p.soQty || 0) - (p.dnQty || 0)) * 100) / 100,
+      Math.round(((p.soTotalCbm || 0) - (p.dnTotalCbm || 0)) * 100) / 100,
+    ]);
+
+    const avgCol = (idx: number) => {
+      if (!chartRows.length) return 0;
+      const sum = chartRows.reduce((acc, row) => acc + (Number(row[idx]) || 0), 0);
+      return Math.round((sum / chartRows.length) * 100) / 100;
+    };
+
+    const chartTotals = chartRows.length
+      ? ['Average', '', '', avgCol(3), avgCol(4), avgCol(5), avgCol(6), avgCol(7), avgCol(8)]
+      : undefined;
+
+    createStyledSheet('Chart Data', chartHeader, chartRows, chartTotals);
+
+    // Sheet 3: Summary Totals (aggregates)
     const totals = summary.summaryTotals;
-    const totalsWsData = [
-      ['Metric', 'Value'],
+    const summaryRows: Array<Array<string | number>> = [
       ['Total SO Qty', totals.totalSoQty],
       ['Total SO CBM', totals.totalSoCbm],
       ['Total DN Qty', totals.totalDnQty],
@@ -1213,13 +1290,44 @@ export class OutboundService {
       ['Pending Qty (SO - DN)', totals.totalSoQty - totals.totalDnQty],
       ['Pending CBM (SO - DN)', Math.round((totals.totalSoCbm - totals.totalDnCbm) * 100) / 100],
     ];
+    createStyledSheet('Summary Totals', ['Metric', 'Value'], summaryRows);
 
-    const totalsWs = XLSX.utils.aoa_to_sheet(totalsWsData);
-    XLSX.utils.book_append_sheet(workbook, totalsWs, 'Summary Totals');
+    // Sheet 4: Category Summary
+    const categoryRows = (summary.categoryTable || []).map(row => [
+      row.categoryLabel,
+      row.soCount,
+      row.soQty,
+      row.soTotalCbm,
+      row.dnCount,
+      row.dnQty,
+      row.dnTotalCbm,
+      row.soMinusDnQty,
+    ]);
+    createStyledSheet(
+      'Category Summary',
+      ['Category', 'SO Count', 'SO Qty', 'SO CBM', 'DN Count', 'DN Qty', 'DN CBM', 'SO-DN Qty'],
+      categoryRows
+    );
 
-    // Add day-by-day breakdown sheet
+    // Sheet 5: Fulfillment Table (pending and percentage)
+    const fulfillmentHeader = ['Date', 'SO Qty', 'DN Qty', 'Pending Qty', 'Fulfillment %'];
+    const fulfillmentRows = (summary.fulfillmentTable || []).map((f) => [
+      f.date,
+      f.soQty,
+      f.dnQty,
+      f.pending,
+      Math.round((f.percentage || 0) * 100) / 100,
+    ]);
+
+    const fulfillmentAvg = fulfillmentRows.length
+      ? ['Average', '', '', '', Math.round((fulfillmentRows.reduce((acc, row) => acc + (Number(row[4]) || 0), 0) / fulfillmentRows.length) * 100) / 100]
+      : undefined;
+
+    createStyledSheet('Fulfillment Table', fulfillmentHeader, fulfillmentRows, fulfillmentAvg);
+
+    // Sheet 6: Daily Breakdown
     const dayHeader = ['Date', 'SO Qty', 'SO CBM', 'DN Qty', 'DN CBM', 'EDEL DN Qty', 'EDEL DN CBM', 'Pending Qty', 'Pending CBM'];
-    const dayRows = summary.summaryTotals.dayData.map(d => [
+    const dayRows = (summary.summaryTotals.dayData || []).map(d => [
       d.date,
       d.soQty,
       d.soCbm,
@@ -1230,12 +1338,7 @@ export class OutboundService {
       d.soQty - d.dnQty,
       Math.round((d.soCbm - d.dnCbm) * 100) / 100,
     ]);
-
-    const dayWs = XLSX.utils.aoa_to_sheet([
-      ...[dayHeader],
-      ...dayRows,
-    ]);
-    XLSX.utils.book_append_sheet(workbook, dayWs, 'Daily Breakdown');
+    createStyledSheet('Daily Breakdown', dayHeader, dayRows);
     
     return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }

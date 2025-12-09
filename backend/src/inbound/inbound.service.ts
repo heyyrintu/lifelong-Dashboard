@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
 import { ProductCategory } from '@prisma/client';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import * as fs from 'fs';
 import * as path from 'path';
 import { formatDateAsISO } from '../common/utils/date-utils';
@@ -30,8 +30,10 @@ export interface InboundCardMetrics {
 export interface TimeSeriesPoint {
   key: string;
   label: string;
+  edelReceivedQty: number;
   receivedQty: number;
   totalCbm: number;
+  edelTotalCbm: number;
   startDate: string;
   endDate: string;
 }
@@ -853,40 +855,132 @@ export class InboundService implements OnModuleInit {
     toDate?: string,
     month?: string,
     productCategories?: string[],
+    timeGranularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<Buffer> {
     // Reuse existing summary pipeline (month filter handled inside getSummary)
-    const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month');
+    const summary = await this.getSummary(
+      uploadId,
+      fromDate,
+      toDate,
+      month,
+      productCategories,
+      timeGranularity,
+    );
 
     const workbook = XLSX.utils.book_new();
 
-    // Daily breakdown sheet
-    const dayHeader = ['Date', 'Received Qty', 'Total CBM', 'EDEL Received Qty', 'EDEL CBM'];
-    const dayRows = summary.summaryTotals.dayData.map((d) => [
-      d.date,
-      d.receivedQty,
-      d.totalCbm,
-      d.edelReceivedQty,
-      d.edelTotalCbm,
-    ]);
+    const createStyledSheet = (
+      sheetName: string,
+      header: string[],
+      rows: Array<Array<string | number>>, 
+      totalsRow?: Array<string | number>,
+    ) => {
+      const data = [header, ...rows];
+      if (totalsRow) {
+        data.push(totalsRow);
+      }
 
-    const dayWs = XLSX.utils.aoa_to_sheet([
-      dayHeader,
-      ...dayRows,
-    ]);
-    XLSX.utils.book_append_sheet(workbook, dayWs, 'Daily Breakdown');
+      const sheet = XLSX.utils.aoa_to_sheet(data);
 
-    // Overall totals sheet
-    const totals = summary.summaryTotals;
-    const totalsWsData = [
-      ['Metric', 'Value'],
-      ['Total Received Qty', totals.totalReceivedQty],
-      ['Total CBM', totals.totalCbm],
-      ['Total EDEL Received Qty', totals.totalEdelReceivedQty],
-      ['Total EDEL CBM', totals.totalEdelTotalCbm],
+      // Auto-fit columns based on content length (minimum width = 12)
+      const colWidths = header.map((_, colIdx) => {
+        const maxLen = data.reduce((max, row) => {
+          const cell = row[colIdx];
+          const len = String(cell ?? '').length;
+          return Math.max(max, len);
+        }, header[colIdx].length);
+        return { wch: Math.max(12, maxLen + 2) };
+      });
+      sheet['!cols'] = colWidths;
+
+      // Apply simple table styling: header fill + bold, borders, totals row highlight
+      const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+      for (let r = range.s.r; r <= range.e.r; r++) {
+        for (let c = range.s.c; c <= range.e.c; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          const cell = sheet[cellRef];
+          if (!cell) continue;
+
+          const style: any = cell.s || {};
+          style.border = {
+            top: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            bottom: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            left: { style: 'thin', color: { rgb: 'D1D5DB' } },
+            right: { style: 'thin', color: { rgb: 'D1D5DB' } },
+          };
+
+          if (r === 0) {
+            style.font = { ...(style.font || {}), bold: true, color: { rgb: '111827' } };
+            style.fill = { fgColor: { rgb: 'E5E7EB' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else if (totalsRow && r === data.length - 1) {
+            style.font = { ...(style.font || {}), bold: true };
+            style.fill = { fgColor: { rgb: 'FEF3C7' } };
+            style.alignment = { horizontal: 'center', vertical: 'center' };
+          } else {
+            style.alignment = { horizontal: 'left', vertical: 'center' };
+          }
+
+          sheet[cellRef] = { ...cell, s: style } as XLSX.CellObject;
+        }
+      }
+
+      XLSX.utils.book_append_sheet(workbook, sheet, sheetName);
+    };
+
+    // Sheet 1: Summary cards
+    const cardRows: Array<Array<string | number>> = [
+      ['Invoice SKU Count', summary.cards.invoiceSkuCount],
+      ['Received SKU Count', summary.cards.receivedSkuCount],
+      ['Invoice Qty Total', summary.cards.invoiceQtyTotal],
+      ['Received Qty Total', summary.cards.receivedQtyTotal],
+      ['Good Qty Total', summary.cards.goodQtyTotal],
+      ['Total CBM', summary.cards.totalCbm],
     ];
+    createStyledSheet('Summary Cards', ['Metric', 'Value'], cardRows);
 
-    const totalsWs = XLSX.utils.aoa_to_sheet(totalsWsData);
-    XLSX.utils.book_append_sheet(workbook, totalsWs, 'Summary Totals');
+    // Sheet 2: Chart data (time series)
+    const chartHeader = ['Label', 'Start Date', 'End Date', 'Received Qty', 'Total CBM', 'EDEL Received Qty', 'EDEL CBM'];
+    const chartRows = (summary.timeSeries?.points || []).map((p) => [
+      p.label,
+      p.startDate,
+      p.endDate,
+      Math.round((p.receivedQty || 0) * 100) / 100,
+      Math.round((p.totalCbm || 0) * 100) / 100,
+      Math.round((p.edelReceivedQty || 0) * 100) / 100,
+      Math.round((p.edelTotalCbm || 0) * 100) / 100,
+    ]);
+    const chartTotals = chartRows.length
+      ? [
+          'Total',
+          '',
+          '',
+          chartRows.reduce((sum, row) => sum + (Number(row[3]) || 0), 0),
+          chartRows.reduce((sum, row) => sum + (Number(row[4]) || 0), 0),
+          chartRows.reduce((sum, row) => sum + (Number(row[5]) || 0), 0),
+          chartRows.reduce((sum, row) => sum + (Number(row[6]) || 0), 0),
+        ]
+      : undefined;
+    createStyledSheet('Chart Data', chartHeader, chartRows, chartTotals);
+
+    // Sheet 3: Summary totals (daily breakdown + totals row)
+    const totals = summary.summaryTotals;
+    const dayHeader = ['Date', 'Received Qty', 'Total CBM', 'EDEL Received Qty', 'EDEL CBM'];
+    const dayRows = (totals.dayData || []).map((d) => [
+      d.date,
+      Math.round((d.receivedQty || 0) * 100) / 100,
+      Math.round((d.totalCbm || 0) * 100) / 100,
+      Math.round((d.edelReceivedQty || 0) * 100) / 100,
+      Math.round((d.edelTotalCbm || 0) * 100) / 100,
+    ]);
+    const dayTotalsRow = [
+      'Total',
+      Math.round((totals.totalReceivedQty || 0) * 100) / 100,
+      Math.round((totals.totalCbm || 0) * 100) / 100,
+      Math.round((totals.totalEdelReceivedQty || 0) * 100) / 100,
+      Math.round((totals.totalEdelTotalCbm || 0) * 100) / 100,
+    ];
+    createStyledSheet('Summary Totals', dayHeader, dayRows, dayTotalsRow);
 
     return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }

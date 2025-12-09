@@ -304,6 +304,15 @@ export default function InboundPage() {
     return lakhs.toFixed(decimals);
   };
 
+  // Format quantity in lakhs with 'L' suffix for display
+  const formatQuantityInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0L';
+    const value = Number(num);
+    if (isNaN(value)) return '0L';
+    const lakhs = value / 100000;
+    return `${lakhs.toFixed(decimals)}L`;
+  };
+
   const formatAxisLabel = (label: string) => {
     // Convert labels like "Aug 2025" -> "Aug'25"
     const match = label.match(/^([A-Za-z]{3}) (\d{4})$/);
@@ -524,7 +533,17 @@ export default function InboundPage() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-2 flex gap-2">
+          <div className="md:col-span-2 flex gap-2 items-end">
+            <motion.button
+              whileHover={{ scale: 1.05, translateY: -1 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
+              onClick={handleDownloadSummary}
+              className="h-[36px] w-[40px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
+              aria-label="Download inbound Excel"
+              title="Download Excel"
+            >
+              <Download className="w-4 h-4" />
+            </motion.button>
             <motion.button
               whileHover={{ scale: 1.02, translateY: -2 }}
               whileTap={{ scale: 0.98, translateY: 0 }}
@@ -553,7 +572,7 @@ export default function InboundPage() {
                 className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5"
               >
                 <RefreshCw className="w-3.5 h-3.5 transition-transform group-hover:rotate-180" />
-                <span className="hidden sm:inline">Reset</span>
+                <span>Reset</span>
               </motion.button>
             )}
           </div>
@@ -641,18 +660,21 @@ export default function InboundPage() {
                 </span>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
                     <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invoice Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Invoice Quantity</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Invoice Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
-                  {formatNumber(summaryData.cards.invoiceQtyTotal, 2)}
+                <span 
+                  className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 cursor-help"
+                  title={`Full Value: ${formatNumber(summaryData.cards.invoiceQtyTotal, 2)}`}
+                >
+                  {formatQuantityInLakhs(summaryData.cards.invoiceQtyTotal, 2)}
                 </span>
               </div>
             </div>
@@ -695,33 +717,39 @@ export default function InboundPage() {
                 </span>
               </div>
               
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
                     <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                  {formatNumber(summaryData.cards.receivedQtyTotal, 2)}
+                <span 
+                  className="text-2xl font-bold font-mono text-green-600 dark:text-green-400 cursor-help"
+                  title={`Full Value: ${formatNumber(summaryData.cards.receivedQtyTotal, 2)}`}
+                >
+                  {formatQuantityInLakhs(summaryData.cards.receivedQtyTotal, 2)}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                     <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
                     <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Good Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Good Quantity</p>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Total Good Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
-                  {formatNumber(summaryData.cards.goodQtyTotal, 2)}
+                <span 
+                  className="text-2xl font-bold font-mono text-green-600 dark:text-green-400 cursor-help"
+                  title={`Full Value: ${formatNumber(summaryData.cards.goodQtyTotal, 2)}`}
+                >
+                  {formatQuantityInLakhs(summaryData.cards.goodQtyTotal, 2)}
                 </span>
               </div>
             </div>
@@ -852,7 +880,7 @@ export default function InboundPage() {
                       />
                       <YAxis
                         tick={{ fontSize: 11, fill: 'currentColor' }}
-                        tickFormatter={(value: number) => `${formatInLakhs(value)} L`}
+                        tickFormatter={(value: number) => `${formatInLakhs(value)}L`}
                         className="text-gray-600 dark:text-slate-400"
                         axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                       />
@@ -868,7 +896,7 @@ export default function InboundPage() {
                         labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
                         itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
                         formatter={(value: number, name: string) => [
-                          `${formatInLakhs(value)} L`,
+                          `${formatInLakhs(value)}L (${formatNumber(value, 0)})`,
                           name === 'edelReceivedQty' ? 'EDEL Received Qty' : 'Received Qty'
                         ]}
                         cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
@@ -883,7 +911,7 @@ export default function InboundPage() {
                         <LabelList
                           dataKey="edelReceivedQty"
                           position="top"
-                          formatter={(value: any) => formatInLakhs(value)}
+                          formatter={(value: any) => `${formatInLakhs(value)}L`}
                           style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                         />
                       </Bar>
@@ -891,7 +919,7 @@ export default function InboundPage() {
                         <LabelList
                           dataKey="receivedQty"
                           position="top"
-                          formatter={(value: any) => formatInLakhs(value)}
+                          formatter={(value: any) => `${formatInLakhs(value)}L`}
                           style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                         />
                       </Bar>
@@ -1030,13 +1058,6 @@ export default function InboundPage() {
                   {summaryData.summaryTotals?.dayData?.length || 0} Records
                 </div>
               </div>
-              <button
-                onClick={handleDownloadSummary}
-                className="flex items-center gap-2 bg-brandRed hover:bg-red-700 dark:hover:bg-red-800 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors shadow-sm"
-              >
-                <Download className="w-4 h-4" />
-                Download Excel
-              </button>
             </div>
 
             {summaryData.summaryTotals ? (
@@ -1045,9 +1066,9 @@ export default function InboundPage() {
                 <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
                   <div className="col-span-1">No</div>
                   <div className="col-span-3">Date</div>
-                  <div className="col-span-2">Received Qty</div>
+                  <div className="col-span-2">Received Qty (L)</div>
                   <div className="col-span-2">Total CBM</div>
-                  <div className="col-span-2">EDEL Received Qty</div>
+                  <div className="col-span-2">EDEL Received Qty (L)</div>
                   <div className="col-span-2">EDEL CBM</div>
                 </div>
 
@@ -1142,8 +1163,11 @@ export default function InboundPage() {
                                     />
                                   ))}
                                 </div>
-                                <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium min-w-[4rem]">
-                                  {formatNumber(day.receivedQty)}
+                                <span 
+                                  className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium min-w-[4rem] cursor-help"
+                                  title={`Full Value: ${formatNumber(day.receivedQty, 0)}`}
+                                >
+                                  {formatQuantityInLakhs(day.receivedQty, 2)}
                                 </span>
                               </div>
                             </div>
@@ -1159,9 +1183,12 @@ export default function InboundPage() {
 
                             {/* EDEL Received Qty */}
                             <div className="col-span-2 flex justify-center">
-                              <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                              <div 
+                                className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center cursor-help"
+                                title={`Full Value: ${formatNumber(day.edelReceivedQty, 0)}`}
+                              >
                                 <span className="text-purple-600 dark:text-purple-400 text-sm font-medium">
-                                  {formatNumber(day.edelReceivedQty)}
+                                  {formatQuantityInLakhs(day.edelReceivedQty, 2)}
                                 </span>
                               </div>
                             </div>
@@ -1195,8 +1222,11 @@ export default function InboundPage() {
                             <span className="text-gray-900 dark:text-slate-200 font-medium">Total</span>
                           </div>
                           <div className="col-span-2">
-                            <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
-                              {formatNumber(summaryData.summaryTotals.totalReceivedQty)}
+                            <span 
+                              className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium cursor-help"
+                              title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
+                            >
+                              {formatQuantityInLakhs(summaryData.summaryTotals.totalReceivedQty, 2)}
                             </span>
                           </div>
                           <div className="col-span-2">
@@ -1207,8 +1237,11 @@ export default function InboundPage() {
                             </div>
                           </div>
                           <div className="col-span-2">
-                            <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
-                              {formatNumber(summaryData.summaryTotals.totalEdelReceivedQty)}
+                            <span 
+                              className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium cursor-help"
+                              title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalEdelReceivedQty, 0)}`}
+                            >
+                              {formatQuantityInLakhs(summaryData.summaryTotals.totalEdelReceivedQty, 2)}
                             </span>
                           </div>
                           <div className="col-span-2">

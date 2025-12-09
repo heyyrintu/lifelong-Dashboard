@@ -30,8 +30,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex-1 flex flex-col overflow-hidden">
             <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
 
-            <main className="flex-1 overflow-y-auto bg-transparent">
-              <div className="container mx-auto px-6 py-8 max-w-7xl">{children}</div>
+            <main className="flex-1 overflow-y-auto overflow-x-hidden bg-transparent">
+              <div className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">{children}</div>
             </main>
           </div>
         </div>

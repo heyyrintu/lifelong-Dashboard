@@ -49,42 +49,43 @@ export default function Header({ onMenuClick }: HeaderProps) {
       shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.3)]
       will-change-transform
       transition-all duration-300">
-      <div className="flex items-center justify-between px-6 py-4
+      <div className="flex items-center justify-between px-3 sm:px-6 py-4
         bg-gradient-to-br from-black/[0.05] to-transparent dark:from-slate-700/30 dark:to-slate-800/10
         backdrop-blur-md backdrop-saturate-150
         relative">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0"
             aria-label="Toggle menu"
           >
             <Menu className="w-5 h-5 text-gray-700 dark:text-slate-300" />
           </button>
-          <div className="relative">
+          <div className="relative min-w-0">
             <h1 className="flex items-baseline gap-1 font-bold text-gray-900 dark:text-slate-100">
-              <span className="text-2xl">Drona 🤝🏼 Lifelong /</span>
-              <span className="text-xl text-gray-600">{getPageName()}</span>
+              <span className="text-lg sm:text-2xl whitespace-nowrap">Drona 🤝🏼 Lifelong /</span>
+              <span className="text-base sm:text-xl text-gray-600 truncate">{getPageName()}</span>
             </h1>
             <div className="absolute bottom-0 left-0 h-1 w-16 rounded-full bg-gradient-to-r from-amber-400 via-amber-300/80 to-transparent opacity-90"></div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           {/* User Info Card */}
           {user && (
-            <div className="hidden sm:flex items-center gap-3 px-4 py-2.5 
+            <div className="hidden md:flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-2.5 
               backdrop-blur-md backdrop-saturate-150
               border border-gray-200/50 dark:border-slate-700/50
               rounded-xl shadow-sm
               hover:shadow-md transition-all duration-200
               bg-gradient-to-br from-white/95 to-amber-50/40 
-              dark:from-slate-800/95 dark:to-rose-900/25">
-              <div className="w-10 h-10 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center shadow-md ring-2 ring-white/50 dark:ring-slate-700/50">
-                <UserIcon className="w-5 h-5 text-white" />
+              dark:from-slate-800/95 dark:to-rose-900/25
+              max-w-[200px]">
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center shadow-md ring-2 ring-white/50 dark:ring-slate-700/50 flex-shrink-0">
+                <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
               </div>
               <div className="flex flex-col min-w-0">
-                <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
+                <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
                   {user.name || 'User'}
                 </span>
                 <span className="text-xs text-gray-600 dark:text-slate-400 truncate">

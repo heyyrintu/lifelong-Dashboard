@@ -51,6 +51,7 @@ export class InboundController {
     @Query('toDate') toDate?: string,
     @Query('month') month?: string,
     @Query('productCategory') productCategory?: string | string[],
+    @Query('timeGranularity') timeGranularity?: 'month' | 'week' | 'day',
   ) {
     try {
       const categories = productCategory
@@ -62,6 +63,7 @@ export class InboundController {
         toDate,
         month,
         categories,
+        timeGranularity,
       );
 
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
