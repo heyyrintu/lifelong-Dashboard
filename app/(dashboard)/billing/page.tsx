@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { backendFetch } from '@/lib/backendFetch';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import { AdminRoute } from '@/components/auth/AdminRoute';
@@ -147,7 +146,7 @@ function BillingPageContent() {
     setSuccess(null);
 
     try {
-      const response = await backendFetch(`${BACKEND_URL}/billing/recalculate`, {
+      const response = await fetch(`${BACKEND_URL}/billing/recalculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -191,7 +190,7 @@ function BillingPageContent() {
         month: selectedMonth.toString(),
       });
 
-      const response = await backendFetch(`${BACKEND_URL}/billing/view?${params}`);
+      const response = await fetch(`${BACKEND_URL}/billing/view?${params}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -281,7 +280,7 @@ function BillingPageContent() {
         amount: item.amount,
       }));
 
-      const response = await backendFetch(
+      const response = await fetch(
         `${BACKEND_URL}/billing/${billingPeriod.id}/lines`,
         {
           method: 'PUT',
@@ -313,7 +312,7 @@ function BillingPageContent() {
     if (!billingPeriod) return;
 
     try {
-      const response = await backendFetch(
+      const response = await fetch(
         `${BACKEND_URL}/billing/${billingPeriod.id}/pdf`
       );
 
@@ -340,7 +339,7 @@ function BillingPageContent() {
     if (!billingPeriod) return;
 
     try {
-      const response = await backendFetch(
+      const response = await fetch(
         `${BACKEND_URL}/billing/${billingPeriod.id}/excel`
       );
 

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { backendFetch } from '@/lib/backendFetch';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
   UserPlus,
@@ -93,7 +92,7 @@ function TakeAttendancePageContent() {
       }
       params.append('isActive', 'true');
 
-      const response = await backendFetch(`${BACKEND_URL}/attendance/employees?${params.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/attendance/employees?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch employees');
 
       const data = await response.json();
@@ -121,7 +120,7 @@ function TakeAttendancePageContent() {
 
   const handleAddEmployee = async () => {
     try {
-      const response = await backendFetch(`${BACKEND_URL}/attendance/employees`, {
+      const response = await fetch(`${BACKEND_URL}/attendance/employees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEmployee),
@@ -155,7 +154,7 @@ function TakeAttendancePageContent() {
     if (!editingEmployee) return;
 
     try {
-      const response = await backendFetch(`${BACKEND_URL}/attendance/employees/${editingEmployee.id}`, {
+      const response = await fetch(`${BACKEND_URL}/attendance/employees/${editingEmployee.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingEmployee),
@@ -175,7 +174,7 @@ function TakeAttendancePageContent() {
     if (!confirm('Are you sure you want to delete this employee?')) return;
 
     try {
-      const response = await backendFetch(`${BACKEND_URL}/attendance/employees/${id}`, {
+      const response = await fetch(`${BACKEND_URL}/attendance/employees/${id}`, {
         method: 'DELETE',
       });
 
@@ -199,7 +198,7 @@ function TakeAttendancePageContent() {
         remarks: entry.remarks,
       }));
 
-      const response = await backendFetch(`${BACKEND_URL}/attendance/records/bulk`, {
+      const response = await fetch(`${BACKEND_URL}/attendance/records/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { backendFetch } from '@/lib/backendFetch';
 import PageHeader from '@/components/common/PageHeader';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
@@ -67,9 +66,9 @@ function UploadPageContent() {
       
       // Fetch from outbound, inbound, and inventory endpoints
       const [outboundResponse, inboundResponse, inventoryResponse] = await Promise.all([
-        backendFetch(`${BACKEND_URL}/outbound/uploads`),
-        backendFetch(`${BACKEND_URL}/inbound/uploads`),
-        backendFetch(`${BACKEND_URL}/inventory/uploads`),
+        fetch(`${BACKEND_URL}/outbound/uploads`),
+        fetch(`${BACKEND_URL}/inbound/uploads`),
+        fetch(`${BACKEND_URL}/inventory/uploads`),
       ]);
       
       let allUploads: UploadInfo[] = [];
@@ -114,7 +113,7 @@ function UploadPageContent() {
         endpoint = `${BACKEND_URL}/inventory/uploads/${uploadId}`;
       }
 
-      const response = await backendFetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'DELETE',
       });
       
@@ -175,7 +174,7 @@ function UploadPageContent() {
           return;
       }
 
-      const response = await backendFetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: 'POST',
         body: formData,
       });

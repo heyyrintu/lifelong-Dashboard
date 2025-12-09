@@ -2,7 +2,6 @@
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { backendFetch } from '@/lib/backendFetch';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
 import { Boxes, Package, Box, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, TrendingUp, Download } from 'lucide-react';
@@ -211,7 +210,7 @@ function InventoryPageContent() {
         }
       }
 
-      const response = await backendFetch(`${BACKEND_URL}/inventory/summary?${params.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/inventory/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -274,7 +273,7 @@ function InventoryPageContent() {
         params.append('warehouse', selectedWarehouse);
       }
 
-      const response = await backendFetch(`${BACKEND_URL}/inventory/download-summary?${params.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/inventory/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download inventory summary');
@@ -316,7 +315,7 @@ function InventoryPageContent() {
       params.append('minAvgQty', minAvgQty.toString());
       params.append('limit', '50');
 
-      const response = await backendFetch(`${BACKEND_URL}/inventory/fast-moving-skus?${params.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/inventory/fast-moving-skus?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -379,7 +378,7 @@ function InventoryPageContent() {
       params.append('minDaysInStock', minDaysInStock.toString());
       params.append('limit', '100');
 
-      const response = await backendFetch(`${BACKEND_URL}/inventory/zero-order-products?${params.toString()}`);
+      const response = await fetch(`${BACKEND_URL}/inventory/zero-order-products?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {

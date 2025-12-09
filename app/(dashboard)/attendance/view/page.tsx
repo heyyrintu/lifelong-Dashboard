@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { backendFetch } from '@/lib/backendFetch';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
   Upload,
@@ -119,8 +118,8 @@ function ViewAttendancePageContent() {
       if (vendorFilter) params.append('vendor', vendorFilter);
 
       const [recordsRes, summaryRes] = await Promise.all([
-        backendFetch(`${BACKEND_URL}/attendance/records?${params.toString()}`),
-        backendFetch(`${BACKEND_URL}/attendance/summary?${params.toString()}`),
+        fetch(`${BACKEND_URL}/attendance/records?${params.toString()}`),
+        fetch(`${BACKEND_URL}/attendance/summary?${params.toString()}`),
       ]);
 
       if (recordsRes.ok) {
@@ -149,7 +148,7 @@ function ViewAttendancePageContent() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await backendFetch(`${BACKEND_URL}/attendance/upload`, {
+      const response = await fetch(`${BACKEND_URL}/attendance/upload`, {
         method: 'POST',
         body: formData,
       });

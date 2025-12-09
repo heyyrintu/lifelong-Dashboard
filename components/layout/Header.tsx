@@ -3,6 +3,7 @@
 import { Menu, LogOut, User as UserIcon } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { HealthIndicator } from '@/components/common/HealthIndicator';
 import { useAuth } from '@/lib/auth-context';
 import { useState } from 'react';
 
@@ -71,6 +72,9 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          {/* Health Indicator */}
+          <HealthIndicator />
+
           {/* User Info Card */}
           {user && (
             <div className="hidden md:flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-2.5 
