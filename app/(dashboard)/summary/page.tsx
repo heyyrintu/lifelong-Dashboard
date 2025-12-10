@@ -679,13 +679,13 @@ export default function SummaryPage() {
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
-                whileHover={{ scale: 1.02, translateY: -2 }}
-                whileTap={{ scale: 0.98, translateY: 0 }}
+                whileHover={{ scale: 1.05, translateY: -2, rotate: 180 }}
+                whileTap={{ scale: 0.95, translateY: 0 }}
                 onClick={handleReset}
-                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5 group"
+                title="Reset Filters"
+                className="h-[36px] w-[36px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 shadow-sm flex items-center justify-center"
               >
-                <RefreshCw className="w-3 h-3 transition-transform group-hover:rotate-180" />
-                <span className="hidden sm:inline">Reset</span>
+                <RefreshCw className="w-4 h-4" />
               </motion.button>
             )}
           </div>
@@ -1128,12 +1128,12 @@ export default function SummaryPage() {
                     {/* Status gradient overlay based on percentage */}
                     <div
                       className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
-                          ? 'from-green-500/20 via-green-500/10 to-transparent'
-                          : row.percentage >= 90
-                            ? 'from-blue-500/15 via-blue-500/5 to-transparent'
-                            : row.percentage >= 75
-                              ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
-                              : 'from-red-500/15 via-red-500/5 to-transparent'
+                        ? 'from-green-500/20 via-green-500/10 to-transparent'
+                        : row.percentage >= 90
+                          ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                          : row.percentage >= 75
+                            ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                            : 'from-red-500/15 via-red-500/5 to-transparent'
                         } pointer-events-none`}
                       style={{
                         backgroundSize: "30% 100%",
@@ -1175,12 +1175,12 @@ export default function SummaryPage() {
                       {/* Pending */}
                       <div className="flex justify-center">
                         <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
-                            ? 'bg-green-500/10 border border-green-500/30'
-                            : 'bg-red-500/10 border border-red-500/30'
+                          ? 'bg-green-500/10 border border-green-500/30'
+                          : 'bg-red-500/10 border border-red-500/30'
                           }`}>
                           <span className={`text-sm font-medium font-mono ${row.pending === 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
                             }`}>
                             {formatNumber(row.pending)}
                           </span>
@@ -1190,20 +1190,20 @@ export default function SummaryPage() {
                       {/* Percentage */}
                       <div className="flex justify-center">
                         <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
-                            ? 'bg-green-500/20 border-2 border-green-500/50'
-                            : row.percentage >= 90
-                              ? 'bg-blue-500/10 border border-blue-500/30'
-                              : row.percentage >= 75
-                                ? 'bg-yellow-500/10 border border-yellow-500/30'
-                                : 'bg-red-500/10 border border-red-500/30'
+                          ? 'bg-green-500/20 border-2 border-green-500/50'
+                          : row.percentage >= 90
+                            ? 'bg-blue-500/10 border border-blue-500/30'
+                            : row.percentage >= 75
+                              ? 'bg-yellow-500/10 border border-yellow-500/30'
+                              : 'bg-red-500/10 border border-red-500/30'
                           }`}>
                           <span className={`text-sm font-bold font-mono ${row.percentage >= 100
-                              ? 'text-green-600 dark:text-green-400'
-                              : row.percentage >= 90
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : row.percentage >= 75
-                                  ? 'text-yellow-600 dark:text-yellow-400'
-                                  : 'text-red-600 dark:text-red-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : row.percentage >= 90
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : row.percentage >= 75
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-red-600 dark:text-red-400'
                             }`}>
                             {row.percentage.toFixed(2)}%
                           </span>

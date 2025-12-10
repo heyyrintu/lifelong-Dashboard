@@ -400,6 +400,16 @@ export default function OutboundPage() {
     }
   };
 
+  const handleReset = () => {
+    setFromDate('');
+    setToDate('');
+    setSelectedMonth('ALL');
+    setSelectedProductCategories([]);
+    setSelectedWarehouse('ALL');
+    setFiltersDirty(false);
+    fetchSummary(false);
+  };
+
   const handleFilter = () => {
     fetchSummary(true);
     fetchTopProducts(topProductsRankBy, topProductsSortOrder);
@@ -900,21 +910,13 @@ export default function OutboundPage() {
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
-                whileHover={{ scale: 1.02, translateY: -2 }}
-                whileTap={{ scale: 0.98, translateY: 0 }}
-                onClick={() => {
-                  setFromDate('');
-                  setToDate('');
-                  setSelectedMonth('ALL');
-                  setSelectedProductCategories([]);
-                  setSelectedWarehouse('ALL');
-                  setFiltersDirty(false);
-                  fetchSummary(false);
-                }}
-                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5 group"
+                whileHover={{ scale: 1.05, translateY: -2, rotate: 180 }}
+                whileTap={{ scale: 0.95, translateY: 0 }}
+                onClick={handleReset}
+                title="Reset Filters"
+                className="h-[36px] w-[36px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 shadow-sm flex items-center justify-center"
               >
-                <RefreshCw className="w-3.5 h-3.5 transition-transform group-hover:rotate-180" />
-                <span>Reset</span>
+                <RefreshCw className="w-4 h-4" />
               </motion.button>
             )}
           </div>
@@ -1093,23 +1095,23 @@ export default function OutboundPage() {
 
           <div className="space-y-4">
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                  ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                  : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
+              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
+              : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
+                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
+                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
               }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                    ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                      ? 'bg-red-500/10 dark:bg-red-500/20'
-                      : 'bg-green-500/10 dark:bg-green-500/20'
+                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
+                  : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
+                    ? 'bg-red-500/10 dark:bg-red-500/20'
+                    : 'bg-green-500/10 dark:bg-green-500/20'
                   }`}>
                   <Package className={`w-5 h-5 ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                      ? 'text-orange-600 dark:text-orange-400'
-                      : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
+                    ? 'text-orange-600 dark:text-orange-400'
+                    : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-600 dark:text-green-400'
                     }`} />
                 </div>
                 <div>
@@ -1118,33 +1120,33 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                  ? 'text-orange-600 dark:text-orange-400'
-                  : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'
+                ? 'text-orange-600 dark:text-orange-400'
+                : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-green-600 dark:text-green-400'
                 }`}>
                 {loading ? '-' : formatNumber((derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0))}
               </span>
             </div>
 
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soMinusDnQty || 0) > 0
-                ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : (derivedCards?.soMinusDnQty || 0) < 0
-                  ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                  : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
+              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
+              : (derivedCards?.soMinusDnQty || 0) < 0
+                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
+                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
               }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soMinusDnQty || 0) > 0
-                    ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : (derivedCards?.soMinusDnQty || 0) < 0
-                      ? 'bg-red-500/10 dark:bg-red-500/20'
-                      : 'bg-green-500/10 dark:bg-green-500/20'
+                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
+                  : (derivedCards?.soMinusDnQty || 0) < 0
+                    ? 'bg-red-500/10 dark:bg-red-500/20'
+                    : 'bg-green-500/10 dark:bg-green-500/20'
                   }`}>
                   <TrendingUp className={`w-5 h-5 ${(derivedCards?.soMinusDnQty || 0) > 0
-                      ? 'text-orange-600 dark:text-orange-400'
-                      : (derivedCards?.soMinusDnQty || 0) < 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
+                    ? 'text-orange-600 dark:text-orange-400'
+                    : (derivedCards?.soMinusDnQty || 0) < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-600 dark:text-green-400'
                     }`} />
                 </div>
                 <div>
@@ -1153,33 +1155,33 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${(derivedCards?.soMinusDnQty || 0) > 0
-                  ? 'text-orange-600 dark:text-orange-400'
-                  : (derivedCards?.soMinusDnQty || 0) < 0
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'
+                ? 'text-orange-600 dark:text-orange-400'
+                : (derivedCards?.soMinusDnQty || 0) < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-green-600 dark:text-green-400'
                 }`}>
                 {loading ? '-' : formatInLakhs(derivedCards?.soMinusDnQty)}
               </span>
             </div>
 
             <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-                : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                  ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                  : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
+              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
+              : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
+                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
+                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
               }`}>
               <div className="flex items-center gap-3">
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                    ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                    : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                      ? 'bg-red-500/10 dark:bg-red-500/20'
-                      : 'bg-green-500/10 dark:bg-green-500/20'
+                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
+                  : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
+                    ? 'bg-red-500/10 dark:bg-red-500/20'
+                    : 'bg-green-500/10 dark:bg-green-500/20'
                   }`}>
                   <Box className={`w-5 h-5 ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                      ? 'text-orange-600 dark:text-orange-400'
-                      : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                        ? 'text-red-600 dark:text-red-400'
-                        : 'text-green-600 dark:text-green-400'
+                    ? 'text-orange-600 dark:text-orange-400'
+                    : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-green-600 dark:text-green-400'
                     }`} />
                 </div>
                 <div>
@@ -1188,10 +1190,10 @@ export default function OutboundPage() {
                 </div>
               </div>
               <span className={`text-2xl font-bold font-mono ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                  ? 'text-orange-600 dark:text-orange-400'
-                  : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                    ? 'text-red-600 dark:text-red-400'
-                    : 'text-green-600 dark:text-green-400'
+                ? 'text-orange-600 dark:text-orange-400'
+                : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
+                  ? 'text-red-600 dark:text-red-400'
+                  : 'text-green-600 dark:text-green-400'
                 }`}>
                 {loading ? '-' : formatInThousands((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0))}
               </span>
@@ -1915,8 +1917,8 @@ export default function OutboundPage() {
                 <button
                   onClick={() => handleRankByChange('cbm')}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsRankBy === 'cbm'
-                      ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
                   By CBM
@@ -1924,8 +1926,8 @@ export default function OutboundPage() {
                 <button
                   onClick={() => handleRankByChange('qty')}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsRankBy === 'qty'
-                      ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
                   By Qty
@@ -1937,8 +1939,8 @@ export default function OutboundPage() {
                 <button
                   onClick={() => handleSortOrderChange('top')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsSortOrder === 'top'
-                      ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
                   <ArrowUp className="w-3.5 h-3.5" />
@@ -1947,8 +1949,8 @@ export default function OutboundPage() {
                 <button
                   onClick={() => handleSortOrderChange('bottom')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsSortOrder === 'bottom'
-                      ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
-                      : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+                    ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                     }`}
                 >
                   <ArrowDown className="w-3.5 h-3.5" />
@@ -1990,12 +1992,12 @@ export default function OutboundPage() {
                     >
                       <td className="px-4 py-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${product.rank === 1
-                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'
-                            : product.rank === 2
-                              ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md'
-                              : product.rank === 3
-                                ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20'
-                                : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
+                          ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'
+                          : product.rank === 2
+                            ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md'
+                            : product.rank === 3
+                              ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20'
+                              : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
                           }`}>
                           {product.rank}
                         </div>
@@ -2012,16 +2014,16 @@ export default function OutboundPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'qty'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-gray-700 dark:text-slate-300'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-gray-700 dark:text-slate-300'
                           }`}>
                           {formatNumber(product.totalQty)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
                         <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'cbm'
-                            ? 'text-amber-600 dark:text-amber-400'
-                            : 'text-gray-700 dark:text-slate-300'
+                          ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-gray-700 dark:text-slate-300'
                           }`}>
                           {formatNumber(product.totalCbm, 2)}
                         </span>
@@ -2068,8 +2070,8 @@ export default function OutboundPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
-                    ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                  ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
                   }`}
                 suppressHydrationWarning={true}
               >
@@ -2641,12 +2643,12 @@ export default function OutboundPage() {
                     {/* Status gradient overlay based on percentage */}
                     <div
                       className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
-                          ? 'from-green-500/20 via-green-500/10 to-transparent'
-                          : row.percentage >= 90
-                            ? 'from-blue-500/15 via-blue-500/5 to-transparent'
-                            : row.percentage >= 75
-                              ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
-                              : 'from-red-500/15 via-red-500/5 to-transparent'
+                        ? 'from-green-500/20 via-green-500/10 to-transparent'
+                        : row.percentage >= 90
+                          ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                          : row.percentage >= 75
+                            ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                            : 'from-red-500/15 via-red-500/5 to-transparent'
                         } pointer-events-none`}
                       style={{
                         backgroundSize: "30% 100%",
@@ -2688,12 +2690,12 @@ export default function OutboundPage() {
                       {/* Pending */}
                       <div className="flex justify-center">
                         <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
-                            ? 'bg-green-500/10 border border-green-500/30'
-                            : 'bg-red-500/10 border border-red-500/30'
+                          ? 'bg-green-500/10 border border-green-500/30'
+                          : 'bg-red-500/10 border border-red-500/30'
                           }`}>
                           <span className={`text-sm font-medium font-mono ${row.pending === 0
-                              ? 'text-green-600 dark:text-green-400'
-                              : 'text-red-600 dark:text-red-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : 'text-red-600 dark:text-red-400'
                             }`}>
                             {formatNumber(row.pending)}
                           </span>
@@ -2703,20 +2705,20 @@ export default function OutboundPage() {
                       {/* Percentage */}
                       <div className="flex justify-center">
                         <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
-                            ? 'bg-green-500/20 border-2 border-green-500/50'
-                            : row.percentage >= 90
-                              ? 'bg-blue-500/10 border border-blue-500/30'
-                              : row.percentage >= 75
-                                ? 'bg-yellow-500/10 border border-yellow-500/30'
-                                : 'bg-red-500/10 border border-red-500/30'
+                          ? 'bg-green-500/20 border-2 border-green-500/50'
+                          : row.percentage >= 90
+                            ? 'bg-blue-500/10 border border-blue-500/30'
+                            : row.percentage >= 75
+                              ? 'bg-yellow-500/10 border border-yellow-500/30'
+                              : 'bg-red-500/10 border border-red-500/30'
                           }`}>
                           <span className={`text-sm font-bold font-mono ${row.percentage >= 100
-                              ? 'text-green-600 dark:text-green-400'
-                              : row.percentage >= 90
-                                ? 'text-blue-600 dark:text-blue-400'
-                                : row.percentage >= 75
-                                  ? 'text-yellow-600 dark:text-yellow-400'
-                                  : 'text-red-600 dark:text-red-400'
+                            ? 'text-green-600 dark:text-green-400'
+                            : row.percentage >= 90
+                              ? 'text-blue-600 dark:text-blue-400'
+                              : row.percentage >= 75
+                                ? 'text-yellow-600 dark:text-yellow-400'
+                                : 'text-red-600 dark:text-red-400'
                             }`}>
                             {row.percentage.toFixed(2)}%
                           </span>

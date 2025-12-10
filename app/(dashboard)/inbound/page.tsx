@@ -567,13 +567,13 @@ export default function InboundPage() {
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0) && (
               <motion.button
-                whileHover={{ scale: 1.02, translateY: -2 }}
-                whileTap={{ scale: 0.98, translateY: 0 }}
+                whileHover={{ scale: 1.05, translateY: -2, rotate: 180 }}
+                whileTap={{ scale: 0.95, translateY: 0 }}
                 onClick={handleReset}
-                className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-gray-300 dark:hover:border-slate-600 shadow-sm flex items-center justify-center gap-1.5"
+                title="Reset Filters"
+                className="h-[36px] w-[36px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 shadow-sm flex items-center justify-center"
               >
-                <RefreshCw className="w-3.5 h-3.5 transition-transform group-hover:rotate-180" />
-                <span>Reset</span>
+                <RefreshCw className="w-4 h-4" />
               </motion.button>
             )}
           </div>
