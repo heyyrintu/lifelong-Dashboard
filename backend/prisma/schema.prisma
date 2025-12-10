@@ -1,5 +1,6 @@
+// This is your Prisma schema file
 generator client {
-  provider      = "prisma-client-js"
+  provider = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
@@ -8,232 +9,15 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model attendances {
-  id             String           @id
-  employee_id    String
-  date           DateTime         @db.Date
-  status         AttendanceStatus @default(PRESENT)
-  in_time        DateTime?
-  out_time       DateTime?
-  total_hours    Float            @default(0)
-  overtime_hours Float            @default(0)
-  remarks        String?
-  source         String           @default("manual")
-  upload_batch   String?
-  created_at     DateTime         @default(now())
-  updated_at     DateTime
-  employees      employees        @relation(fields: [employee_id], references: [id], onDelete: Cascade)
+model OutboundUpload {
+  id         String   @id @default(uuid())
+  fileName   String   @map("file_name")
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+  status     String   @default("processed") // processed, failed
+  source     String   @default("manual-upload")
+  rows       OutboundRow[]
 
-  @@unique([employee_id, date])
-  @@index([date])
-  @@index([employee_id, date])
-  @@index([source])
-  @@index([status])
-  @@index([upload_batch])
-}
-
-model billing_line_items {
-  id                String          @id
-  billing_period_id String
-  type              String
-  label             String
-  qty               Float?          @default(0)
-  cbm               Float?          @default(0)
-  rate              Float?          @default(0)
-  amount            Float           @default(0)
-  is_core           Boolean         @default(false)
-  source            String          @default("SYSTEM")
-  created_at        DateTime        @default(now())
-  updated_at        DateTime
-  billing_periods   billing_periods @relation(fields: [billing_period_id], references: [id], onDelete: Cascade)
-
-  @@index([billing_period_id])
-}
-
-model billing_periods {
-  id                 String               @id
-  customer_name      String
-  location           String
-  year               Int
-  month              Int
-  from_date          DateTime?
-  to_date            DateTime?
-  inventory_cbm      Float                @default(0)
-  outbound_cbm       Float                @default(0)
-  inventory_rate     Float                @default(410)
-  outbound_rate      Float                @default(86)
-  inventory_amount   Float                @default(0)
-  outbound_amount    Float                @default(0)
-  subtotal_amount    Float                @default(0)
-  gst_percent        Float                @default(18)
-  gst_amount         Float                @default(0)
-  grand_total        Float                @default(0)
-  status             String               @default("draft")
-  notes              String?
-  created_at         DateTime             @default(now())
-  updated_at         DateTime
-  billing_line_items billing_line_items[]
-
-  @@unique([customer_name, location, year, month])
-}
-
-model employees {
-  id              String        @id
-  employee_id     String        @unique
-  name            String
-  designation     String?
-  department      String?
-  vendor          String?
-  contact         String?
-  date_of_joining DateTime?
-  employee_type   EmployeeType  @default(OFF_ROLL)
-  location        String        @default("Farukh Nagar")
-  is_active       Boolean       @default(true)
-  created_at      DateTime      @default(now())
-  updated_at      DateTime
-  attendances     attendances[]
-
-  @@index([employee_type])
-  @@index([is_active])
-  @@index([location])
-  @@index([vendor])
-}
-
-model inbound_rows {
-  id               String          @id
-  upload_id        String
-  date_of_unload   DateTime?
-  invoice_sku      String?
-  received_sku     String?
-  invoice_qty      Float           @default(0)
-  received_qty     Float           @default(0)
-  good_qty         Float           @default(0)
-  item_group       String?
-  cbm_per_unit     Float           @default(0)
-  total_cbm        Float           @default(0)
-  created_at       DateTime        @default(now())
-  product_category ProductCategory @default(OTHERS)
-  inbound_uploads  inbound_uploads @relation(fields: [upload_id], references: [id], onDelete: Cascade)
-
-  @@index([date_of_unload])
-  @@index([item_group])
-  @@index([product_category])
-  @@index([upload_id, date_of_unload])
-  @@index([upload_id])
-}
-
-model inbound_uploads {
-  id           String         @id
-  file_name    String
-  uploaded_at  DateTime       @default(now())
-  status       String         @default("processed")
-  source       String         @default("manual-upload")
-  inbound_rows inbound_rows[]
-}
-
-model inventory_daily_stock {
-  id               String         @id
-  inventory_row_id String
-  stock_date       DateTime
-  quantity         Float          @default(0)
-  created_at       DateTime       @default(now())
-  inventory_rows   inventory_rows @relation(fields: [inventory_row_id], references: [id], onDelete: Cascade)
-
-  @@index([inventory_row_id])
-  @@index([inventory_row_id, stock_date])
-  @@index([stock_date])
-  @@index([stock_date, inventory_row_id])
-}
-
-model inventory_rows {
-  id                    String                  @id
-  upload_id             String
-  item                  String
-  warehouse             String
-  item_group            String
-  cbm_per_unit          Float                   @default(0)
-  is_total_row          Boolean                 @default(false)
-  created_at            DateTime                @default(now())
-  product_category      ProductCategory         @default(OTHERS)
-  inventory_daily_stock inventory_daily_stock[]
-  inventory_uploads     inventory_uploads       @relation(fields: [upload_id], references: [id], onDelete: Cascade)
-
-  @@index([item_group])
-  @@index([product_category])
-  @@index([upload_id])
-  @@index([upload_id, is_total_row])
-  @@index([upload_id, item_group])
-  @@index([upload_id, product_category])
-}
-
-model inventory_uploads {
-  id             String           @id
-  file_name      String
-  uploaded_at    DateTime         @default(now())
-  status         String           @default("processing")
-  source         String           @default("manual-upload")
-  inventory_rows inventory_rows[]
-}
-
-model item_master {
-  id           String   @id
-  item_group   String
-  cbm_per_unit Float    @default(0)
-  created_at   DateTime @default(now())
-}
-
-model outbound_rows {
-  id                  String             @id
-  upload_id           String
-  customer_group      String?
-  source_warehouse    String?
-  so_item             String?
-  category_raw        String?
-  sales_order_qty     Float              @default(0)
-  so_total_cbm        Float              @default(0)
-  delivery_note_date  DateTime?
-  delivery_note_item  String?
-  delivery_note_qty   Float              @default(0)
-  dn_total_cbm        Float              @default(0)
-  transporter         String?
-  normalized_category NormalizedCategory
-  product_category    ProductCategory    @default(OTHERS)
-  created_at          DateTime           @default(now())
-  so_date             DateTime?
-  dispatch_by_date    DateTime?
-  outbound_uploads    outbound_uploads   @relation(fields: [upload_id], references: [id], onDelete: Cascade)
-
-  @@index([delivery_note_date])
-  @@index([dispatch_by_date])
-  @@index([normalized_category])
-  @@index([product_category])
-  @@index([so_date])
-  @@index([upload_id, delivery_note_date])
-  @@index([upload_id])
-  @@index([upload_id, normalized_category])
-  @@index([upload_id, so_date])
-}
-
-model outbound_uploads {
-  id            String          @id
-  file_name     String
-  uploaded_at   DateTime        @default(now())
-  status        String          @default("processed")
-  source        String          @default("manual-upload")
-  outbound_rows outbound_rows[]
-}
-
-enum AttendanceStatus {
-  PRESENT
-  ABSENT
-  LEAVE
-  WEEKLY_OFF
-  HALF_DAY
-}
-
-enum EmployeeType {
-  ON_ROLL
-  OFF_ROLL
+  @@map("outbound_uploads")
 }
 
 enum NormalizedCategory {
@@ -254,4 +38,288 @@ enum ProductCategory {
   TOYS_AND_GAMES
   BRAND_PRIVATE_LABEL
   OTHERS
+}
+
+model OutboundRow {
+  id                  String             @id @default(uuid())
+  uploadId            String             @map("upload_id")
+  customerGroup       String?            @map("customer_group")
+  sourceWarehouse     String?            @map("source_warehouse")
+  soItem              String?            @map("so_item")
+  categoryRaw         String?            @map("category_raw")
+  salesOrderQty       Float              @default(0) @map("sales_order_qty")
+  soTotalCbm          Float              @default(0) @map("so_total_cbm")
+  soDate              DateTime?          @map("so_date")
+  dispatchByDate      DateTime?          @map("dispatch_by_date")
+  deliveryNoteDate    DateTime?          @map("delivery_note_date")
+  deliveryNoteItem    String?            @map("delivery_note_item")
+  deliveryNoteQty     Float              @default(0) @map("delivery_note_qty")
+  dnTotalCbm          Float              @default(0) @map("dn_total_cbm")
+  transporter         String?
+  normalizedCategory  NormalizedCategory @map("normalized_category")
+  productCategory     ProductCategory    @default(OTHERS) @map("product_category")
+  createdAt           DateTime           @default(now()) @map("created_at")
+
+  upload OutboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@index([uploadId])
+  @@index([deliveryNoteDate])
+  @@index([soDate])
+  @@index([dispatchByDate])
+  @@index([normalizedCategory])
+  @@index([productCategory])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND deliveryNoteDate BETWEEN ? AND ?
+  @@index([uploadId, deliveryNoteDate])
+  @@index([uploadId, soDate])
+  // Composite index for category filtering: WHERE uploadId = ? AND normalizedCategory = ?
+  @@index([uploadId, normalizedCategory])
+  @@map("outbound_rows")
+}
+
+model ItemMaster {
+  id           String   @id         // master ID (from column B)
+  itemGroup    String   @map("item_group") // Item Group (D)
+  cbmPerUnit   Float    @default(0) @map("cbm_per_unit") // CBM (H), default 0 if invalid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("item_master")
+}
+
+model InboundUpload {
+  id          String   @id @default(uuid())
+  fileName    String   @map("file_name")
+  uploadedAt  DateTime @default(now()) @map("uploaded_at")
+  status      String   @default("processed") // "processed" | "failed"
+  source      String   @default("manual-upload")
+  rows        InboundRow[]
+
+  @@map("inbound_uploads")
+}
+
+model InboundRow {
+  id             String        @id @default(uuid())
+  uploadId       String        @map("upload_id")
+  upload         InboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  dateOfUnload   DateTime?     @map("date_of_unload")
+  invoiceSku     String?       @map("invoice_sku")
+  receivedSku    String?       @map("received_sku")
+  invoiceQty     Float         @default(0) @map("invoice_qty")
+  receivedQty    Float         @default(0) @map("received_qty")
+  goodQty        Float         @default(0) @map("good_qty")
+
+  // joined from ItemMaster based on receivedSku == ItemMaster.id
+  itemGroup      String?       @map("item_group") // Item Group (D), or "Others" if not found
+  cbmPerUnit     Float         @default(0) @map("cbm_per_unit")
+  totalCbm       Float         @default(0) @map("total_cbm")
+
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([uploadId])
+  @@index([dateOfUnload])
+  @@index([itemGroup])
+  @@index([productCategory])
+  // Composite index for getSummary date filtering: WHERE uploadId = ? AND dateOfUnload BETWEEN ? AND ?
+  @@index([uploadId, dateOfUnload])
+  @@map("inbound_rows")
+}
+
+// ============================================
+// Phase 4 - Inventory Models
+// ============================================
+
+model InventoryUpload {
+  id          String           @id @default(uuid())
+  fileName    String           @map("file_name")
+  uploadedAt  DateTime         @default(now()) @map("uploaded_at")
+  status      String           @default("processing") // "processing" | "processed" | "failed"
+  source      String           @default("manual-upload")
+
+  rows        InventoryRow[]
+
+  @@map("inventory_uploads")
+}
+
+model InventoryRow {
+  id           String              @id @default(uuid())
+  uploadId     String              @map("upload_id")
+  upload       InventoryUpload     @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  item         String              // A - Item name
+  warehouse    String              // C - Warehouse
+  itemGroup    String              @map("item_group") // D - Item Group
+  cbmPerUnit   Float               @default(0) @map("cbm_per_unit") // G - CBM per unit
+  isTotalRow   Boolean             @default(false) @map("is_total_row") // True if this is the "Total" row
+
+  productCategory ProductCategory @default(OTHERS) @map("product_category")
+
+  dailyStocks  InventoryDailyStock[]
+
+  createdAt    DateTime            @default(now()) @map("created_at")
+
+  @@index([uploadId])
+  @@index([itemGroup])
+  @@index([productCategory])
+  // Composite index for getSummary filter: WHERE uploadId = ? AND itemGroup = ?
+  @@index([uploadId, itemGroup])
+  // Composite index for Total row lookup: WHERE uploadId = ? AND isTotalRow = true
+  @@index([uploadId, isTotalRow])
+  // Composite index for time series with category filter
+  @@index([uploadId, productCategory])
+  @@map("inventory_rows")
+}
+
+model InventoryDailyStock {
+  id             String        @id @default(uuid())
+  inventoryRowId String        @map("inventory_row_id")
+  inventoryRow   InventoryRow  @relation(fields: [inventoryRowId], references: [id], onDelete: Cascade)
+
+  stockDate      DateTime      @map("stock_date")
+  quantity       Float         @default(0)
+
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  @@index([inventoryRowId])
+  @@index([stockDate])
+  // Composite index for date-range queries filtering by inventoryRowId + stockDate
+  // Covers WHERE inventoryRowId = ? AND stockDate BETWEEN ? AND ? (getSummary hot path)
+  @@index([inventoryRowId, stockDate])
+  // Composite index for time series aggregation: GROUP BY stock_date with row join
+  @@index([stockDate, inventoryRowId])
+  @@map("inventory_daily_stock")
+}
+
+// ============================================
+// Phase 5 - Billing Models
+// ============================================
+
+model BillingPeriod {
+  id             String            @id @default(uuid())
+  customerName   String            @map("customer_name")   // e.g. "Lifelong"
+  location       String                                     // e.g. "HR-11 & HR12 (Farukh Nagar & Daboda)"
+  year           Int                                        // 2025
+  month          Int                                        // 1–12
+  fromDate       DateTime?         @map("from_date")
+  toDate         DateTime?         @map("to_date")
+
+  // Snapshot of core metrics for that month
+  inventoryCbm   Float             @default(0) @map("inventory_cbm")
+  outboundCbm    Float             @default(0) @map("outbound_cbm")
+  inventoryRate  Float             @default(410) @map("inventory_rate")
+  outboundRate   Float             @default(86) @map("outbound_rate")
+
+  // Pre-calculated core amounts
+  inventoryAmount Float            @default(0) @map("inventory_amount")
+  outboundAmount  Float            @default(0) @map("outbound_amount")
+
+  // Totals
+  subtotalAmount  Float            @default(0) @map("subtotal_amount")
+  gstPercent      Float            @default(18) @map("gst_percent")
+  gstAmount       Float            @default(0) @map("gst_amount")
+  grandTotal      Float            @default(0) @map("grand_total")
+
+  status          String           @default("draft")  // "draft" | "final"
+  notes           String?
+
+  lineItems       BillingLineItem[]
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
+
+  @@unique([customerName, location, year, month])
+  @@map("billing_periods")
+}
+
+model BillingLineItem {
+  id              String        @id @default(uuid())
+  billingPeriodId String        @map("billing_period_id")
+  billingPeriod   BillingPeriod @relation(fields: [billingPeriodId], references: [id], onDelete: Cascade)
+
+  // Type helps separate core vs extras
+  type            String        // "INVENTORY" | "OUTBOUND" | "PACKAGING" | "OT" | "ADHOC" | "FOOD" | "OVERHEAD" | "VAS" | "OTHER"
+  label           String        // e.g. "Inventory", "Out Bound", "Overtime Cost Blue Collars"
+  qty             Float?        @default(0)
+  cbm             Float?        @default(0)      // for core rows if needed
+  rate            Float?        @default(0)
+  amount          Float         @default(0)      // final amount = qty*rate or directly set
+  isCore          Boolean       @default(false)  @map("is_core") // true: auto-calculated rows
+  source          String        @default("SYSTEM") // "SYSTEM" | "USER"
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([billingPeriodId])
+  @@map("billing_line_items")
+}
+
+// ============================================
+// Phase 6 - Attendance Models
+// ============================================
+
+enum EmployeeType {
+  ON_ROLL
+  OFF_ROLL
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  WEEKLY_OFF
+  HALF_DAY
+}
+
+model Employee {
+  id           String       @id @default(uuid())
+  employeeId   String       @unique @map("employee_id") // e.g., F00000001, DLP117
+  name         String
+  designation  String?
+  department   String?
+  vendor       String?      // KBR, Drona Value Chain, etc.
+  contact      String?
+  dateOfJoining DateTime?   @map("date_of_joining")
+  employeeType EmployeeType @default(OFF_ROLL) @map("employee_type")
+  location     String       @default("Farukh Nagar")
+  isActive     Boolean      @default(true) @map("is_active")
+  
+  attendances  Attendance[]
+  
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+
+  @@index([employeeType])
+  @@index([isActive])
+  @@index([vendor])
+  @@index([location])
+  @@map("employees")
+}
+
+model Attendance {
+  id           String           @id @default(uuid())
+  employeeId   String           @map("employee_id")
+  employee     Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  
+  date         DateTime         @db.Date
+  status       AttendanceStatus @default(PRESENT)
+  inTime       DateTime?        @map("in_time")
+  outTime      DateTime?        @map("out_time")
+  totalHours   Float            @default(0) @map("total_hours")    // Calculated: outTime - inTime
+  overtimeHours Float           @default(0) @map("overtime_hours") // Hours beyond 9 hrs
+  remarks      String?
+  
+  // Source tracking
+  source       String           @default("manual") // "manual" | "excel-upload"
+  uploadBatch  String?          @map("upload_batch") // To group excel uploads
+  
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  @@unique([employeeId, date]) // One attendance record per employee per day
+  @@index([date])
+  @@index([status])
+  @@index([source])
+  @@index([uploadBatch])
+  @@index([employeeId, date])
+  @@map("attendances")
 }
