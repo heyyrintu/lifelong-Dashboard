@@ -2,18 +2,22 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-http-bearer';
 import { Client, Account } from 'node-appwrite';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppwriteStrategy extends PassportStrategy(Strategy, 'appwrite') {
     private client: Client;
     private account: Account;
 
-    constructor() {
+    constructor(private configService: ConfigService) {
         super();
 
+        const endpoint = this.configService.get<string>('APPWRITE_ENDPOINT') || 'https://fra.cloud.appwrite.io/v1';
+        const projectId = this.configService.get<string>('APPWRITE_PROJECT_ID') || '692932d700154b91c6cb';
+
         this.client = new Client()
-            .setEndpoint(process.env.APPWRITE_ENDPOINT || 'https://cloud.appwrite.io/v1')
-            .setProject(process.env.APPWRITE_PROJECT_ID || '');
+            .setEndpoint(endpoint)
+            .setProject(projectId);
 
         this.account = new Account(this.client);
     }
@@ -31,7 +35,7 @@ export class AppwriteStrategy extends PassportStrategy(Strategy, 'appwrite') {
                 email: user.email,
                 name: user.name,
             };
-        } catch (error) {
+        } catch (error: any) {
             throw new UnauthorizedException('Invalid authentication token');
         }
     }
