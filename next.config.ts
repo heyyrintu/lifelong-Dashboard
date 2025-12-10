@@ -6,7 +6,20 @@ const nextConfig: NextConfig = {
   
   // Image optimization
   images: {
-    domains: ['fra.cloud.appwrite.io'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'fra.cloud.appwrite.io',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.dribbble.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.pravatar.cc',
+      },
+    ],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 60,
   },
