@@ -3,6 +3,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AppwriteStrategy } from './strategies/appwrite.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { APP_GUARD } from '@nestjs/core';
@@ -23,6 +24,7 @@ import { APP_GUARD } from '@nestjs/core';
   ],
   providers: [
     JwtStrategy,
+    AppwriteStrategy,
     JwtAuthGuard,
     RolesGuard,
     // Apply JWT guard globally - all routes protected by default
@@ -38,4 +40,4 @@ import { APP_GUARD } from '@nestjs/core';
   ],
   exports: [JwtModule, PassportModule, JwtAuthGuard, RolesGuard],
 })
-export class AuthModule {}
+export class AuthModule { }
