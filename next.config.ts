@@ -14,10 +14,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'cdn.dribbble.com',
+        pathname: '/userupload/**',
       },
       {
         protocol: 'https',
         hostname: 'i.pravatar.cc',
+        pathname: '/150',
       },
     ],
     formats: ['image/webp', 'image/avif'],

@@ -46,6 +46,7 @@ export function HealthIndicator() {
     checkHealth();
     const interval = setInterval(checkHealth, 60000); // Check every minute
     return () => clearInterval(interval);
+    // Only run on mount - checkHealth is stable and doesn't need to be in dependencies
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
