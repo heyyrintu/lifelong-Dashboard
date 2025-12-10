@@ -91,7 +91,7 @@ export class InboundService implements OnModuleInit {
   constructor(
     private prisma: PrismaService,
     private categoryNormalizer: CategoryNormalizerService,
-  ) {}
+  ) { }
 
   /**
    * Auto-load Item Master on module initialization
@@ -169,15 +169,15 @@ export class InboundService implements OnModuleInit {
 
     // Batch upsert using raw SQL with ON CONFLICT DO UPDATE
     const BATCH_SIZE = 1000;
-    
+
     // Remove duplicates
     const uniqueRecords = Array.from(
       new Map(itemMasterRecords.map(record => [record.id, record])).values()
     );
-    
+
     for (let i = 0; i < uniqueRecords.length; i += BATCH_SIZE) {
       const batch = uniqueRecords.slice(i, i + BATCH_SIZE);
-      
+
       const values = batch.map((_, idx) => {
         const offset = idx * 3;
         return `($${offset + 1}, $${offset + 2}, $${offset + 3})`;
@@ -204,8 +204,8 @@ export class InboundService implements OnModuleInit {
       console.log(`ItemMaster loaded: ${uniqueRecords.length} rows in ${elapsed}ms`);
     }
 
-    return { 
-      uploadId: 'item-master-' + Date.now(), 
+    return {
+      uploadId: 'item-master-' + Date.now(),
       rowsProcessed: uniqueRecords.length,
       message: 'Item Master processed successfully',
     };
@@ -483,7 +483,7 @@ export class InboundService implements OnModuleInit {
     // 'all' when no uploadId specified = aggregate across all uploads
     const granularity = timeGranularity || 'month';
     const cacheKey = `${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${granularity}`;
-    
+
     // Check cache
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -581,7 +581,7 @@ export class InboundService implements OnModuleInit {
     // Build date filter
     let dateCondition = '';
     const params: any[] = [uploadIds];
-    
+
     if (fromDate) {
       params.push(this.parseLocalDate(fromDate));
       dateCondition += ` AND date_of_unload >= $${params.length}`;
@@ -804,8 +804,8 @@ export class InboundService implements OnModuleInit {
       edel_total_cbm: number;
     }>>(`
       SELECT 
-        DATE(date_of_unload) as day_date,
-        TO_CHAR(date_of_unload, 'YYYY-MM-DD') as day_label,
+        DATE(date_of_unload + INTERVAL '5 hours 30 minutes') as day_date,
+        TO_CHAR(date_of_unload + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD') as day_label,
         COALESCE(SUM(received_qty), 0) as received_qty,
         COALESCE(SUM(total_cbm), 0) as total_cbm,
         COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
@@ -814,7 +814,7 @@ export class InboundService implements OnModuleInit {
       WHERE upload_id = ANY($1)
         AND date_of_unload IS NOT NULL
         ${dateCondition}
-      GROUP BY DATE(date_of_unload), TO_CHAR(date_of_unload, 'YYYY-MM-DD')
+      GROUP BY DATE(date_of_unload + INTERVAL '5 hours 30 minutes'), TO_CHAR(date_of_unload + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD')
       ORDER BY day_date
     `, ...params);
 
@@ -872,7 +872,7 @@ export class InboundService implements OnModuleInit {
     const createStyledSheet = (
       sheetName: string,
       header: string[],
-      rows: Array<Array<string | number>>, 
+      rows: Array<Array<string | number>>,
       totalsRow?: Array<string | number>,
     ) => {
       const data = [header, ...rows];
@@ -952,14 +952,14 @@ export class InboundService implements OnModuleInit {
     ]);
     const chartTotals = chartRows.length
       ? [
-          'Total',
-          '',
-          '',
-          chartRows.reduce((sum, row) => sum + (Number(row[3]) || 0), 0),
-          chartRows.reduce((sum, row) => sum + (Number(row[4]) || 0), 0),
-          chartRows.reduce((sum, row) => sum + (Number(row[5]) || 0), 0),
-          chartRows.reduce((sum, row) => sum + (Number(row[6]) || 0), 0),
-        ]
+        'Total',
+        '',
+        '',
+        chartRows.reduce((sum, row) => sum + (Number(row[3]) || 0), 0),
+        chartRows.reduce((sum, row) => sum + (Number(row[4]) || 0), 0),
+        chartRows.reduce((sum, row) => sum + (Number(row[5]) || 0), 0),
+        chartRows.reduce((sum, row) => sum + (Number(row[6]) || 0), 0),
+      ]
       : undefined;
     createStyledSheet('Chart Data', chartHeader, chartRows, chartTotals);
 
@@ -1013,34 +1013,34 @@ export class InboundService implements OnModuleInit {
    */
   private parseExcelDate(cell: unknown): Date | null {
     if (cell === undefined || cell === null || cell === '') return null;
-    
+
     try {
       // Handle Excel serial date numbers
       if (typeof cell === 'number') {
         const serialNumber = Math.floor(cell);
-        
+
         if (serialNumber < 1) return null;
         if (serialNumber > 2958465) return null; // Beyond year 9999
-        
+
         // Adjust for Excel's leap year bug
         const adjustedSerial = serialNumber >= 60 ? serialNumber - 1 : serialNumber;
         const date = new Date(1899, 11, 31 + adjustedSerial);
-        
+
         // Handle time component
         const timeFraction = cell - serialNumber;
         if (timeFraction > 0) {
           const milliseconds = Math.round(timeFraction * 24 * 60 * 60 * 1000);
           date.setMilliseconds(date.getMilliseconds() + milliseconds);
         }
-        
+
         return isNaN(date.getTime()) ? null : date;
       }
-      
+
       // Handle string dates
       if (typeof cell === 'string') {
         const trimmed = cell.trim();
         if (!trimmed) return null;
-        
+
         // Try ISO format first
         const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (isoMatch) {
@@ -1048,7 +1048,7 @@ export class InboundService implements OnModuleInit {
           const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
           return isNaN(date.getTime()) ? null : date;
         }
-        
+
         // Try DD/MM/YYYY format
         const dateMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
         if (dateMatch) {
@@ -1059,16 +1059,16 @@ export class InboundService implements OnModuleInit {
           const date = new Date(year, month, day);
           return isNaN(date.getTime()) ? null : date;
         }
-        
+
         // Fallback
         const date = new Date(trimmed);
         return isNaN(date.getTime()) ? null : date;
       }
-      
+
       if (cell instanceof Date) {
         return isNaN(cell.getTime()) ? null : cell;
       }
-      
+
       return null;
     } catch {
       return null;
