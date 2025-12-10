@@ -4,7 +4,6 @@ import { useState, useEffect, Suspense, useRef } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
-import { MetricCard } from '@/components/ui/metric-card';
 import { Boxes, Package, Box, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, TrendingUp, Download } from 'lucide-react';
 import {
   BarChart,

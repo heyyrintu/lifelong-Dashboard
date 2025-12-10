@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import PageHeader from '@/components/common/PageHeader';
 import { AdminRoute } from '@/components/auth/AdminRoute';
-import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
+import { Upload as UploadIcon, File, CheckCircle2, Trash2, Eye } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/api';
 
 interface UploadInfo {

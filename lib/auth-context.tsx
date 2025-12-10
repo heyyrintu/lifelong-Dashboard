@@ -36,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const memberships = await teams.listMemberships(ADMIN_TEAM_ID);
       // If user has any membership in admin team, they are admin
       setIsAdmin(memberships.total > 0);
-    } catch (error) {
+    } catch {
       // User is not in admin team or team doesn't exist
       setIsAdmin(false);
     }
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await checkAdminStatus();
-    } catch (error) {
+    } catch {
       setUser(null);
       setIsAdmin(false);
     } finally {

@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import PageHeader from '@/components/common/PageHeader';
-import { MetricCard } from '@/components/ui/metric-card';
-import Table from '@/components/common/Table';
-import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search, FileText, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, RefreshCw, Search, FileText, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   BarChart,
   Bar,
