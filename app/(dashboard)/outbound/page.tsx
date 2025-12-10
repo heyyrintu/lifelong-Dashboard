@@ -20,6 +20,7 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
+import { authenticatedFetch } from '@/lib/api';
 
 interface CardMetrics {
   soSku: number;
@@ -122,7 +123,7 @@ interface TopProduct {
   percentageOfTotal: number;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
@@ -255,22 +256,22 @@ export default function OutboundPage() {
         setLoading(true);
         setChartLoading(true);
         setTopProductsLoading(true);
-        
+
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
-        
+
         const [summaryResponse, topProductsResponse] = await Promise.all([
-          fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`),
-          fetch(`${BACKEND_URL}/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
+          authenticatedFetch(`/outbound/summary?${params.toString()}`),
+          authenticatedFetch(`/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
         ]);
-        
+
         if (!summaryResponse.ok) {
           if (summaryResponse.status === 404) {
             throw new Error('No data available. Please upload an Outbound Excel file first.');
           }
           throw new Error('Failed to fetch data from backend');
         }
-        
+
         const result: SummaryResponse = await summaryResponse.json();
         setData(result);
         setChartData(result.timeSeries);
@@ -289,7 +290,7 @@ export default function OutboundPage() {
         setTopProductsLoading(false);
       }
     };
-    
+
     fetchInitialData();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -300,7 +301,7 @@ export default function OutboundPage() {
       // Only send timeGranularity, no filters for chart data
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch chart data');
@@ -339,7 +340,7 @@ export default function OutboundPage() {
       // Always send timeGranularity
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -380,7 +381,7 @@ export default function OutboundPage() {
       // Use the passed granularity instead of state
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/outbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -412,7 +413,7 @@ export default function OutboundPage() {
       params.append('limit', '10');
       params.append('rankBy', rankBy);
       params.append('sortOrder', sortOrder);
-      
+
       // Apply current filters
       if (selectedMonth && selectedMonth !== 'ALL') {
         params.append('month', selectedMonth);
@@ -427,12 +428,12 @@ export default function OutboundPage() {
         params.append('warehouse', selectedWarehouse);
       }
 
-      const response = await fetch(`${BACKEND_URL}/outbound/top-products?${params.toString()}`);
-      
+      const response = await authenticatedFetch(`/outbound/top-products?${params.toString()}`);
+
       if (!response.ok) {
         throw new Error('Failed to fetch top products');
       }
-      
+
       const result: TopProduct[] = await response.json();
       setTopProducts(result);
     } catch (err: any) {
@@ -509,7 +510,7 @@ export default function OutboundPage() {
       }
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/outbound/download-summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/outbound/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download summary');
@@ -674,7 +675,7 @@ export default function OutboundPage() {
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
-                <div className="relative flex-1">
+              <div className="relative flex-1">
                 <input
                   type="date"
                   value={fromDate}
@@ -692,7 +693,7 @@ export default function OutboundPage() {
               <div className="px-1.5 text-gray-300 dark:text-slate-600">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
-                <div className="relative flex-1">
+              <div className="relative flex-1">
                 <input
                   type="date"
                   value={toDate}
@@ -941,7 +942,7 @@ export default function OutboundPage() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <TrendingUp className="w-6 h-6 text-white" />
@@ -951,7 +952,7 @@ export default function OutboundPage() {
               <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
@@ -967,7 +968,7 @@ export default function OutboundPage() {
                 {loading ? '-' : formatNumber(derivedCards?.soSku)}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
@@ -982,7 +983,7 @@ export default function OutboundPage() {
                 {loading ? '-' : formatInLakhs(derivedCards?.soQty)}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
@@ -1010,7 +1011,7 @@ export default function OutboundPage() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
               <FileText className="w-6 h-6 text-white" />
@@ -1020,7 +1021,7 @@ export default function OutboundPage() {
               <p className="text-sm text-gray-500 dark:text-slate-400">Delivery metrics</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
@@ -1036,7 +1037,7 @@ export default function OutboundPage() {
                 {loading ? '-' : formatNumber(derivedCards?.dnSku)}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
@@ -1051,7 +1052,7 @@ export default function OutboundPage() {
                 {loading ? '-' : formatInLakhs(derivedCards?.dnQty)}
               </span>
             </div>
-            
+
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
@@ -1079,7 +1080,7 @@ export default function OutboundPage() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
               <ArrowRightLeft className="w-6 h-6 text-white" />
@@ -1089,121 +1090,109 @@ export default function OutboundPage() {
               <p className="text-sm text-gray-500 dark:text-slate-400">Difference metrics</p>
             </div>
           </div>
-          
+
           <div className="space-y-4">
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
+            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
                 : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-            }`}>
+              }`}>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
                     : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
-                }`}>
-                  <Package className={`w-5 h-5 ${
-                    (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
+                  }`}>
+                  <Package className={`w-5 h-5 ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
                       ? 'text-orange-600 dark:text-orange-400'
                       : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
-                  }`} />
+                    }`} />
                 </div>
                 <div>
                   <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN SKU</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Pending SKU difference</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${
-                (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0 
-                  ? 'text-orange-600 dark:text-orange-400' 
+              <span className={`text-2xl font-bold font-mono ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
+                  ? 'text-orange-600 dark:text-orange-400'
                   : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
-              }`}>
+                }`}>
                 {loading ? '-' : formatNumber((derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0))}
               </span>
             </div>
-            
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              (derivedCards?.soMinusDnQty || 0) > 0
+
+            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soMinusDnQty || 0) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
                 : (derivedCards?.soMinusDnQty || 0) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-            }`}>
+              }`}>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  (derivedCards?.soMinusDnQty || 0) > 0
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soMinusDnQty || 0) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
                     : (derivedCards?.soMinusDnQty || 0) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
-                }`}>
-                  <TrendingUp className={`w-5 h-5 ${
-                    (derivedCards?.soMinusDnQty || 0) > 0
+                  }`}>
+                  <TrendingUp className={`w-5 h-5 ${(derivedCards?.soMinusDnQty || 0) > 0
                       ? 'text-orange-600 dark:text-orange-400'
                       : (derivedCards?.soMinusDnQty || 0) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
-                  }`} />
+                    }`} />
                 </div>
                 <div>
                   <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN Qty</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Pending delivery quantity</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${
-                (derivedCards?.soMinusDnQty || 0) > 0 
-                  ? 'text-orange-600 dark:text-orange-400' 
+              <span className={`text-2xl font-bold font-mono ${(derivedCards?.soMinusDnQty || 0) > 0
+                  ? 'text-orange-600 dark:text-orange-400'
                   : (derivedCards?.soMinusDnQty || 0) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
-              }`}>
+                }`}>
                 {loading ? '-' : formatInLakhs(derivedCards?.soMinusDnQty)}
               </span>
             </div>
-            
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${
-              ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
+
+            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                 ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
                 : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                   ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
                   : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-            }`}>
+              }`}>
               <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                     ? 'bg-orange-500/10 dark:bg-orange-500/20'
                     : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                       ? 'bg-red-500/10 dark:bg-red-500/20'
                       : 'bg-green-500/10 dark:bg-green-500/20'
-                }`}>
-                  <Box className={`w-5 h-5 ${
-                    ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
+                  }`}>
+                  <Box className={`w-5 h-5 ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
                       ? 'text-orange-600 dark:text-orange-400'
                       : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                         ? 'text-red-600 dark:text-red-400'
                         : 'text-green-600 dark:text-green-400'
-                  }`} />
+                    }`} />
                 </div>
                 <div>
                   <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN CBM</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Pending delivery volume</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${
-                ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0 
-                  ? 'text-orange-600 dark:text-orange-400' 
+              <span className={`text-2xl font-bold font-mono ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
+                  ? 'text-orange-600 dark:text-orange-400'
                   : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
                     ? 'text-red-600 dark:text-red-400'
                     : 'text-green-600 dark:text-green-400'
-              }`}>
+                }`}>
                 {loading ? '-' : formatInThousands((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0))}
               </span>
             </div>
@@ -1223,7 +1212,7 @@ export default function OutboundPage() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
               <TrendingUp className="w-5 h-5 text-white" />
@@ -1233,19 +1222,19 @@ export default function OutboundPage() {
               <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Quantity Ratio</p>
             </div>
           </div>
-          
+
           <div className="h-52 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={[
-                    { 
-                      name: 'Fulfilled (DN)', 
+                    {
+                      name: 'Fulfilled (DN)',
                       value: derivedCards?.dnQty || 0,
                       fill: '#10b981'
                     },
-                    { 
-                      name: 'Pending', 
+                    {
+                      name: 'Pending',
                       value: Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)),
                       fill: '#f59e0b'
                     },
@@ -1294,7 +1283,7 @@ export default function OutboundPage() {
               <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
             </div>
           </div>
-          
+
           {/* Legend */}
           <div className="flex justify-center gap-6 mt-2">
             <div className="flex items-center gap-2">
@@ -1318,7 +1307,7 @@ export default function OutboundPage() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
               <Box className="w-5 h-5 text-white" />
@@ -1328,19 +1317,19 @@ export default function OutboundPage() {
               <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Volume Ratio</p>
             </div>
           </div>
-          
+
           <div className="h-52 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={[
-                    { 
-                      name: 'Fulfilled (DN)', 
+                    {
+                      name: 'Fulfilled (DN)',
                       value: derivedCards?.dnTotalCbm || 0,
                       fill: '#3b82f6'
                     },
-                    { 
-                      name: 'Pending', 
+                    {
+                      name: 'Pending',
                       value: Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)),
                       fill: '#f59e0b'
                     },
@@ -1389,7 +1378,7 @@ export default function OutboundPage() {
               <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
             </div>
           </div>
-          
+
           {/* Legend */}
           <div className="flex justify-center gap-6 mt-2">
             <div className="flex items-center gap-2">
@@ -1415,7 +1404,7 @@ export default function OutboundPage() {
           {/* Decorative gradient blobs */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-4">
@@ -1675,7 +1664,7 @@ export default function OutboundPage() {
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             {/* Header */}
             <div className="flex items-center gap-3 mb-6 relative z-10">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
@@ -1698,8 +1687,8 @@ export default function OutboundPage() {
                   <PieChart>
                     <Pie
                       data={topProducts.slice(0, 10).map((product) => ({
-                        name: product.deliveryNoteItem.length > 20 
-                          ? product.deliveryNoteItem.substring(0, 20) + '...' 
+                        name: product.deliveryNoteItem.length > 20
+                          ? product.deliveryNoteItem.substring(0, 20) + '...'
                           : product.deliveryNoteItem,
                         value: product.totalCbm,
                         fullName: product.deliveryNoteItem,
@@ -1715,12 +1704,12 @@ export default function OutboundPage() {
                       paddingAngle={2}
                     >
                       {topProducts.slice(0, 10).map((_, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
+                        <Cell
+                          key={`cell-${index}`}
                           fill={[
                             '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
                             '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
-                          ][index % 10]} 
+                          ][index % 10]}
                         />
                       ))}
                     </Pie>
@@ -1759,18 +1748,18 @@ export default function OutboundPage() {
               <div className="mt-4 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                 {topProducts.slice(0, 10).map((product, index) => (
                   <div key={product.deliveryNoteItem} className="flex items-center gap-2 text-xs">
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
-                      style={{ 
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{
                         backgroundColor: [
                           '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
                           '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
-                        ][index % 10] 
-                      }} 
+                        ][index % 10]
+                      }}
                     />
                     <span className="text-gray-600 dark:text-slate-400 truncate">
-                      {product.deliveryNoteItem.length > 25 
-                        ? product.deliveryNoteItem.substring(0, 25) + '...' 
+                      {product.deliveryNoteItem.length > 25
+                        ? product.deliveryNoteItem.substring(0, 25) + '...'
                         : product.deliveryNoteItem}
                     </span>
                   </div>
@@ -1791,7 +1780,7 @@ export default function OutboundPage() {
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             {/* Header */}
             <div className="flex items-center gap-3 mb-6 relative z-10">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
@@ -1825,12 +1814,12 @@ export default function OutboundPage() {
                       paddingAngle={2}
                     >
                       {productCategoryDonutData.map((_, index) => (
-                        <Cell 
-                          key={`cell-${index}`} 
+                        <Cell
+                          key={`cell-${index}`}
                           fill={[
                             '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
                             '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
-                          ][index % 10]} 
+                          ][index % 10]}
                         />
                       ))}
                     </Pie>
@@ -1869,14 +1858,14 @@ export default function OutboundPage() {
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {productCategoryDonutData.map((category, index) => (
                   <div key={category.name} className="flex items-center gap-2 text-xs">
-                    <div 
-                      className="w-3 h-3 rounded-full flex-shrink-0" 
-                      style={{ 
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{
                         backgroundColor: [
                           '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
                           '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
-                        ][index % 10] 
-                      }} 
+                        ][index % 10]
+                      }}
                     />
                     <span className="text-gray-600 dark:text-slate-400 truncate">
                       {category.name}
@@ -1900,7 +1889,7 @@ export default function OutboundPage() {
           {/* Decorative gradient blobs */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           {/* Header */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 relative z-10">
             <div className="flex items-center gap-4">
@@ -1918,53 +1907,49 @@ export default function OutboundPage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Controls */}
             <div className="flex items-center gap-3">
               {/* Rank By Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 <button
                   onClick={() => handleRankByChange('cbm')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                    topProductsRankBy === 'cbm'
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsRankBy === 'cbm'
                       ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   By CBM
                 </button>
                 <button
                   onClick={() => handleRankByChange('qty')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                    topProductsRankBy === 'qty'
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsRankBy === 'qty'
                       ? 'bg-white dark:bg-slate-600 text-gray-900 dark:text-white shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   By Qty
                 </button>
               </div>
-              
+
               {/* Sort Order Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 <button
                   onClick={() => handleSortOrderChange('top')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                    topProductsSortOrder === 'top'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsSortOrder === 'top'
                       ? 'bg-white dark:bg-slate-600 text-green-600 dark:text-green-400 shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   <ArrowUp className="w-3.5 h-3.5" />
                   Top
                 </button>
                 <button
                   onClick={() => handleSortOrderChange('bottom')}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${
-                    topProductsSortOrder === 'bottom'
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-all duration-200 ${topProductsSortOrder === 'bottom'
                       ? 'bg-white dark:bg-slate-600 text-red-600 dark:text-red-400 shadow-sm'
                       : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                  }`}
+                    }`}
                 >
                   <ArrowDown className="w-3.5 h-3.5" />
                   Bottom
@@ -2004,15 +1989,14 @@ export default function OutboundPage() {
                       className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors"
                     >
                       <td className="px-4 py-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${
-                          product.rank === 1 
-                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30' 
-                            : product.rank === 2 
-                              ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md' 
-                              : product.rank === 3 
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${product.rank === 1
+                            ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'
+                            : product.rank === 2
+                              ? 'bg-gradient-to-br from-gray-300 to-gray-400 text-white shadow-md'
+                              : product.rank === 3
                                 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white shadow-md shadow-orange-500/20'
                                 : 'bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300'
-                        }`}>
+                          }`}>
                           {product.rank}
                         </div>
                       </td>
@@ -2027,20 +2011,18 @@ export default function OutboundPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`text-sm font-mono font-semibold ${
-                          topProductsRankBy === 'qty' 
-                            ? 'text-amber-600 dark:text-amber-400' 
+                        <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'qty'
+                            ? 'text-amber-600 dark:text-amber-400'
                             : 'text-gray-700 dark:text-slate-300'
-                        }`}>
+                          }`}>
                           {formatNumber(product.totalQty)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <span className={`text-sm font-mono font-semibold ${
-                          topProductsRankBy === 'cbm' 
-                            ? 'text-amber-600 dark:text-amber-400' 
+                        <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'cbm'
+                            ? 'text-amber-600 dark:text-amber-400'
                             : 'text-gray-700 dark:text-slate-300'
-                        }`}>
+                          }`}>
                           {formatNumber(product.totalCbm, 2)}
                         </span>
                       </td>
@@ -2085,11 +2067,10 @@ export default function OutboundPage() {
                 onClick={() => handleTimeGranularityChange(granularity)}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                  timeGranularity === granularity
+                className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
                     ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
                     : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
-                }`}
+                  }`}
                 suppressHydrationWarning={true}
               >
                 {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
@@ -2108,7 +2089,7 @@ export default function OutboundPage() {
           >
             {/* Decorative gradient blob */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO Qty vs DN Qty</h3>
@@ -2133,9 +2114,9 @@ export default function OutboundPage() {
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="currentColor" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
                       strokeOpacity={0.1}
                       className="text-gray-300 dark:text-slate-700"
                     />
@@ -2212,7 +2193,7 @@ export default function OutboundPage() {
           >
             {/* Decorative gradient blob */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO CBM vs DN CBM</h3>
@@ -2237,9 +2218,9 @@ export default function OutboundPage() {
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="currentColor" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
                       strokeOpacity={0.1}
                       className="text-gray-300 dark:text-slate-700"
                     />
@@ -2249,7 +2230,7 @@ export default function OutboundPage() {
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                     />
-                    <YAxis 
+                    <YAxis
                       tick={{ fontSize: 11, fill: 'currentColor' }}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
@@ -2320,7 +2301,7 @@ export default function OutboundPage() {
           {/* Decorative gradient blobs */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-4">
@@ -2582,7 +2563,7 @@ export default function OutboundPage() {
           {/* Decorative gradient blobs */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
             <div className="flex items-center gap-4">
@@ -2659,15 +2640,14 @@ export default function OutboundPage() {
                   >
                     {/* Status gradient overlay based on percentage */}
                     <div
-                      className={`absolute inset-0 bg-gradient-to-l ${
-                        row.percentage >= 100 
-                          ? 'from-green-500/20 via-green-500/10 to-transparent' 
-                          : row.percentage >= 90 
+                      className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
+                          ? 'from-green-500/20 via-green-500/10 to-transparent'
+                          : row.percentage >= 90
                             ? 'from-blue-500/15 via-blue-500/5 to-transparent'
                             : row.percentage >= 75
                               ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
                               : 'from-red-500/15 via-red-500/5 to-transparent'
-                      } pointer-events-none`}
+                        } pointer-events-none`}
                       style={{
                         backgroundSize: "30% 100%",
                         backgroundPosition: "right",
@@ -2707,16 +2687,14 @@ export default function OutboundPage() {
 
                       {/* Pending */}
                       <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
-                          row.pending === 0 
-                            ? 'bg-green-500/10 border border-green-500/30' 
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
+                            ? 'bg-green-500/10 border border-green-500/30'
                             : 'bg-red-500/10 border border-red-500/30'
-                        }`}>
-                          <span className={`text-sm font-medium font-mono ${
-                            row.pending === 0 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
                           }`}>
+                          <span className={`text-sm font-medium font-mono ${row.pending === 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                            }`}>
                             {formatNumber(row.pending)}
                           </span>
                         </div>
@@ -2724,24 +2702,22 @@ export default function OutboundPage() {
 
                       {/* Percentage */}
                       <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
-                          row.percentage >= 100 
-                            ? 'bg-green-500/20 border-2 border-green-500/50' 
-                            : row.percentage >= 90 
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
+                            ? 'bg-green-500/20 border-2 border-green-500/50'
+                            : row.percentage >= 90
                               ? 'bg-blue-500/10 border border-blue-500/30'
                               : row.percentage >= 75
                                 ? 'bg-yellow-500/10 border border-yellow-500/30'
                                 : 'bg-red-500/10 border border-red-500/30'
-                        }`}>
-                          <span className={`text-sm font-bold font-mono ${
-                            row.percentage >= 100 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : row.percentage >= 90 
+                          }`}>
+                          <span className={`text-sm font-bold font-mono ${row.percentage >= 100
+                              ? 'text-green-600 dark:text-green-400'
+                              : row.percentage >= 90
                                 ? 'text-blue-600 dark:text-blue-400'
                                 : row.percentage >= 75
                                   ? 'text-yellow-600 dark:text-yellow-400'
                                   : 'text-red-600 dark:text-red-400'
-                          }`}>
+                            }`}>
                             {row.percentage.toFixed(2)}%
                           </span>
                         </div>

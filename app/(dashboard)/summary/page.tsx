@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
 import * as XLSX from 'xlsx';
+import { authenticatedFetch } from '@/lib/api';
 
 interface FulfillmentRow {
   date: string;
@@ -50,12 +51,12 @@ interface QuickSummaryData {
   fulfillmentTable?: FulfillmentRow[];
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
-  
+
   // Prepare data with headers
   const wsData = [
     ['Fulfillment Report'],
@@ -70,9 +71,9 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
       row.percentage.toFixed(2) + '%'
     ])
   ];
-  
+
   const ws = XLSX.utils.aoa_to_sheet(wsData);
-  
+
   // Set column widths
   ws['!cols'] = [
     { wch: 15 }, // Date
@@ -81,17 +82,17 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
     { wch: 12 }, // Pending
     { wch: 15 }, // Fulfillment %
   ];
-  
+
   // Merge cells for title
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, // Title row
     { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }, // Date row
   ];
-  
+
   // Apply styles (cell formatting)
   // Title cell
-  ws['A1'] = { 
-    v: 'Fulfillment Report', 
+  ws['A1'] = {
+    v: 'Fulfillment Report',
     t: 's',
     s: {
       font: { bold: true, sz: 16, color: { rgb: "4B5563" } },
@@ -99,7 +100,7 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
       fill: { fgColor: { rgb: "E0E7FF" } }
     }
   };
-  
+
   // Date cell
   ws['A2'] = {
     v: 'Generated on: ' + new Date().toLocaleString(),
@@ -109,7 +110,7 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
       alignment: { horizontal: 'center' }
     }
   };
-  
+
   // Header row styling
   ['A4', 'B4', 'C4', 'D4', 'E4'].forEach(cell => {
     if (ws[cell]) {
@@ -126,18 +127,18 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
       };
     }
   });
-  
+
   // Data row styling with conditional formatting based on percentage
   data.forEach((row, index) => {
     const rowNum = index + 5; // Starting from row 5 (0-indexed + 4 header rows + 1)
-    
+
     // Determine color based on percentage
     let bgColor = 'FFFFFF';
     if (row.percentage >= 100) bgColor = 'D1FAE5'; // Green
     else if (row.percentage >= 90) bgColor = 'DBEAFE'; // Blue
     else if (row.percentage >= 75) bgColor = 'FEF3C7'; // Yellow
     else bgColor = 'FEE2E2'; // Red
-    
+
     ['A', 'B', 'C', 'D', 'E'].forEach(col => {
       const cellRef = col + rowNum;
       if (ws[cellRef]) {
@@ -151,12 +152,12 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
             right: { style: 'thin', color: { rgb: 'D1D5DB' } }
           }
         };
-        
+
         // Bold numbers in qty columns
         if (col === 'B' || col === 'C' || col === 'D') {
           ws[cellRef].s.font = { bold: true };
         }
-        
+
         // Percentage column special formatting
         if (col === 'E') {
           ws[cellRef].s.font = { bold: true, color: { rgb: row.percentage >= 90 ? '059669' : 'DC2626' } };
@@ -164,13 +165,13 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
       }
     });
   });
-  
+
   // Add worksheet to workbook
   XLSX.utils.book_append_sheet(wb, ws, 'Fulfillment Report');
-  
+
   // Generate filename with current date
   const fileName = `Fulfillment_Report_${new Date().toISOString().split('T')[0]}.xlsx`;
-  
+
   // Download file
   XLSX.writeFile(wb, fileName);
 };
@@ -244,9 +245,9 @@ export default function SummaryPage() {
 
       // Fetch all three endpoints in parallel
       const [inboundRes, inventoryRes, outboundRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        fetch(`${BACKEND_URL}/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        fetch(`${BACKEND_URL}/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        authenticatedFetch(`/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        authenticatedFetch(`/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        authenticatedFetch(`/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
       ]);
 
       // Parse responses
@@ -1045,7 +1046,7 @@ export default function SummaryPage() {
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div className="flex items-center gap-4">
@@ -1126,15 +1127,14 @@ export default function SummaryPage() {
                   >
                     {/* Status gradient overlay based on percentage */}
                     <div
-                      className={`absolute inset-0 bg-gradient-to-l ${
-                        row.percentage >= 100 
-                          ? 'from-green-500/20 via-green-500/10 to-transparent' 
-                          : row.percentage >= 90 
+                      className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
+                          ? 'from-green-500/20 via-green-500/10 to-transparent'
+                          : row.percentage >= 90
                             ? 'from-blue-500/15 via-blue-500/5 to-transparent'
                             : row.percentage >= 75
                               ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
                               : 'from-red-500/15 via-red-500/5 to-transparent'
-                      } pointer-events-none`}
+                        } pointer-events-none`}
                       style={{
                         backgroundSize: "30% 100%",
                         backgroundPosition: "right",
@@ -1174,16 +1174,14 @@ export default function SummaryPage() {
 
                       {/* Pending */}
                       <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
-                          row.pending === 0 
-                            ? 'bg-green-500/10 border border-green-500/30' 
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
+                            ? 'bg-green-500/10 border border-green-500/30'
                             : 'bg-red-500/10 border border-red-500/30'
-                        }`}>
-                          <span className={`text-sm font-medium font-mono ${
-                            row.pending === 0 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : 'text-red-600 dark:text-red-400'
                           }`}>
+                          <span className={`text-sm font-medium font-mono ${row.pending === 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                            }`}>
                             {formatNumber(row.pending)}
                           </span>
                         </div>
@@ -1191,24 +1189,22 @@ export default function SummaryPage() {
 
                       {/* Percentage */}
                       <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${
-                          row.percentage >= 100 
-                            ? 'bg-green-500/20 border-2 border-green-500/50' 
-                            : row.percentage >= 90 
+                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
+                            ? 'bg-green-500/20 border-2 border-green-500/50'
+                            : row.percentage >= 90
                               ? 'bg-blue-500/10 border border-blue-500/30'
                               : row.percentage >= 75
                                 ? 'bg-yellow-500/10 border border-yellow-500/30'
                                 : 'bg-red-500/10 border border-red-500/30'
-                        }`}>
-                          <span className={`text-sm font-bold font-mono ${
-                            row.percentage >= 100 
-                              ? 'text-green-600 dark:text-green-400' 
-                              : row.percentage >= 90 
+                          }`}>
+                          <span className={`text-sm font-bold font-mono ${row.percentage >= 100
+                              ? 'text-green-600 dark:text-green-400'
+                              : row.percentage >= 90
                                 ? 'text-blue-600 dark:text-blue-400'
                                 : row.percentage >= 75
                                   ? 'text-yellow-600 dark:text-yellow-400'
                                   : 'text-red-600 dark:text-red-400'
-                          }`}>
+                            }`}>
                             {row.percentage.toFixed(2)}%
                           </span>
                         </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense, useRef } from 'react';
+import { authenticatedFetch } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -114,7 +115,7 @@ interface ZeroOrderProductsResponse {
   };
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 function InventoryPageContent() {
   const searchParams = useSearchParams();
@@ -210,7 +211,7 @@ function InventoryPageContent() {
         }
       }
 
-      const response = await fetch(`${BACKEND_URL}/inventory/summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/inventory/summary?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -273,7 +274,7 @@ function InventoryPageContent() {
         params.append('warehouse', selectedWarehouse);
       }
 
-      const response = await fetch(`${BACKEND_URL}/inventory/download-summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/inventory/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download inventory summary');
@@ -315,7 +316,7 @@ function InventoryPageContent() {
       params.append('minAvgQty', minAvgQty.toString());
       params.append('limit', '50');
 
-      const response = await fetch(`${BACKEND_URL}/inventory/fast-moving-skus?${params.toString()}`);
+      const response = await authenticatedFetch(`/inventory/fast-moving-skus?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -378,7 +379,7 @@ function InventoryPageContent() {
       params.append('minDaysInStock', minDaysInStock.toString());
       params.append('limit', '100');
 
-      const response = await fetch(`${BACKEND_URL}/inventory/zero-order-products?${params.toString()}`);
+      const response = await authenticatedFetch(`/inventory/zero-order-products?${params.toString()}`);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -474,24 +475,24 @@ function InventoryPageContent() {
     if (!data?.filters.availableDateRange?.minDate || !data?.filters.availableDateRange?.maxDate) {
       return ['ALL'];
     }
-    
+
     const months: string[] = ['ALL'];
     const start = new Date(data.filters.availableDateRange.minDate);
     const end = new Date(data.filters.availableDateRange.maxDate);
-    
+
     const current = new Date(start);
     while (current <= end) {
       const year = current.getFullYear();
       const month = String(current.getMonth() + 1).padStart(2, '0');
       const monthKey = `${year}-${month}`;
-      
+
       if (!months.includes(monthKey)) {
         months.push(monthKey);
       }
-      
+
       current.setMonth(current.getMonth() + 1);
     }
-    
+
     return months;
   };
 
@@ -955,7 +956,7 @@ function InventoryPageContent() {
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
           <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          
+
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
               <Boxes className="w-6 h-6 text-white" />
@@ -965,7 +966,7 @@ function InventoryPageContent() {
               <p className="text-sm text-gray-500 dark:text-slate-400">Current stock metrics</p>
             </div>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Inbound SKU */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
@@ -982,7 +983,7 @@ function InventoryPageContent() {
                 {formatNumber(data?.cards.inboundSkuCount)}
               </span>
             </div>
-            
+
             {/* Total Inventory QTY */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
@@ -998,7 +999,7 @@ function InventoryPageContent() {
                 {formatInLakhs(data?.cards.inventoryQtyTotal)} L
               </span>
             </div>
-            
+
             {/* Total CBM */}
             <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
@@ -1039,11 +1040,10 @@ function InventoryPageContent() {
                   onClick={() => setTimeGranularity(granularity)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                    timeGranularity === granularity
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
                       ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
                       : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
-                  }`}
+                    }`}
                   suppressHydrationWarning={true}
                 >
                   {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
@@ -1062,7 +1062,7 @@ function InventoryPageContent() {
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              
+
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Inventory Qty vs EDEL Qty</h3>
@@ -1082,14 +1082,14 @@ function InventoryPageContent() {
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="currentColor" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
                       strokeOpacity={0.1}
                       className="text-gray-300 dark:text-slate-700"
                     />
-                    <XAxis 
-                      dataKey="label" 
+                    <XAxis
+                      dataKey="label"
                       tick={{ fontSize: 11, fill: 'currentColor' }}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
@@ -1153,7 +1153,7 @@ function InventoryPageContent() {
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              
+
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Total CBM vs EDEL CBM</h3>
@@ -1173,14 +1173,14 @@ function InventoryPageContent() {
                         <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid 
-                      strokeDasharray="3 3" 
-                      stroke="currentColor" 
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
                       strokeOpacity={0.1}
                       className="text-gray-300 dark:text-slate-700"
                     />
-                    <XAxis 
-                      dataKey="label" 
+                    <XAxis
+                      dataKey="label"
                       tick={{ fontSize: 11, fill: 'currentColor' }}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
@@ -1347,36 +1347,36 @@ function InventoryPageContent() {
                           {fastMovingData.skus
                             .slice(fastMovingPage * ITEMS_PER_PAGE, (fastMovingPage + 1) * ITEMS_PER_PAGE)
                             .map((sku, idx) => (
-                            <tr key={`${sku.item}-${sku.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                              <td className="px-4 py-3">
-                                <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={sku.item}>
-                                  {sku.item}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-slate-400">{sku.itemGroup}</div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{sku.warehouse}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgDailyQty)}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.latestQty)}</td>
-                              <td className="px-4 py-3 text-right text-xs text-gray-500 dark:text-slate-400">
-                                {formatNumber(sku.minQty)} / {formatNumber(sku.maxQty)}
-                              </td>
-                              {/* Sales columns from outbound data */}
-                              <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                {formatNumber(sku.avgDailySales, 2)}
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                {formatNumber(sku.totalSalesQty)}
-                              </td>
-                              <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                {formatNumber(sku.totalSalesCbm, 2)}
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.totalCbm, 2)}</td>
-                            </tr>
-                          ))}
+                              <tr key={`${sku.item}-${sku.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={sku.item}>
+                                    {sku.item}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-slate-400">{sku.itemGroup}</div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{sku.warehouse}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgDailyQty)}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.latestQty)}</td>
+                                <td className="px-4 py-3 text-right text-xs text-gray-500 dark:text-slate-400">
+                                  {formatNumber(sku.minQty)} / {formatNumber(sku.maxQty)}
+                                </td>
+                                {/* Sales columns from outbound data */}
+                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                  {formatNumber(sku.avgDailySales, 2)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                  {formatNumber(sku.totalSalesQty)}
+                                </td>
+                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                  {formatNumber(sku.totalSalesCbm, 2)}
+                                </td>
+                                <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.totalCbm, 2)}</td>
+                              </tr>
+                            ))}
                         </tbody>
                       </table>
                     </div>
-                    
+
                     {/* Pagination Controls */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
                       <div className="text-xs text-gray-500 dark:text-slate-400">
@@ -1535,23 +1535,23 @@ function InventoryPageContent() {
                           {zeroOrderData.products
                             .slice(zeroOrderPage * ITEMS_PER_PAGE, (zeroOrderPage + 1) * ITEMS_PER_PAGE)
                             .map((product, idx) => (
-                            <tr key={`${product.item}-${product.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                              <td className="px-4 py-3">
-                                <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={product.item}>
-                                  {product.item}
-                                </div>
-                                <div className="text-xs text-gray-500 dark:text-slate-400">{product.itemGroup}</div>
-                              </td>
-                              <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.avgStockQty)}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
-                              <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
-                            </tr>
-                          ))}
+                              <tr key={`${product.item}-${product.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                                <td className="px-4 py-3">
+                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={product.item}>
+                                    {product.item}
+                                  </div>
+                                  <div className="text-xs text-gray-500 dark:text-slate-400">{product.itemGroup}</div>
+                                </td>
+                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.avgStockQty)}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
+                              </tr>
+                            ))}
                         </tbody>
                       </table>
                     </div>
-                    
+
                     {/* Pagination Controls */}
                     <div className="flex items-center justify-between px-4 py-3 bg-gray-50 dark:bg-slate-900/50 border-t border-gray-200 dark:border-slate-700">
                       <div className="text-xs text-gray-500 dark:text-slate-400">

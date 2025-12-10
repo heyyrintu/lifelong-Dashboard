@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -23,7 +24,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 // Types
 interface BillingLineItem {
@@ -92,7 +93,7 @@ const getCurrentMonthYear = () => {
 const getMonthOptions = () => {
   const options: { value: string; label: string }[] = [];
   const now = new Date();
-  
+
   // Start from 12 months ago to 3 months ahead
   for (let i = -12; i <= 3; i++) {
     const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
@@ -104,7 +105,7 @@ const getMonthOptions = () => {
       label: `${monthName} ${year}`,
     });
   }
-  
+
   return options.reverse(); // Most recent first
 };
 
@@ -146,7 +147,7 @@ function BillingPageContent() {
     setSuccess(null);
 
     try {
-      const response = await fetch(`${BACKEND_URL}/billing/recalculate`, {
+      const response = await authenticatedFetch(`/billing/recalculate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -167,7 +168,7 @@ function BillingPageContent() {
       const data = await response.json();
       setBillingPeriod(data.billingPeriod);
       setSuccess('Billing generated successfully!');
-      
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
@@ -190,7 +191,7 @@ function BillingPageContent() {
         month: selectedMonth.toString(),
       });
 
-      const response = await fetch(`${BACKEND_URL}/billing/view?${params}`);
+      const response = await authenticatedFetch(`/billing/view?${params}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -280,8 +281,8 @@ function BillingPageContent() {
         amount: item.amount,
       }));
 
-      const response = await fetch(
-        `${BACKEND_URL}/billing/${billingPeriod.id}/lines`,
+      const response = await authenticatedFetch(
+        `/billing/${billingPeriod.id}/lines`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -298,7 +299,7 @@ function BillingPageContent() {
       setBillingPeriod(data.billingPeriod);
       setHasChanges(false);
       setSuccess('Changes saved successfully!');
-      
+
       setTimeout(() => setSuccess(null), 3000);
     } catch (err: any) {
       setError(err.message || 'An error occurred');
@@ -312,8 +313,8 @@ function BillingPageContent() {
     if (!billingPeriod) return;
 
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/billing/${billingPeriod.id}/pdf`
+      const response = await authenticatedFetch(
+        `/billing/${billingPeriod.id}/pdf`
       );
 
       if (!response.ok) {
@@ -339,8 +340,8 @@ function BillingPageContent() {
     if (!billingPeriod) return;
 
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/billing/${billingPeriod.id}/excel`
+      const response = await authenticatedFetch(
+        `/billing/${billingPeriod.id}/excel`
       );
 
       if (!response.ok) {
@@ -509,7 +510,7 @@ function BillingPageContent() {
                 onChange={(e) => setFromDate(e.target.value)}
                 className="w-full px-3 py-1.5 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-white outline-none focus:border-brandRed focus:ring-1 focus:ring-brandRed/20"
               />
-          </div>
+            </div>
             <div className="space-y-2">
               <label className="text-xs font-medium text-gray-500 dark:text-slate-400 ml-1">
                 To Date
@@ -520,7 +521,7 @@ function BillingPageContent() {
                 onChange={(e) => setToDate(e.target.value)}
                 className="w-full px-3 py-1.5 bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-semibold text-gray-900 dark:text-white outline-none focus:border-brandRed focus:ring-1 focus:ring-brandRed/20"
               />
-        </div>
+            </div>
           </div>
         </div>
       </motion.div>
@@ -555,7 +556,7 @@ function BillingPageContent() {
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-brandRed border-t-transparent"></div>
-          </div>
+        </div>
       )}
 
       {/* No Data State */}
@@ -594,7 +595,7 @@ function BillingPageContent() {
               subtitle="Inventory + Outbound (excl. Other Expenses)"
               icon={Calculator}
             />
-      </div>
+          </div>
 
           {/* Billing Table */}
           <motion.div
@@ -603,9 +604,9 @@ function BillingPageContent() {
             transition={{ duration: 0.5 }}
             className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg mb-8"
           >
-          {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-4">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
                   <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
@@ -732,7 +733,7 @@ function BillingPageContent() {
                       >
                         <Plus className="w-3 h-3" />
                         Add Item
-              </button>
+                      </button>
                     </td>
                   </tr>
 
@@ -912,7 +913,7 @@ function BillingPageContent() {
           {/* Period Info */}
           <div className="text-xs text-gray-500 dark:text-slate-500 text-center">
             <p>
-              Billing Period: {billingPeriod.fromDate ? new Date(billingPeriod.fromDate).toLocaleDateString('en-IN') : '-'} 
+              Billing Period: {billingPeriod.fromDate ? new Date(billingPeriod.fromDate).toLocaleDateString('en-IN') : '-'}
               {' '} to {' '}
               {billingPeriod.toDate ? new Date(billingPeriod.toDate).toLocaleDateString('en-IN') : '-'}
               {' '} | Last updated: {new Date(billingPeriod.updatedAt || Date.now()).toLocaleString('en-IN')}

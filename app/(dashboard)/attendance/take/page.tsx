@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import {
@@ -22,7 +23,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 interface Employee {
   id: string;
@@ -92,7 +93,7 @@ function TakeAttendancePageContent() {
       }
       params.append('isActive', 'true');
 
-      const response = await fetch(`${BACKEND_URL}/attendance/employees?${params.toString()}`);
+      const response = await authenticatedFetch(`/attendance/employees?${params.toString()}`);
       if (!response.ok) throw new Error('Failed to fetch employees');
 
       const data = await response.json();
@@ -120,7 +121,7 @@ function TakeAttendancePageContent() {
 
   const handleAddEmployee = async () => {
     try {
-      const response = await fetch(`${BACKEND_URL}/attendance/employees`, {
+      const response = await authenticatedFetch(`/attendance/employees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newEmployee),
@@ -154,7 +155,7 @@ function TakeAttendancePageContent() {
     if (!editingEmployee) return;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/attendance/employees/${editingEmployee.id}`, {
+      const response = await authenticatedFetch(`/attendance/employees/${editingEmployee.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingEmployee),
@@ -174,7 +175,7 @@ function TakeAttendancePageContent() {
     if (!confirm('Are you sure you want to delete this employee?')) return;
 
     try {
-      const response = await fetch(`${BACKEND_URL}/attendance/employees/${id}`, {
+      const response = await authenticatedFetch(`/attendance/employees/${id}`, {
         method: 'DELETE',
       });
 
@@ -198,7 +199,7 @@ function TakeAttendancePageContent() {
         remarks: entry.remarks,
       }));
 
-      const response = await fetch(`${BACKEND_URL}/attendance/records/bulk`, {
+      const response = await authenticatedFetch(`/attendance/records/bulk`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -277,11 +278,10 @@ function TakeAttendancePageContent() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${
-              message.type === 'success'
+            className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 ${message.type === 'success'
                 ? 'bg-green-500 text-white'
                 : 'bg-red-500 text-white'
-            }`}
+              }`}
           >
             {message.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
@@ -428,9 +428,8 @@ function TakeAttendancePageContent() {
                     <tr key={employee.id} className="hover:bg-gray-50/50 dark:hover:bg-slate-800/50 transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${
-                            employee.employeeType === 'ON_ROLL' ? 'bg-blue-500' : 'bg-amber-500'
-                          }`}>
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm ${employee.employeeType === 'ON_ROLL' ? 'bg-blue-500' : 'bg-amber-500'
+                            }`}>
                             {employee.name.charAt(0).toUpperCase()}
                           </div>
                           <div>
@@ -445,9 +444,8 @@ function TakeAttendancePageContent() {
                         <select
                           value={entry.status}
                           onChange={(e) => updateAttendanceEntry(employee.id, 'status', e.target.value)}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border outline-none cursor-pointer transition-all ${
-                            statusOptions.find(s => s.value === entry.status)?.color || ''
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border outline-none cursor-pointer transition-all ${statusOptions.find(s => s.value === entry.status)?.color || ''
+                            }`}
                         >
                           {statusOptions.map(opt => (
                             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -473,16 +471,14 @@ function TakeAttendancePageContent() {
                         />
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`font-mono font-semibold ${
-                          showTimeInputs ? 'text-gray-900 dark:text-white' : 'text-gray-400'
-                        }`}>
+                        <span className={`font-mono font-semibold ${showTimeInputs ? 'text-gray-900 dark:text-white' : 'text-gray-400'
+                          }`}>
                           {showTimeInputs ? totalHours.toFixed(2) : '-'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`font-mono font-semibold ${
-                          parseFloat(otHours) > 0 ? 'text-green-600' : 'text-gray-400'
-                        }`}>
+                        <span className={`font-mono font-semibold ${parseFloat(otHours) > 0 ? 'text-green-600' : 'text-gray-400'
+                          }`}>
                           {showTimeInputs && parseFloat(otHours) > 0 ? `+${otHours}` : '-'}
                         </span>
                       </td>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MetricCard } from '@/components/ui/metric-card';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box } from 'lucide-react';
@@ -70,7 +71,7 @@ interface InboundSummaryResponse {
   summaryTotals: SummaryTotals;
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 export default function InboundPage() {
   const [summaryData, setSummaryData] = useState<InboundSummaryResponse | null>(null);
@@ -91,12 +92,12 @@ export default function InboundPage() {
       try {
         setLoading(true);
         setChartLoading(true);
-        
+
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
-        
-        const response = await fetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
-        
+
+        const response = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
+
         if (!response.ok) {
           if (response.status === 404) {
             setSummaryData(null);
@@ -105,7 +106,7 @@ export default function InboundPage() {
           }
           throw new Error('Failed to fetch data');
         }
-        
+
         const result: InboundSummaryResponse = await response.json();
         setSummaryData(result);
         setChartData(result.timeSeries);
@@ -118,7 +119,7 @@ export default function InboundPage() {
         setChartLoading(false);
       }
     };
-    
+
     fetchInitialData();
   }, []);
 
@@ -140,7 +141,7 @@ export default function InboundPage() {
       const params = new URLSearchParams();
       params.append('timeGranularity', granularity);
 
-      const response = await fetch(`${BACKEND_URL}/inbound/summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch chart data');
@@ -174,8 +175,8 @@ export default function InboundPage() {
       }
       params.append('timeGranularity', timeGranularity);
 
-      const url = `${BACKEND_URL}/inbound/summary${params.toString() ? '?' + params.toString() : ''}`;
-      const response = await fetch(url);
+      const url = `/inbound/summary${params.toString() ? '?' + params.toString() : ''}`;
+      const response = await authenticatedFetch(url);
 
       if (!response.ok) {
         if (response.status === 404) {
@@ -268,7 +269,7 @@ export default function InboundPage() {
       }
       params.append('timeGranularity', timeGranularity);
 
-      const response = await fetch(`${BACKEND_URL}/inbound/download-summary?${params.toString()}`);
+      const response = await authenticatedFetch(`/inbound/download-summary?${params.toString()}`);
 
       if (!response.ok) {
         throw new Error('Failed to download inbound summary');
@@ -342,7 +343,7 @@ export default function InboundPage() {
     return month;
   };
 
-  
+
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
       <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
@@ -633,7 +634,7 @@ export default function InboundPage() {
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                 <ArrowDownToLine className="w-6 h-6 text-white" />
@@ -643,7 +644,7 @@ export default function InboundPage() {
                 <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
@@ -659,7 +660,7 @@ export default function InboundPage() {
                   {formatNumber(summaryData.cards.invoiceSkuCount)}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
@@ -670,7 +671,7 @@ export default function InboundPage() {
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total Invoice Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span 
+                <span
                   className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400 cursor-help"
                   title={`Full Value: ${formatNumber(summaryData.cards.invoiceQtyTotal, 2)}`}
                 >
@@ -690,7 +691,7 @@ export default function InboundPage() {
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
                 <CheckCircle className="w-6 h-6 text-white" />
@@ -700,7 +701,7 @@ export default function InboundPage() {
                 <p className="text-sm text-gray-500 dark:text-slate-400">Delivery metrics</p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
@@ -716,7 +717,7 @@ export default function InboundPage() {
                   {formatNumber(summaryData.cards.receivedSkuCount)}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
@@ -727,7 +728,7 @@ export default function InboundPage() {
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span 
+                <span
                   className="text-2xl font-bold font-mono text-green-600 dark:text-green-400 cursor-help"
                   title={`Full Value: ${formatNumber(summaryData.cards.receivedQtyTotal, 2)}`}
                 >
@@ -745,7 +746,7 @@ export default function InboundPage() {
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total Good Quantity (in Lakhs)</p>
                   </div>
                 </div>
-                <span 
+                <span
                   className="text-2xl font-bold font-mono text-green-600 dark:text-green-400 cursor-help"
                   title={`Full Value: ${formatNumber(summaryData.cards.goodQtyTotal, 2)}`}
                 >
@@ -765,7 +766,7 @@ export default function InboundPage() {
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-violet-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
                 <Clock className="w-6 h-6 text-white" />
@@ -775,7 +776,7 @@ export default function InboundPage() {
                 <p className="text-sm text-gray-500 dark:text-slate-400">CBM metrics</p>
               </div>
             </div>
-            
+
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
@@ -817,11 +818,10 @@ export default function InboundPage() {
                   onClick={() => handleTimeGranularityChange(granularity)}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
-                    timeGranularity === granularity
-                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
-                  }`}
+                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
+                    ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
+                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                    }`}
                   suppressHydrationWarning={true}
                 >
                   {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
@@ -840,7 +840,7 @@ export default function InboundPage() {
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              
+
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">EDEL vs Received Qty</h3>
@@ -865,9 +865,9 @@ export default function InboundPage() {
                           <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        stroke="currentColor" 
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="currentColor"
                         strokeOpacity={0.1}
                         className="text-gray-300 dark:text-slate-700"
                       />
@@ -945,7 +945,7 @@ export default function InboundPage() {
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              
+
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">EDEL vs Total CBM</h3>
@@ -970,9 +970,9 @@ export default function InboundPage() {
                           <stop offset="100%" stopColor="#d97706" stopOpacity={0.7} />
                         </linearGradient>
                       </defs>
-                      <CartesianGrid 
-                        strokeDasharray="3 3" 
-                        stroke="currentColor" 
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="currentColor"
                         strokeOpacity={0.1}
                         className="text-gray-300 dark:text-slate-700"
                       />
@@ -983,7 +983,7 @@ export default function InboundPage() {
                         className="text-gray-600 dark:text-slate-400"
                         axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                       />
-                      <YAxis 
+                      <YAxis
                         tick={{ fontSize: 11, fill: 'currentColor' }}
                         className="text-gray-600 dark:text-slate-400"
                         axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
@@ -1157,13 +1157,13 @@ export default function InboundPage() {
                                     <div
                                       key={i}
                                       className={`w-1.5 h-5 rounded-full transition-all duration-500 ${i < Math.round((day.receivedQty / Math.max(...summaryData.summaryTotals!.dayData!.map(d => d.receivedQty))) * 10)
-                                          ? 'bg-gray-600 dark:bg-slate-300/60'
-                                          : 'bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30'
+                                        ? 'bg-gray-600 dark:bg-slate-300/60'
+                                        : 'bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30'
                                         }`}
                                     />
                                   ))}
                                 </div>
-                                <span 
+                                <span
                                   className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium min-w-[4rem] cursor-help"
                                   title={`Full Value: ${formatNumber(day.receivedQty, 0)}`}
                                 >
@@ -1183,7 +1183,7 @@ export default function InboundPage() {
 
                             {/* EDEL Received Qty */}
                             <div className="col-span-2 flex justify-center">
-                              <div 
+                              <div
                                 className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center cursor-help"
                                 title={`Full Value: ${formatNumber(day.edelReceivedQty, 0)}`}
                               >
@@ -1222,7 +1222,7 @@ export default function InboundPage() {
                             <span className="text-gray-900 dark:text-slate-200 font-medium">Total</span>
                           </div>
                           <div className="col-span-2">
-                            <span 
+                            <span
                               className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium cursor-help"
                               title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
                             >
@@ -1237,7 +1237,7 @@ export default function InboundPage() {
                             </div>
                           </div>
                           <div className="col-span-2">
-                            <span 
+                            <span
                               className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium cursor-help"
                               title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalEdelReceivedQty, 0)}`}
                             >

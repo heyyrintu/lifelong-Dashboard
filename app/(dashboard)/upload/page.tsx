@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
+import { authenticatedFetch } from '@/lib/api';
 
 interface UploadInfo {
   uploadId: string;
@@ -15,7 +16,7 @@ interface UploadInfo {
   type?: 'item-master' | 'inbound' | 'outbound' | 'inventory';
 }
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+
 
 function UploadPageContent() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -63,34 +64,34 @@ function UploadPageContent() {
   const fetchUploads = async () => {
     try {
       setUploadsLoading(true);
-      
+
       // Fetch from outbound, inbound, and inventory endpoints
       const [outboundResponse, inboundResponse, inventoryResponse] = await Promise.all([
-        fetch(`${BACKEND_URL}/outbound/uploads`),
-        fetch(`${BACKEND_URL}/inbound/uploads`),
-        fetch(`${BACKEND_URL}/inventory/uploads`),
+        authenticatedFetch(`/outbound/uploads`),
+        authenticatedFetch(`/inbound/uploads`),
+        authenticatedFetch(`/inventory/uploads`),
       ]);
-      
+
       let allUploads: UploadInfo[] = [];
-      
+
       if (outboundResponse.ok) {
         const outboundUploads: UploadInfo[] = await outboundResponse.json();
         allUploads = [...allUploads, ...outboundUploads.map(u => ({ ...u, type: 'outbound' as const }))];
       }
-      
+
       if (inboundResponse.ok) {
         const inboundUploads: UploadInfo[] = await inboundResponse.json();
         allUploads = [...allUploads, ...inboundUploads];
       }
-      
+
       if (inventoryResponse.ok) {
         const inventoryUploads: UploadInfo[] = await inventoryResponse.json();
         allUploads = [...allUploads, ...inventoryUploads];
       }
-      
+
       // Sort by upload date (newest first)
       allUploads.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
-      
+
       setUploads(allUploads);
     } catch (err: any) {
       console.error('Failed to fetch uploads:', err.message);
@@ -106,17 +107,17 @@ function UploadPageContent() {
 
     try {
       // Determine the correct endpoint based on upload type
-      let endpoint = `${BACKEND_URL}/outbound/uploads/${uploadId}`;
+      let endpoint = `/outbound/uploads/${uploadId}`;
       if (uploadType === 'inbound') {
-        endpoint = `${BACKEND_URL}/inbound/uploads/${uploadId}`;
+        endpoint = `/inbound/uploads/${uploadId}`;
       } else if (uploadType === 'inventory') {
-        endpoint = `${BACKEND_URL}/inventory/uploads/${uploadId}`;
+        endpoint = `/inventory/uploads/${uploadId}`;
       }
 
-      const response = await fetch(endpoint, {
+      const response = await authenticatedFetch(endpoint, {
         method: 'DELETE',
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Failed to delete upload');
@@ -157,16 +158,16 @@ function UploadPageContent() {
       // Determine endpoint based on file type
       switch (fileType) {
         case 'item-master':
-          endpoint = `${BACKEND_URL}/inbound/item-master/upload`;
+          endpoint = `/inbound/item-master/upload`;
           break;
         case 'inbound':
-          endpoint = `${BACKEND_URL}/inbound/upload`;
+          endpoint = `/inbound/upload`;
           break;
         case 'outbound':
-          endpoint = `${BACKEND_URL}/outbound/upload`;
+          endpoint = `/outbound/upload`;
           break;
         case 'inventory':
-          endpoint = `${BACKEND_URL}/inventory/upload`;
+          endpoint = `/inventory/upload`;
           break;
         default:
           setShowToast(true);
@@ -174,7 +175,7 @@ function UploadPageContent() {
           return;
       }
 
-      const response = await fetch(endpoint, {
+      const response = await authenticatedFetch(endpoint, {
         method: 'POST',
         body: formData,
       });
@@ -185,23 +186,23 @@ function UploadPageContent() {
       }
 
       const result = await response.json();
-      
+
       // Set success message based on file type
       if (fileType === 'item-master') {
         successMessage = `Item Master updated! Rows processed: ${result.rowsProcessed}`;
       } else if (fileType === 'inbound') {
         successMessage = `Inbound upload processed! Rows inserted: ${result.rowsInserted}`;
       } else if (fileType === 'inventory') {
-        const dateInfo = result.dateRange 
+        const dateInfo = result.dateRange
           ? ` (Date range: ${result.dateRange.minDate || 'N/A'} to ${result.dateRange.maxDate || 'N/A'})`
           : '';
         successMessage = `Inventory upload processed! Rows inserted: ${result.rowsInserted}${dateInfo}`;
       } else {
         successMessage = `Upload successful! Rows inserted: ${result.rowsInserted}`;
       }
-      
+
       alert(successMessage);
-      
+
       // Reset form and refresh uploads
       setSelectedFile(null);
       setFileType('');
@@ -226,7 +227,7 @@ function UploadPageContent() {
             {/* Decorative gradient blob */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-6 relative z-10">Upload File</h3>
 
             {/* Drag and drop area */}
@@ -235,10 +236,9 @@ function UploadPageContent() {
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
               className={`relative z-10 border-2 border-dashed rounded-xl p-12 text-center transition-all backdrop-blur-sm
-                ${
-                  isDragging
-                    ? 'border-brandRed bg-brandRed/10 dark:bg-brandRed/20 shadow-lg shadow-brandRed/20'
-                    : 'border-gray-300/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 hover:border-brandRed/50 dark:hover:border-slate-600 hover:bg-white/60 dark:hover:bg-slate-900/60'
+                ${isDragging
+                  ? 'border-brandRed bg-brandRed/10 dark:bg-brandRed/20 shadow-lg shadow-brandRed/20'
+                  : 'border-gray-300/50 dark:border-slate-700/50 bg-white/40 dark:bg-slate-900/40 hover:border-brandRed/50 dark:hover:border-slate-600 hover:bg-white/60 dark:hover:bg-slate-900/60'
                 }
               `}
             >
@@ -323,11 +323,10 @@ function UploadPageContent() {
                   <motion.label
                     key={type.value}
                     whileHover={{ scale: 1.01, x: 4 }}
-                    className={`relative flex items-start p-4 border backdrop-blur-sm rounded-xl cursor-pointer transition-all duration-200 ${
-                      (type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound' || type.value === 'inventory') 
-                        ? 'bg-green-50/80 dark:bg-green-500/10 border-green-200/50 dark:border-green-500/30 hover:bg-green-100/80 dark:hover:bg-green-500/15 hover:border-green-300 dark:hover:border-green-500/40 shadow-sm' 
+                    className={`relative flex items-start p-4 border backdrop-blur-sm rounded-xl cursor-pointer transition-all duration-200 ${(type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound' || type.value === 'inventory')
+                        ? 'bg-green-50/80 dark:bg-green-500/10 border-green-200/50 dark:border-green-500/30 hover:bg-green-100/80 dark:hover:bg-green-500/15 hover:border-green-300 dark:hover:border-green-500/40 shadow-sm'
                         : 'bg-white/40 dark:bg-slate-900/40 border-gray-200/50 dark:border-slate-700/50 hover:bg-white/60 dark:hover:bg-slate-900/60 hover:border-brandRed/30 dark:hover:border-slate-600'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
@@ -376,7 +375,7 @@ function UploadPageContent() {
           >
             {/* Decorative gradient blob */}
             <div className="absolute -top-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-4 relative z-10">Instructions</h3>
             <ul className="space-y-3 text-sm text-gray-600 dark:text-slate-300 relative z-10">
               <li className="flex items-start gap-2">
@@ -410,14 +409,14 @@ function UploadPageContent() {
           >
             {/* Decorative gradient blob */}
             <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            
+
             <div className="flex items-center justify-between mb-6 relative z-10">
               <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Uploaded Files</h3>
               <span className="px-3 py-1 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-300 border border-gray-200/50 dark:border-slate-600/50">
                 {uploads.length} file{uploads.length !== 1 ? 's' : ''} uploaded
               </span>
             </div>
-            
+
             {uploadsLoading ? (
               <div className="text-center py-12 relative z-10">
                 <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-brandRed border-t-transparent mx-auto mb-4"></div>
@@ -451,15 +450,14 @@ function UploadPageContent() {
                             {upload.fileName}
                           </p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${
-                              upload.type === 'item-master' 
+                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${upload.type === 'item-master'
                                 ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
                                 : upload.type === 'inbound'
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                : upload.type === 'inventory'
-                                ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-                            }`}>
+                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                  : upload.type === 'inventory'
+                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                    : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                              }`}>
                               {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : upload.type === 'inventory' ? 'Inventory' : 'Outbound'}
                             </span>
                             <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
