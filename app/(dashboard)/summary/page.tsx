@@ -19,7 +19,7 @@ import {
   ArrowRightLeft,
   Download,
 } from 'lucide-react';
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 import { authenticatedFetch } from '@/lib/api';
 
@@ -298,8 +298,8 @@ export default function SummaryPage() {
       }
 
       setAvailableCategories(Array.from(categories).filter(c => c !== 'ALL'));
-      setAvailableWarehouses(['ALL', ...Array.from(warehouses)]);
-      setAvailableMonths(['ALL', ...Array.from(months).sort()]);
+      setAvailableWarehouses(['ALL', ...Array.from(warehouses).filter(w => w !== 'ALL')]);
+      setAvailableMonths(['ALL', ...Array.from(months).filter(m => m !== 'ALL').sort()]);
       setAvailableDates(dates);
 
       // Combine data
@@ -419,13 +419,6 @@ export default function SummaryPage() {
     return `${thousands.toFixed(decimals)} K`;
   };
 
-  const averageFulfillment = useMemo(() => {
-    const rows = data?.fulfillmentTable || [];
-    if (!rows.length) return 0;
-    const total = rows.reduce((sum, row) => sum + (row.percentage || 0), 0);
-    return total / rows.length;
-  }, [data?.fulfillmentTable]);
-
   const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
   const formatMonthLabel = (month: string): string => {
@@ -444,6 +437,80 @@ export default function SummaryPage() {
     return month;
   };
 
+  const averageFulfillment = useMemo(() => {
+    const rows = data?.fulfillmentTable || [];
+    if (!rows.length) return 0;
+    const total = rows.reduce((sum, row) => sum + (row.percentage || 0), 0);
+    return total / rows.length;
+  }, [data?.fulfillmentTable]);
+
+  // Calculate monthly fulfillment rates for line chart
+  const monthlyFulfillmentData = useMemo((): { month: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
+    const rows = data?.fulfillmentTable || [];
+    if (!rows.length) return [];
+
+    // Group data by month (YYYY-MM)
+    const monthlyGroups: Record<string, { soQty: number; dnQty: number; count: number }> = {};
+
+    rows.forEach((row) => {
+      // Parse date - supported formats:
+      // 1. DD-MM-YYYY (e.g., "07-12-2025") - from backend
+      // 2. DD Mon YYYY (e.g., "01 Nov 2025")
+      // 3. YYYY-MM-DD (e.g., "2025-11-01")
+      let monthKey = '';
+      const dateStr = row.date;
+
+      // Try DD-MM-YYYY format first (e.g., "07-12-2025")
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const year = ddmmyyyyMatch[3];
+        const month = ddmmyyyyMatch[2].padStart(2, '0');
+        monthKey = `${year}-${month}`;
+      } else {
+        // Try DD Mon YYYY format (e.g., "01 Nov 2025")
+        const monthMatch = dateStr.match(/(\d{1,2})\s+(\w{3})\s+(\d{4})/);
+        if (monthMatch) {
+          const monthNames: Record<string, string> = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+          };
+          const year = monthMatch[3];
+          const month = monthNames[monthMatch[2]] || '01';
+          monthKey = `${year}-${month}`;
+        } else {
+          // Try YYYY-MM-DD format
+          const isoMatch = dateStr.match(/(\d{4})-(\d{2})/);
+          if (isoMatch) {
+            monthKey = `${isoMatch[1]}-${isoMatch[2]}`;
+          }
+        }
+      }
+
+      if (monthKey) {
+        if (!monthlyGroups[monthKey]) {
+          monthlyGroups[monthKey] = { soQty: 0, dnQty: 0, count: 0 };
+        }
+        monthlyGroups[monthKey].soQty += row.soQty || 0;
+        monthlyGroups[monthKey].dnQty += row.dnQty || 0;
+        monthlyGroups[monthKey].count += 1;
+      }
+    });
+
+    // Convert to array and calculate fulfillment rate for each month
+    const monthlyData = Object.entries(monthlyGroups)
+      .map(([month, { soQty, dnQty }]) => ({
+        month,
+        label: formatMonthLabel(month),
+        fulfillmentRate: soQty > 0 ? Math.min(100, (dnQty / soQty) * 100) : 0,
+        soQty,
+        dnQty
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return monthlyData;
+  }, [data?.fulfillmentTable]);
+
   return (
     <div>
       <PageHeader
@@ -461,9 +528,9 @@ export default function SummaryPage() {
         {/* Decorative gradient blob */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
-          <div className="md:col-span-3 space-y-2">
+          <div className="md:col-span-2 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
@@ -482,7 +549,7 @@ export default function SummaryPage() {
                   suppressHydrationWarning={true}
                 />
               </div>
-              <div className="px-1.5 text-gray-300 dark:text-slate-600">
+              <div className="px-3 text-gray-300 dark:text-slate-600">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
               <div className="relative flex-1">
@@ -503,7 +570,7 @@ export default function SummaryPage() {
           </div>
 
           {/* Month Selector */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
@@ -547,7 +614,7 @@ export default function SummaryPage() {
           </div>
 
           {/* Warehouse Filter */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
@@ -573,7 +640,7 @@ export default function SummaryPage() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -656,26 +723,22 @@ export default function SummaryPage() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-2 flex gap-2 items-end">
+          <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.02, translateY: -2 }}
-              whileTap={{ scale: 0.98, translateY: 0 }}
+              whileHover={{ scale: 1.05, translateY: -2 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40 group"
+              title="Apply Filter"
+              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
-                <>
-                  <div className="w-3 h-3 border-[1.5px] border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Loading...</span>
-                </>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  <Search className="w-3 h-3 stroke-[2.5]" />
-                  <span>Apply Filter</span>
-                </>
+                <Search className="w-4 h-4 stroke-[2.5]" />
               )}
+              <span className="font-semibold text-xs">Filter</span>
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
@@ -947,7 +1010,7 @@ export default function SummaryPage() {
         </div>
       )}
 
-      {/* Fulfillment Rate Half Donut */}
+      {/* Fulfillment Rate Section - Half Donut + Line Chart */}
       {!loading && data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -955,80 +1018,196 @@ export default function SummaryPage() {
           transition={{ duration: 0.6, delay: 0.3 }}
           className="w-full mb-8"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Half Donut Chart - Average Fulfillment */}
+            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                  <TrendingUp className="w-5 h-5 text-white" />
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Fulfillment</h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Average across all dates</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fulfillment Rate</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Average across fulfillment table</p>
+                <div className="px-3 py-1.5 bg-emerald-50/80 dark:bg-emerald-900/30 backdrop-blur-sm rounded-lg border border-emerald-200/50 dark:border-emerald-700/40 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                  {data.fulfillmentTable.length} Dates
                 </div>
               </div>
-              <div className="px-3 py-1.5 bg-emerald-50/80 dark:bg-emerald-900/30 backdrop-blur-sm rounded-lg border border-emerald-200/50 dark:border-emerald-700/40 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                {data.fulfillmentTable.length} Dates
+
+              <div className="h-52 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, averageFulfillment)), fill: '#10b981' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, averageFulfillment)), fill: '#f59e0b' },
+                      ]}
+                      cx="50%"
+                      cy="80%"
+                      startAngle={180}
+                      endAngle={0}
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      <Cell fill="#10b981" />
+                      <Cell fill="#f59e0b" />
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload as { name: string; value: number };
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.name}</p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
+                                {item.value.toFixed(2)}%
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+                  <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                    {averageFulfillment.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Avg Fulfillment</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Gap to 100%</span>
+                </div>
               </div>
             </div>
 
-            <div className="h-52 relative">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Fulfilled', value: Math.min(100, Math.max(0, averageFulfillment)), fill: '#10b981' },
-                      { name: 'Gap', value: Math.max(0, 100 - Math.max(0, averageFulfillment)), fill: '#f59e0b' },
-                    ]}
-                    cx="50%"
-                    cy="80%"
-                    startAngle={180}
-                    endAngle={0}
-                    innerRadius={70}
-                    outerRadius={100}
-                    paddingAngle={2}
-                    dataKey="value"
-                  >
-                    <Cell fill="#10b981" />
-                    <Cell fill="#f59e0b" />
-                  </Pie>
-                  <Tooltip
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const item = payload[0].payload as { name: string; value: number };
-                        return (
-                          <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
-                            <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.name}</p>
-                            <p className="text-sm text-gray-600 dark:text-slate-400">
-                              {item.value.toFixed(2)}%
-                            </p>
-                          </div>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {averageFulfillment.toFixed(1)}%
-                </span>
-                <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Avg Fulfillment</span>
-              </div>
-            </div>
+            {/* Line Chart - Month over Month Fulfillment Rates */}
+            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-            <div className="flex justify-center gap-6 mt-2">
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                    <TrendingUp className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Monthly Trend</h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Fulfillment rate over time</p>
+                  </div>
+                </div>
+                <div className="px-3 py-1.5 bg-indigo-50/80 dark:bg-indigo-900/30 backdrop-blur-sm rounded-lg border border-indigo-200/50 dark:border-indigo-700/40 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
+                  {monthlyFulfillmentData.length} Months
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <span className="text-xs text-gray-600 dark:text-slate-400">Gap to 100%</span>
+
+              <div className="h-52 relative">
+                {monthlyFulfillmentData.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart
+                      data={monthlyFulfillmentData}
+                      margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
+                    >
+                      <defs>
+                        <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                        </linearGradient>
+                        <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        stroke="currentColor"
+                        strokeOpacity={0.1}
+                        className="text-gray-300 dark:text-slate-700"
+                      />
+                      <XAxis
+                        dataKey="label"
+                        tick={{ fontSize: 11, fill: 'currentColor' }}
+                        className="text-gray-600 dark:text-slate-400"
+                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      />
+                      <YAxis
+                        domain={[0, 100]}
+                        tick={{ fontSize: 11, fill: 'currentColor' }}
+                        tickFormatter={(value: number) => `${value}%`}
+                        className="text-gray-600 dark:text-slate-400"
+                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      />
+                      <Tooltip
+                        contentStyle={{
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                          backdropFilter: 'blur(10px)',
+                          border: '1px solid rgba(148, 163, 184, 0.2)',
+                          borderRadius: '12px',
+                          padding: '12px',
+                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                        }}
+                        labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
+                        itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
+                        formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
+                        cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="fulfillmentRate"
+                        stroke="url(#fulfillmentLineGradient)"
+                        strokeWidth={3}
+                        dot={{
+                          fill: '#6366f1',
+                          stroke: '#ffffff',
+                          strokeWidth: 2,
+                          r: 5,
+                        }}
+                        activeDot={{
+                          fill: '#6366f1',
+                          stroke: '#ffffff',
+                          strokeWidth: 3,
+                          r: 8,
+                        }}
+                        name="Fulfillment Rate"
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
+                    <div className="text-center">
+                      <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Not enough data for monthly trend</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
+              {monthlyFulfillmentData.length > 0 && (
+                <div className="flex justify-center gap-6 mt-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
+                    <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </motion.div>
@@ -1069,151 +1248,220 @@ export default function SummaryPage() {
               </motion.button>
             </div>
 
-            <motion.div
-              className="space-y-2 max-h-96 overflow-y-auto pr-2"
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.08,
-                    delayChildren: 0.1,
-                  }
-                }
-              }}
-              initial="hidden"
-              animate="visible"
-            >
-              {/* Headers */}
-              <div className="grid grid-cols-5 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
-                <div className="text-center">Date</div>
-                <div className="text-center">SO Qty</div>
-                <div className="text-center">DN Qty</div>
-                <div className="text-center">Pending</div>
-                <div className="text-center">%</div>
+            {/* Table Container */}
+            <div className="relative">
+              {/* Headers - Sticky at top */}
+              <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pb-2">
+                <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider">
+                  <div className="text-center">Date</div>
+                  <div className="text-center">SO Qty</div>
+                  <div className="text-center">DN Qty</div>
+                  <div className="text-center">Pending</div>
+                  <div className="text-center">%</div>
+                </div>
               </div>
 
-              {/* Data Rows */}
-              {data.fulfillmentTable.map((row, index) => (
-                <motion.div
-                  key={row.date}
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      x: -25,
-                      scale: 0.95,
-                      filter: "blur(4px)"
-                    },
-                    visible: {
-                      opacity: 1,
-                      x: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                      transition: {
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 28,
-                        mass: 0.6,
-                      },
-                    },
-                  }}
-                  className="relative"
-                >
+              {/* Scrollable Data Rows */}
+              <motion.div
+                className="space-y-2 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.08,
+                      delayChildren: 0.1,
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="visible"
+              >
+                {data.fulfillmentTable.map((row, index) => (
                   <motion.div
-                    className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
-                    whileHover={{
-                      y: -2,
-                      scale: 1.01,
-                      transition: { type: "spring", stiffness: 400, damping: 25 }
+                    key={row.date}
+                    variants={{
+                      hidden: {
+                        opacity: 0,
+                        x: -25,
+                        scale: 0.95,
+                        filter: "blur(4px)"
+                      },
+                      visible: {
+                        opacity: 1,
+                        x: 0,
+                        scale: 1,
+                        filter: "blur(0px)",
+                        transition: {
+                          type: "spring",
+                          stiffness: 400,
+                          damping: 28,
+                          mass: 0.6,
+                        },
+                      },
                     }}
+                    className="relative"
                   >
-                    {/* Status gradient overlay based on percentage */}
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
-                        ? 'from-green-500/20 via-green-500/10 to-transparent'
-                        : row.percentage >= 90
-                          ? 'from-blue-500/15 via-blue-500/5 to-transparent'
-                          : row.percentage >= 75
-                            ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
-                            : 'from-red-500/15 via-red-500/5 to-transparent'
-                        } pointer-events-none`}
-                      style={{
-                        backgroundSize: "30% 100%",
-                        backgroundPosition: "right",
-                        backgroundRepeat: "no-repeat"
+                    <motion.div
+                      className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
+                      whileHover={{
+                        y: -2,
+                        scale: 1.01,
+                        transition: { type: "spring", stiffness: 400, damping: 25 }
                       }}
-                    />
+                    >
+                      {/* Status gradient overlay based on percentage */}
+                      <div
+                        className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
+                          ? 'from-green-500/20 via-green-500/10 to-transparent'
+                          : row.percentage >= 90
+                            ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                            : row.percentage >= 75
+                              ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                              : 'from-red-500/15 via-red-500/5 to-transparent'
+                          } pointer-events-none`}
+                        style={{
+                          backgroundSize: "30% 100%",
+                          backgroundPosition: "right",
+                          backgroundRepeat: "no-repeat"
+                        }}
+                      />
 
-                    {/* Grid Content */}
-                    <div className="relative grid grid-cols-5 gap-4 items-center text-center">
-                      {/* Date */}
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
-                          <Calendar className="w-4 h-4 text-white" />
+                      {/* Grid Content */}
+                      <div className="relative grid grid-cols-5 gap-4 items-center text-center">
+                        {/* Date */}
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                            <Calendar className="w-4 h-4 text-white" />
+                          </div>
+                          <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
+                            {row.date}
+                          </span>
                         </div>
-                        <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
-                          {row.date}
+
+                        {/* SO Qty */}
+                        <div className="flex justify-center">
+                          <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                            <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
+                              {formatNumber(row.soQty)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* DN Qty */}
+                        <div className="flex justify-center">
+                          <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
+                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
+                              {formatNumber(row.dnQty)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Pending */}
+                        <div className="flex justify-center">
+                          <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
+                            ? 'bg-green-500/10 border border-green-500/30'
+                            : 'bg-red-500/10 border border-red-500/30'
+                            }`}>
+                            <span className={`text-sm font-medium font-mono ${row.pending === 0
+                              ? 'text-green-600 dark:text-green-400'
+                              : 'text-red-600 dark:text-red-400'
+                              }`}>
+                              {formatNumber(row.pending)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Percentage */}
+                        <div className="flex justify-center">
+                          <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
+                            ? 'bg-green-500/20 border-2 border-green-500/50'
+                            : row.percentage >= 90
+                              ? 'bg-blue-500/10 border border-blue-500/30'
+                              : row.percentage >= 75
+                                ? 'bg-yellow-500/10 border border-yellow-500/30'
+                                : 'bg-red-500/10 border border-red-500/30'
+                            }`}>
+                            <span className={`text-sm font-bold font-mono ${row.percentage >= 100
+                              ? 'text-green-600 dark:text-green-400'
+                              : row.percentage >= 90
+                                ? 'text-blue-600 dark:text-blue-400'
+                                : row.percentage >= 75
+                                  ? 'text-yellow-600 dark:text-yellow-400'
+                                  : 'text-red-600 dark:text-red-400'
+                              }`}>
+                              {row.percentage.toFixed(2)}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Average Row - Sticky at bottom */}
+              <div className="sticky bottom-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pt-4">
+                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-700/50 rounded-xl p-4 overflow-hidden">
+                  {/* Decorative gradient overlay */}
+                  <div
+                    className="absolute inset-0 bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none"
+                    style={{
+                      backgroundSize: "40% 100%",
+                      backgroundPosition: "right",
+                      backgroundRepeat: "no-repeat"
+                    }}
+                  />
+
+                  {/* Grid Content */}
+                  <div className="relative grid grid-cols-5 gap-4 items-center text-center">
+                    {/* Average Label */}
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                        <TrendingUp className="w-4 h-4 text-white" />
+                      </div>
+                      <span className="text-lg font-bold text-gray-900 dark:text-slate-100">
+                        Average
+                      </span>
+                    </div>
+
+                    {/* Average SO Qty */}
+                    <div className="flex justify-center">
+                      <div className="px-4 py-2 rounded-lg bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-indigo-700 dark:text-indigo-300 text-base font-bold font-mono">
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0) / data.fulfillmentTable.length)}
                         </span>
                       </div>
+                    </div>
 
-                      {/* SO Qty */}
-                      <div className="flex justify-center">
-                        <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                          <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
-                            {formatNumber(row.soQty)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* DN Qty */}
-                      <div className="flex justify-center">
-                        <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                          <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
-                            {formatNumber(row.dnQty)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Pending */}
-                      <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
-                          ? 'bg-green-500/10 border border-green-500/30'
-                          : 'bg-red-500/10 border border-red-500/30'
-                          }`}>
-                          <span className={`text-sm font-medium font-mono ${row.pending === 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {formatNumber(row.pending)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Percentage */}
-                      <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
-                          ? 'bg-green-500/20 border-2 border-green-500/50'
-                          : row.percentage >= 90
-                            ? 'bg-blue-500/10 border border-blue-500/30'
-                            : row.percentage >= 75
-                              ? 'bg-yellow-500/10 border border-yellow-500/30'
-                              : 'bg-red-500/10 border border-red-500/30'
-                          }`}>
-                          <span className={`text-sm font-bold font-mono ${row.percentage >= 100
-                            ? 'text-green-600 dark:text-green-400'
-                            : row.percentage >= 90
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : row.percentage >= 75
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {row.percentage.toFixed(2)}%
-                          </span>
-                        </div>
+                    {/* Average DN Qty */}
+                    <div className="flex justify-center">
+                      <div className="px-4 py-2 rounded-lg bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-blue-700 dark:text-blue-300 text-base font-bold font-mono">
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0) / data.fulfillmentTable.length)}
+                        </span>
                       </div>
                     </div>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </motion.div>
+
+                    {/* Average Pending */}
+                    <div className="flex justify-center">
+                      <div className="px-4 py-2 rounded-lg bg-red-500/20 border-2 border-red-500/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-red-700 dark:text-red-300 text-base font-bold font-mono">
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.pending, 0) / data.fulfillmentTable.length)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Average Percentage */}
+                    <div className="flex justify-center">
+                      <div className="px-4 py-2 rounded-lg bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-green-700 dark:text-green-300 text-base font-bold font-mono">
+                          {averageFulfillment.toFixed(2)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
       )}

@@ -107,7 +107,7 @@ export class OutboundService {
   constructor(
     private prisma: PrismaService,
     private categoryNormalizer: CategoryNormalizerService,
-  ) {}
+  ) { }
 
   // Maximum rows to process (prevent DoS from huge files)
   private static readonly MAX_ROWS = 500000;
@@ -122,7 +122,7 @@ export class OutboundService {
    */
   async uploadExcel(filePath: string, fileName: string): Promise<UploadResult> {
     const startTime = Date.now();
-    
+
     try {
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
@@ -303,7 +303,7 @@ export class OutboundService {
     // Generate cache key (include all filter parameters)
     // 'all' when no uploadId specified = aggregate across all uploads
     const cacheKey = `${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${month || ''}-${(productCategories || []).sort().join(',') || 'ALL'}-${warehouse || 'ALL'}-${timeGranularity}`;
-    
+
     // Check cache
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
@@ -333,13 +333,13 @@ export class OutboundService {
 
     // Build date filter
     const dateFilter: any = {};
-    
+
     // Handle month filter
     if (month && month !== 'ALL') {
-      const [year, monthNum] = month.includes('-') 
+      const [year, monthNum] = month.includes('-')
         ? month.split('-').map(Number)
         : this.parseMonthName(month);
-      
+
       if (year && monthNum) {
         // Use date utility for proper timezone-aware date handling
         const startDate = getMonthStart(year, monthNum);
@@ -433,7 +433,7 @@ export class OutboundService {
   ): Promise<CardMetrics> {
     let dateCondition = '';
     const params: any[] = [uploadIds];
-    
+
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
       dateCondition += ` AND delivery_note_date >= $${params.length}`;
@@ -500,7 +500,7 @@ export class OutboundService {
   ): Promise<CategoryRow[]> {
     let dateCondition = '';
     const params: any[] = [uploadIds];
-    
+
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
       dateCondition += ` AND delivery_note_date >= $${params.length}`;
@@ -695,7 +695,7 @@ export class OutboundService {
   ): Promise<CategoryRow[]> {
     let dateCondition = '';
     const params: any[] = [uploadIds];
-    
+
     if (dateFilter.gte) {
       params.push(dateFilter.gte);
       dateCondition += ` AND delivery_note_date >= $${params.length}`;
@@ -821,7 +821,7 @@ export class OutboundService {
   ): Promise<TimeSeriesData> {
     let dateFormat: string;
     let groupBy: string;
-    
+
     switch (granularity) {
       case 'day':
         dateFormat = 'YYYY-MM-DD';
@@ -873,7 +873,7 @@ export class OutboundService {
       let startDate: string;
       let endDate: string;
       let label: string;
-      
+
       switch (granularity) {
         case 'day':
           startDate = formatDateAsISO(period);
@@ -885,7 +885,15 @@ export class OutboundService {
           const weekEnd = new Date(period);
           weekEnd.setDate(weekEnd.getDate() + 6);
           endDate = formatDateAsISO(weekEnd);
-          label = `Week ${row.period_label.split('-')[1]}`;
+
+          const weekMonth = period.getMonth();
+          const firstDayOfMonth = new Date(period.getFullYear(), weekMonth, 1);
+          // Calculate week number within the month
+          // Note: period is already the Monday of the week via DATE_TRUNC
+          const weekOfMonth = Math.ceil((period.getDate() + firstDayOfMonth.getDay()) / 7);
+          const monthNamesWeek = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+          label = `Week${weekOfMonth}'${monthNamesWeek[weekMonth]}`;
           break;
         case 'month':
         default:
@@ -928,7 +936,7 @@ export class OutboundService {
   ): Promise<SummaryTotals> {
     let dateCondition = '';
     const params: any[] = [uploadIds];
-    
+
     // Convert Date objects to ISO strings for proper timezone handling
     // This ensures the database comparison is done against the correct dates
     if (dateFilter.gte) {
@@ -1034,7 +1042,7 @@ export class OutboundService {
     // Build common filter conditions
     let filterCondition = '';
     const params: any[] = [uploadIds];
-    
+
     if (productCategoryFilter && productCategoryFilter.length > 0) {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
       params.push(...productCategoryFilter);
@@ -1045,17 +1053,17 @@ export class OutboundService {
       filterCondition += ` AND source_warehouse = $${params.length}`;
     }
 
-    // Apply date filter on dispatch_by_date
+    // Apply date filter on dispatch_by_date (using IST timezone)
     let dispatchDateCondition = '';
     if (dateFilter.gte) {
       const gteDate = formatDateAsISO(dateFilter.gte);
       params.push(gteDate);
-      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') >= $${params.length}`;
+      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') >= $${params.length}`;
     }
     if (dateFilter.lte) {
       const lteDate = formatDateAsISO(dateFilter.lte);
       params.push(lteDate);
-      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') <= $${params.length}`;
+      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') <= $${params.length}`;
     }
 
     // Single optimized query that calculates both SO Qty and DN Qty correctly
@@ -1063,19 +1071,19 @@ export class OutboundService {
     // 1. Filter by dispatch_by_date = specific date, sum all sales_order_qty -> SO Qty
     // 2. For DN Qty: additionally filter by delivery_note_date <= dispatch_by_date
     //    (only count deliveries that happened on or before the dispatch date)
-    // Note: Using timezone 'Asia/Kolkata' to match IST dates from Excel
+    // Using timezone 'Asia/Kolkata' to match IST dates from Excel
     const fulfillmentData = await this.prisma.$queryRawUnsafe<Array<{
       dispatch_date: string;
       so_qty: number;
       dn_qty: number;
     }>>(`
       SELECT 
-        TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') as dispatch_date,
+        TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as dispatch_date,
         COALESCE(SUM(sales_order_qty), 0) as so_qty,
         COALESCE(SUM(
           CASE 
             WHEN delivery_note_date IS NOT NULL 
-              AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') <= TO_CHAR(dispatch_by_date, 'YYYY-MM-DD') 
+              AND TO_CHAR(delivery_note_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') <= TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') 
             THEN delivery_note_qty 
             ELSE 0 
           END
@@ -1085,9 +1093,8 @@ export class OutboundService {
         AND dispatch_by_date IS NOT NULL
         ${filterCondition}
         ${dispatchDateCondition}
-      GROUP BY TO_CHAR(dispatch_by_date, 'YYYY-MM-DD')
+      GROUP BY TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')
       ORDER BY dispatch_date ASC
-      LIMIT 30
     `, ...params);
 
     if (fulfillmentData.length === 0) {
@@ -1179,14 +1186,14 @@ export class OutboundService {
   ): Promise<Buffer> {
     // Get summary data
     const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategories, 'month', warehouse);
-    
+
     // Create workbook
     const workbook = XLSX.utils.book_new();
 
     const createStyledSheet = (
       sheetName: string,
       header: string[],
-      rows: Array<Array<string | number>>, 
+      rows: Array<Array<string | number>>,
       totalsRow?: Array<string | number>,
     ) => {
       const data = [header, ...rows];
@@ -1339,7 +1346,7 @@ export class OutboundService {
       Math.round((d.soCbm - d.dnCbm) * 100) / 100,
     ]);
     createStyledSheet('Daily Breakdown', dayHeader, dayRows);
-    
+
     return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }
 
@@ -1364,7 +1371,7 @@ export class OutboundService {
    */
   private parseExcelDate(cell: unknown): Date | null {
     if (cell === undefined || cell === null || cell === '') return null;
-    
+
     try {
       // Handle Excel serial date numbers
       if (typeof cell === 'number') {
@@ -1373,35 +1380,35 @@ export class OutboundService {
         // Serial 60 = Feb 29, 1900 (doesn't exist) but we need to handle it
         // Serial 61 = Mar 1, 1900
         // For dates >= 60, we need to subtract 1 to account for this bug
-        
+
         // Excel epoch is Dec 30, 1899 (serial 0)
         // But due to the 1900 leap year bug, we use Dec 31, 1899 for serial >= 60
         const serialNumber = Math.floor(cell);
-        
+
         if (serialNumber < 1) return null; // Invalid serial
         if (serialNumber > 2958465) return null; // Beyond year 9999
-        
+
         // Adjust for Excel's leap year bug
         const adjustedSerial = serialNumber >= 60 ? serialNumber - 1 : serialNumber;
-        
+
         // Calculate date from epoch (Jan 1, 1900 = serial 1, after adjustment)
         const date = new Date(1899, 11, 31 + adjustedSerial);
-        
+
         // Handle time component if present (fractional part of serial)
         const timeFraction = cell - serialNumber;
         if (timeFraction > 0) {
           const milliseconds = Math.round(timeFraction * 24 * 60 * 60 * 1000);
           date.setMilliseconds(date.getMilliseconds() + milliseconds);
         }
-        
+
         return isNaN(date.getTime()) ? null : date;
       }
-      
+
       // Handle string dates
       if (typeof cell === 'string') {
         const trimmed = cell.trim();
         if (!trimmed) return null;
-        
+
         // Try ISO format first (YYYY-MM-DD)
         const isoMatch = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})/);
         if (isoMatch) {
@@ -1409,7 +1416,7 @@ export class OutboundService {
           const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
           return isNaN(date.getTime()) ? null : date;
         }
-        
+
         // Try common formats (DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY)
         const dateMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
         if (dateMatch) {
@@ -1421,17 +1428,17 @@ export class OutboundService {
           const date = new Date(year, month, day);
           return isNaN(date.getTime()) ? null : date;
         }
-        
+
         // Fallback to Date.parse
         const date = new Date(trimmed);
         return isNaN(date.getTime()) ? null : date;
       }
-      
+
       // Handle Date objects passed through
       if (cell instanceof Date) {
         return isNaN(cell.getTime()) ? null : cell;
       }
-      
+
       return null;
     } catch {
       return null;
@@ -1588,7 +1595,7 @@ export class OutboundService {
     return result.map((row, index) => {
       const value = rankBy === 'qty' ? Number(row.total_qty) : Number(row.total_cbm);
       const percentage = totalSum > 0 ? Math.round((value / totalSum) * 10000) / 100 : 0;
-      
+
       return {
         rank: index + 1,
         deliveryNoteItem: row.delivery_note_item,

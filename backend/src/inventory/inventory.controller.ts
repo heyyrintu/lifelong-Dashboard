@@ -17,7 +17,7 @@ import type { Express, Response } from 'express';
 
 @Controller('inventory')
 export class InventoryController {
-  constructor(private readonly inventoryService: InventoryService) {}
+  constructor(private readonly inventoryService: InventoryService) { }
 
   /**
    * POST /inventory/upload
@@ -199,6 +199,8 @@ export class InventoryController {
    * - productCategory: filter by product category (optional, "ALL" or specific category)
    * - minDaysInStock: minimum days in stock threshold (optional, default: 7)
    * - limit: maximum number of results (optional, default: 50)
+   * - fromDate: start date for DN count calculation (optional, YYYY-MM-DD)
+   * - toDate: end date for DN count calculation (optional, YYYY-MM-DD)
    */
   @Get('zero-order-products')
   async getZeroOrderProducts(
@@ -206,11 +208,20 @@ export class InventoryController {
     @Query('productCategory') productCategory?: string,
     @Query('minDaysInStock') minDaysInStock?: string,
     @Query('limit') limit?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
   ) {
     try {
       const minDays = minDaysInStock ? parseInt(minDaysInStock, 10) : undefined;
       const resultLimit = limit ? parseInt(limit, 10) : undefined;
-      return await this.inventoryService.getZeroOrderProducts(warehouse, productCategory, minDays, resultLimit);
+      return await this.inventoryService.getZeroOrderProducts(
+        warehouse,
+        productCategory,
+        minDays,
+        resultLimit,
+        fromDate,
+        toDate,
+      );
     } catch (error) {
       if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
         throw error;

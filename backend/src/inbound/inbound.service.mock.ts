@@ -72,7 +72,7 @@ export class InboundServiceMock {
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
+
       // Log header row
       console.log('Item Master Header row:', data[0]);
 
@@ -111,7 +111,7 @@ export class InboundServiceMock {
 
       // Store in memory (replace existing data)
       this.itemMasterData = rowsToProcess;
-      
+
       console.log(`Item Master: Loaded ${rowsToProcess.length} items`);
       console.log('Sample item:', rowsToProcess[0]);
 
@@ -153,13 +153,13 @@ export class InboundServiceMock {
 
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
-      
+
       // Look for "MIS- Fresh Receipt" sheet, fallback to first sheet
       const targetSheetName = 'MIS- Fresh Receipt';
-      let sheetName = workbook.SheetNames.find(name => 
+      let sheetName = workbook.SheetNames.find(name =>
         name.toLowerCase().includes('fresh receipt') || name === targetSheetName
       );
-      
+
       if (!sheetName) {
         console.log('Available sheets:', workbook.SheetNames);
         sheetName = workbook.SheetNames[0];
@@ -167,10 +167,10 @@ export class InboundServiceMock {
       } else {
         console.log(`Using sheet: ${sheetName}`);
       }
-      
+
       const worksheet = workbook.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
-      
+
       // Row 0 is title/empty, Row 1 is header, Data starts from Row 2
       const headerRow = data[1] as any[];
       console.log('Header row (row 2):', headerRow);
@@ -195,13 +195,13 @@ export class InboundServiceMock {
         const receivedQty = this.parseNumber(row[11]);
         const goodQty = this.parseNumber(row[13]);
         const receivedDate = this.parseDate(row[1]); // Date of Unload
-        
+
         // Look up CBM and Category from Item Master data (compare as strings)
         const itemMaster = this.itemMasterData.find(im => im.item_code === itemCode);
         const cbmPerUnit = itemMaster?.cbm || 0;
         const totalCbm = cbmPerUnit * receivedQty;
         const category = itemMaster?.category || 'Uncategorized';
-        
+
         rowsToInsert.push({
           upload_id: uploadId,
           item_code: itemCode,
@@ -277,15 +277,15 @@ export class InboundServiceMock {
         const rowDate = new Date(row.received_date);
         const fromDateObj = fromDate ? new Date(fromDate) : null;
         const toDateObj = toDate ? new Date(toDate) : null;
-        
+
         // Set time to start/end of day for inclusive filtering
         if (fromDateObj) fromDateObj.setHours(0, 0, 0, 0);
         if (toDateObj) toDateObj.setHours(23, 59, 59, 999);
-        
+
         let matches = true;
         if (fromDateObj && rowDate < fromDateObj) matches = false;
         if (toDateObj && rowDate > toDateObj) matches = false;
-        
+
         return matches;
       });
     }
@@ -298,7 +298,7 @@ export class InboundServiceMock {
     // Calculate summary metrics matching frontend expectations
     const uniqueInvoiceSkus = new Set(filteredData.filter(r => r.invoice_qty > 0).map(r => r.item_code));
     const uniqueReceivedSkus = new Set(filteredData.filter(r => r.received_qty > 0).map(r => r.item_code));
-    
+
     const invoiceSkuCount = uniqueInvoiceSkus.size;
     const receivedSkuCount = uniqueReceivedSkus.size;
     const invoiceQtyTotal = filteredData.reduce((sum, r) => sum + (r.invoice_qty || 0), 0);
@@ -311,7 +311,7 @@ export class InboundServiceMock {
       .filter(r => r.received_date)
       .map(r => r.received_date)
       .sort();
-    
+
     const minDate = dates.length > 0 ? dates[0] : null;
     const maxDate = dates.length > 0 ? dates[dates.length - 1] : null;
 
@@ -354,7 +354,7 @@ export class InboundServiceMock {
         const rows = dayDataMap[dateKey];
         const date = new Date(dateKey);
         const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
+
         return {
           date: dateKey,
           label: `${date.getDate()} ${dayNames[date.getMonth()]}`,
@@ -395,7 +395,7 @@ export class InboundServiceMock {
    * Get all uploads (both item-master and inbound)
    */
   async getUploads(): Promise<UploadInfo[]> {
-    return this.uploads.sort((a, b) => 
+    return this.uploads.sort((a, b) =>
       new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime()
     );
   }
@@ -409,7 +409,7 @@ export class InboundServiceMock {
     }
 
     console.log('Recalculating CBM for', this.mockData.length, 'inbound rows...');
-    
+
     let updatedCount = 0;
     this.mockData = this.mockData.map(row => {
       const itemMaster = this.itemMasterData.find(im => im.item_code === row.item_code);
@@ -417,9 +417,9 @@ export class InboundServiceMock {
         const cbmPerUnit = itemMaster.cbm || 0;
         const totalCbm = cbmPerUnit * (row.received_qty || 0);
         const category = itemMaster.category || 'Uncategorized';
-        
+
         if (totalCbm > 0) updatedCount++;
-        
+
         return {
           ...row,
           cbm: totalCbm,
@@ -439,10 +439,10 @@ export class InboundServiceMock {
     // Group data by time bucket
     data.forEach(row => {
       if (!row.received_date) return;
-      
+
       const date = new Date(row.received_date);
       let bucketKey: string;
-      
+
       switch (granularity) {
         case 'month':
           bucketKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -469,22 +469,22 @@ export class InboundServiceMock {
       if (dates.length > 0) {
         const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
         const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-        
+
         // If dates are in the same month, show all days of that month
         if (minDate.getFullYear() === maxDate.getFullYear() && minDate.getMonth() === maxDate.getMonth()) {
           const year = minDate.getFullYear();
           const month = minDate.getMonth();
           const daysInMonth = new Date(year, month + 1, 0).getDate();
-          
+
           // Generate all days of the month
           for (let day = 1; day <= daysInMonth; day++) {
             const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
             const rows = groupedData[dateKey] || [];
             const receivedQty = rows.reduce((sum, r) => sum + (r.received_qty || 0), 0);
             const totalCbm = rows.reduce((sum, r) => sum + (r.cbm || 0), 0);
-            
+
             const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            
+
             points.push({
               key: dateKey,
               label: `${day} ${dayNames[month]}`,
@@ -500,10 +500,10 @@ export class InboundServiceMock {
             const rows = groupedData[dateKey];
             const receivedQty = rows.reduce((sum, r) => sum + (r.received_qty || 0), 0);
             const totalCbm = rows.reduce((sum, r) => sum + (r.cbm || 0), 0);
-            
+
             const date = new Date(dateKey);
             const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            
+
             points.push({
               key: dateKey,
               label: `${date.getDate()} ${dayNames[date.getMonth()]}`,
@@ -521,11 +521,11 @@ export class InboundServiceMock {
         const rows = groupedData[bucketKey];
         const receivedQty = rows.reduce((sum, r) => sum + (r.received_qty || 0), 0);
         const totalCbm = rows.reduce((sum, r) => sum + (r.cbm || 0), 0);
-        
+
         let label: string;
         let startDate: string;
         let endDate: string;
-        
+
         if (granularity === 'month') {
           const [year, month] = bucketKey.split('-');
           const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -535,12 +535,24 @@ export class InboundServiceMock {
           endDate = `${bucketKey}-${String(lastDay).padStart(2, '0')}`;
         } else {
           // Week
-          label = bucketKey;
+          const [weekYear, weekNumStr] = bucketKey.split('-W');
+          const weekNum = parseInt(weekNumStr);
+
+          // Get week start date
+          const weekStart = this.getWeekStart(parseInt(weekYear), weekNum);
+
+          // Calculate week number within the month
+          const weekMonth = weekStart.getMonth();
+          const firstDayOfMonth = new Date(weekStart.getFullYear(), weekMonth, 1);
+          const weekOfMonth = Math.ceil((weekStart.getDate() + firstDayOfMonth.getDay()) / 7);
+          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+          label = `Week${weekOfMonth}'${monthNames[weekMonth]}`;
           const dates = rows.map(r => r.received_date).sort();
           startDate = dates[0] || bucketKey;
           endDate = dates[dates.length - 1] || bucketKey;
         }
-        
+
         points.push({
           key: bucketKey,
           label,
@@ -566,6 +578,12 @@ export class InboundServiceMock {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   }
 
+  private getWeekStart(year: number, week: number): Date {
+    const firstDayOfYear = new Date(year, 0, 1);
+    const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+    return new Date(year, 0, 1 + daysOffset);
+  }
+
   private parseNumber(value: any): number {
     if (value === null || value === undefined || value === '') return 0;
     const num = typeof value === 'number' ? value : parseFloat(String(value));
@@ -574,7 +592,7 @@ export class InboundServiceMock {
 
   private parseDate(dateValue: any): string | null {
     if (!dateValue) return null;
-    
+
     try {
       if (typeof dateValue === 'number') {
         // Excel date number (days since 1900-01-01)
@@ -583,7 +601,7 @@ export class InboundServiceMock {
           return date.toISOString().split('T')[0];
         }
       }
-      
+
       if (typeof dateValue === 'string') {
         // Handle common date formats
         // DD/MM/YYYY or DD-MM-YYYY
@@ -595,20 +613,20 @@ export class InboundServiceMock {
             return date.toISOString().split('T')[0];
           }
         }
-        
+
         // YYYY-MM-DD (ISO format)
         const isoFormat = dateValue.match(/^(\d{4})-(\d{2})-(\d{2})$/);
         if (isoFormat) {
           return dateValue;
         }
-        
+
         // Try standard Date parsing as fallback
         const date = new Date(dateValue);
         if (!isNaN(date.getTime())) {
           return date.toISOString().split('T')[0];
         }
       }
-      
+
       // Handle Date object
       if (dateValue instanceof Date && !isNaN(dateValue.getTime())) {
         return dateValue.toISOString().split('T')[0];
@@ -616,7 +634,7 @@ export class InboundServiceMock {
     } catch (error) {
       console.warn('Failed to parse date:', dateValue, error);
     }
-    
+
     return null;
   }
 

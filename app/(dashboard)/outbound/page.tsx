@@ -666,6 +666,22 @@ export default function OutboundPage() {
     );
   }
 
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
+
+    // Per user request: exclude month granularity clicking
+    if (timeGranularity === 'month') return;
+
+    const payload = data.activePayload[0].payload;
+    if (payload.startDate && payload.endDate) {
+      setFromDate(payload.startDate);
+      setToDate(payload.endDate);
+      setSelectedMonth('ALL');
+      setFiltersDirty(true);
+      setTimeout(() => fetchSummary(true), 0);
+    }
+  };
+
   return (
     <div className="relative min-h-screen">
       {/* Date & Category Filters - Premium Redesign */}
@@ -678,9 +694,9 @@ export default function OutboundPage() {
         {/* Decorative gradient blob */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
-          <div className="md:col-span-3 space-y-2">
+          <div className="md:col-span-2 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
@@ -700,7 +716,7 @@ export default function OutboundPage() {
                   suppressHydrationWarning={true}
                 />
               </div>
-              <div className="px-1.5 text-gray-300 dark:text-slate-600">
+              <div className="px-3 text-gray-300 dark:text-slate-600">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
               <div className="relative flex-1">
@@ -722,7 +738,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Month Selector */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
@@ -766,7 +782,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Warehouse Filter */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
@@ -795,7 +811,7 @@ export default function OutboundPage() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -878,35 +894,31 @@ export default function OutboundPage() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-2 flex gap-2 items-end">
+          <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.02, translateY: -2 }}
-              whileTap={{ scale: 0.98, translateY: 0 }}
+              whileHover={{ scale: 1.05, translateY: -1 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
+              onClick={handleDownloadSummary}
+              title="Download Summary Excel"
+              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
+            >
+              <Download className="w-4 h-4" />
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05, translateY: -2 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40 group"
+              title="Apply Filter"
+              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Updating...</span>
-                </>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  <Search className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Apply Filter</span>
-                </>
+                <Search className="w-4 h-4 stroke-[2.5]" />
               )}
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleDownloadSummary}
-              title="Download Summary Excel"
-              className="h-[36px] px-3 bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl text-xs font-semibold transition-all hover:bg-gray-100 dark:hover:bg-slate-700 hover:border-brandRed/50 dark:hover:border-brandRed/40 shadow-sm flex items-center justify-center gap-1.5 group"
-            >
-              <Download className="w-3.5 h-3.5 group-hover:text-brandRed transition-colors" />
+              <span className="font-semibold text-xs">Filter</span>
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
@@ -2105,7 +2117,11 @@ export default function OutboundPage() {
             ) : chartData?.points && chartData.points.length > 0 ? (
               <div className="relative z-10">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={chartData.points} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
+                  <BarChart
+                    data={chartData.points}
+                    margin={{ top: 20, right: 20, bottom: 10, left: 0 }}
+                    onClick={handleChartClick}
+                  >
                     <defs>
                       <linearGradient id="soQtyGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
@@ -2157,7 +2173,14 @@ export default function OutboundPage() {
                       content={<QtyLegend />}
                       wrapperStyle={{ paddingBottom: '20px' }}
                     />
-                    <Bar dataKey="soQty" fill="url(#soQtyGradient)" radius={[8, 8, 0, 0]} name="SO qty">
+                    <Bar
+                      dataKey="soQty"
+                      fill="url(#soQtyGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="SO qty"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="soQty"
                         position="top"
@@ -2165,7 +2188,14 @@ export default function OutboundPage() {
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
-                    <Bar dataKey="dnQty" fill="url(#dnQtyGradient)" radius={[8, 8, 0, 0]} name="DN Qty">
+                    <Bar
+                      dataKey="dnQty"
+                      fill="url(#dnQtyGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="DN Qty"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="dnQty"
                         position="top"
@@ -2209,7 +2239,11 @@ export default function OutboundPage() {
             ) : chartData?.points && chartData.points.length > 0 ? (
               <div className="relative z-10">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={chartData.points} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
+                  <BarChart
+                    data={chartData.points}
+                    margin={{ top: 20, right: 20, bottom: 10, left: 0 }}
+                    onClick={handleChartClick}
+                  >
                     <defs>
                       <linearGradient id="soCbmGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
@@ -2261,7 +2295,14 @@ export default function OutboundPage() {
                       content={<CbmLegend />}
                       wrapperStyle={{ paddingBottom: '20px' }}
                     />
-                    <Bar dataKey="soTotalCbm" fill="url(#soCbmGradient)" radius={[8, 8, 0, 0]} name="SO Total CBM">
+                    <Bar
+                      dataKey="soTotalCbm"
+                      fill="url(#soCbmGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="SO Total CBM"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="soTotalCbm"
                         position="top"
@@ -2269,7 +2310,14 @@ export default function OutboundPage() {
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
-                    <Bar dataKey="dnTotalCbm" fill="url(#dnCbmGradient)" radius={[8, 8, 0, 0]} name="DN Total CBM">
+                    <Bar
+                      dataKey="dnTotalCbm"
+                      fill="url(#dnCbmGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="DN Total CBM"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="dnTotalCbm"
                         position="top"
@@ -2322,227 +2370,220 @@ export default function OutboundPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
           ) : data?.summaryTotals ? (
-            <motion.div
-              className="space-y-2 max-h-96 overflow-y-auto pr-2"
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.08,
-                    delayChildren: 0.1,
-                  }
-                }
-              }}
-              initial="hidden"
-              animate="visible"
-            >
-              {/* Headers */}
-              <div className="grid grid-cols-9 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
-                <div className="col-span-1">No</div>
-                <div className="col-span-2">Date</div>
-                <div className="col-span-1">DN Qty</div>
-                <div className="col-span-1">DN CBM</div>
-                <div className="col-span-1">EDEL DN Qty</div>
-                <div className="col-span-1">EDEL DN CBM</div>
-                <div className="col-span-1">Pending Qty</div>
-                <div className="col-span-1">Pending CBM</div>
+            <div className="relative">
+              {/* Scrollable container with sticky header and footer */}
+              <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
+                {/* Headers - Sticky */}
+                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 bg-gradient-to-r from-gray-100/95 to-gray-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-[10px] font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+                  <div className="text-left">Date</div>
+                  <div className="text-center">DN Qty</div>
+                  <div className="text-center">DN CBM</div>
+                  <div className="text-center">EDEL Qty</div>
+                  <div className="text-center">EDEL CBM</div>
+                  <div className="text-center">Pend Qty</div>
+                  <div className="text-center">Pend CBM</div>
+                  <div className="text-center">SO Qty</div>
+                </div>
+
+                {/* Data Rows */}
+                <motion.div
+                  className="space-y-2 py-2"
+                  variants={{
+                    visible: {
+                      transition: {
+                        staggerChildren: 0.08,
+                        delayChildren: 0.1,
+                      }
+                    }
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 ? (
+                    data.summaryTotals.dayData.map((day, index) => (
+                      <motion.div
+                        key={day.date}
+                        variants={{
+                          hidden: {
+                            opacity: 0,
+                            x: -25,
+                            scale: 0.95,
+                            filter: "blur(4px)"
+                          },
+                          visible: {
+                            opacity: 1,
+                            x: 0,
+                            scale: 1,
+                            filter: "blur(0px)",
+                            transition: {
+                              type: "spring",
+                              stiffness: 400,
+                              damping: 28,
+                              mass: 0.6,
+                            },
+                          },
+                        }}
+                        className="relative px-1"
+                      >
+                        <motion.div
+                          className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-lg p-2.5 overflow-hidden transition-all duration-200"
+                          whileHover={{
+                            y: -1,
+                            scale: 1.005,
+                            transition: { type: "spring", stiffness: 400, damping: 25 }
+                          }}
+                        >
+                          {/* Status gradient overlay */}
+                          <div
+                            className="absolute inset-0 bg-gradient-to-l from-green-500/15 via-green-500/5 to-transparent pointer-events-none"
+                            style={{
+                              backgroundSize: "30% 100%",
+                              backgroundPosition: "right",
+                              backgroundRepeat: "no-repeat"
+                            }}
+                          />
+
+                          {/* Grid Content */}
+                          <div className="relative grid grid-cols-8 gap-2 items-center">
+                            {/* Date */}
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-bold text-gray-500 dark:text-slate-400">
+                                {String(index + 1).padStart(2, '0')}
+                              </span>
+                              <span className="text-gray-900 dark:text-slate-200 text-xs font-medium truncate">
+                                {day.label}
+                              </span>
+                            </div>
+
+                            {/* DN Qty */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
+                                <span className="text-green-600 dark:text-green-400 text-xs font-medium font-mono">
+                                  {formatNumber(day.dnQty)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* DN CBM */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                                <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
+                                  {formatNumber(day.dnCbm, 2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* EDEL DN Qty */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                                <span className="text-purple-600 dark:text-purple-400 text-xs font-medium font-mono">
+                                  {formatNumber(day.edelDnQty)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* EDEL DN CBM */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
+                                <span className="text-orange-600 dark:text-orange-400 text-xs font-medium font-mono">
+                                  {formatNumber(day.edelDnCbm, 2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Pending Qty (SO - DN) */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                                <span className="text-red-600 dark:text-red-400 text-xs font-medium font-mono">
+                                  {formatNumber((day.soQty || 0) - (day.dnQty || 0))}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Pending CBM (SO - DN) */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                                <span className="text-amber-600 dark:text-amber-400 text-xs font-medium font-mono">
+                                  {formatNumber((day.soCbm || 0) - (day.dnCbm || 0), 2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* SO Qty */}
+                            <div className="flex justify-center">
+                              <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                                <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
+                                  {formatNumber(day.soQty)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </motion.div>
+                      </motion.div>
+                    ))
+                  ) : null}
+                </motion.div>
               </div>
 
-              {/* Data Rows */}
-              {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 ? (
-                data.summaryTotals.dayData.map((day, index) => (
-                  <motion.div
-                    key={day.date}
-                    variants={{
-                      hidden: {
-                        opacity: 0,
-                        x: -25,
-                        scale: 0.95,
-                        filter: "blur(4px)"
-                      },
-                      visible: {
-                        opacity: 1,
-                        x: 0,
-                        scale: 1,
-                        filter: "blur(0px)",
-                        transition: {
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 28,
-                          mass: 0.6,
-                        },
-                      },
-                    }}
-                    className="relative"
-                  >
-                    <motion.div
-                      className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
-                      whileHover={{
-                        y: -2,
-                        scale: 1.01,
-                        transition: { type: "spring", stiffness: 400, damping: 25 }
-                      }}
-                    >
-                      {/* Status gradient overlay */}
-                      <div
-                        className="absolute inset-0 bg-gradient-to-l from-green-500/15 via-green-500/5 to-transparent pointer-events-none"
-                        style={{
-                          backgroundSize: "30% 100%",
-                          backgroundPosition: "right",
-                          backgroundRepeat: "no-repeat"
-                        }}
-                      />
-
-                      {/* Grid Content */}
-                      <div className="relative grid grid-cols-9 gap-4 items-center">
-                        {/* Number */}
-                        <div className="col-span-1">
-                          <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">
-                            {String(index + 1).padStart(2, '0')}
-                          </span>
-                        </div>
-
-                        {/* Date */}
-                        <div className="col-span-2 flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
-                            <ArrowUpFromLine className="w-4 h-4 text-white" />
-                          </div>
-                          <span className="text-gray-900 dark:text-slate-200 font-medium">
-                            {day.label}
-                          </span>
-                        </div>
-
-                        {/* DN Qty */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
-                            <span className="text-green-600 dark:text-green-400 text-sm font-medium font-mono">
-                              {formatNumber(day.dnQty)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* DN CBM */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
-                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
-                              {formatNumber(day.dnCbm, 2)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* EDEL DN Qty */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
-                            <span className="text-purple-600 dark:text-purple-400 text-sm font-medium font-mono">
-                              {formatNumber(day.edelDnQty)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* EDEL DN CBM */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
-                            <span className="text-orange-600 dark:text-orange-400 text-sm font-medium font-mono">
-                              {formatNumber(day.edelDnCbm, 2)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Pending Qty (SO - DN) */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
-                            <span className="text-red-600 dark:text-red-400 text-sm font-medium font-mono">
-                              {formatNumber((day.soQty || 0) - (day.dnQty || 0))}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Pending CBM (SO - DN) */}
-                        <div className="col-span-1 flex justify-center">
-                          <div className="w-full min-w-[4rem] px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
-                            <span className="text-amber-600 dark:text-amber-400 text-sm font-medium font-mono">
-                              {formatNumber((day.soCbm || 0) - (day.dnCbm || 0), 2)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </motion.div>
-                ))
-              ) : (
-                <motion.div
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      x: -25,
-                      scale: 0.95,
-                      filter: "blur(4px)"
-                    },
-                    visible: {
-                      opacity: 1,
-                      x: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                      transition: {
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 28,
-                        mass: 0.6,
-                      },
-                    },
-                  }}
-                  className="relative"
-                >
-                  <div className="relative bg-gradient-to-r from-green-50/80 via-green-50/40 to-transparent dark:from-green-900/20 dark:via-green-900/10 dark:to-transparent backdrop-blur-md border-2 border-green-500/30 dark:border-green-500/20 rounded-xl p-4 shadow-lg shadow-green-500/10">
-                    <div className="grid grid-cols-8 gap-4 items-center">
-                      <div className="col-span-1">
-                        <span className="text-2xl font-bold text-gray-400 dark:text-slate-500">01</span>
-                      </div>
-                      <div className="col-span-1">
-                        <span className="text-gray-900 dark:text-slate-200 font-medium">Total</span>
-                      </div>
-                      <div className="col-span-1">
-                        <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
-                          {formatNumber(data.summaryTotals.totalDnQty)}
-                        </span>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
-                          <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
-                            {formatNumber(data.summaryTotals.totalDnCbm, 2)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-span-1">
-                        <span className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium">
-                          {formatNumber(data.summaryTotals.totalEdelDnQty)}
-                        </span>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
-                          <span className="text-green-600 dark:text-green-400 text-sm font-medium">
-                            {formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
-                          <span className="text-red-600 dark:text-red-400 text-sm font-medium">
-                            {formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="col-span-1">
-                        <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
-                          <span className="text-amber-600 dark:text-amber-400 text-sm font-medium">
-                            {formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}
-                          </span>
-                        </div>
-                      </div>
+              {/* Total Row - Sticky at bottom, outside scroll container */}
+              {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 && (
+                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-green-100/95 via-green-50/95 to-emerald-50/95 dark:from-green-900/40 dark:via-green-800/30 dark:to-emerald-900/30 backdrop-blur-sm border-2 border-green-500/40 dark:border-green-500/30 rounded-lg shadow-lg shadow-green-500/10 sticky bottom-0 z-20">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-green-700 dark:text-green-400">Σ</span>
+                    <span className="text-green-800 dark:text-green-300 text-xs font-bold">TOTAL</span>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center">
+                      <span className="text-green-700 dark:text-green-300 text-xs font-bold font-mono">
+                        {formatNumber(data.summaryTotals.totalDnQty)}
+                      </span>
                     </div>
                   </div>
-                </motion.div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center">
+                      <span className="text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">
+                        {formatNumber(data.summaryTotals.totalDnCbm, 2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-purple-500/20 border-2 border-purple-500/50 inline-flex items-center justify-center">
+                      <span className="text-purple-700 dark:text-purple-300 text-xs font-bold font-mono">
+                        {formatNumber(data.summaryTotals.totalEdelDnQty)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-orange-500/20 border-2 border-orange-500/50 inline-flex items-center justify-center">
+                      <span className="text-orange-700 dark:text-orange-300 text-xs font-bold font-mono">
+                        {formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-red-500/20 border-2 border-red-500/50 inline-flex items-center justify-center">
+                      <span className="text-red-700 dark:text-red-300 text-xs font-bold font-mono">
+                        {formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-amber-500/20 border-2 border-amber-500/50 inline-flex items-center justify-center">
+                      <span className="text-amber-700 dark:text-amber-300 text-xs font-bold font-mono">
+                        {formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center">
+                      <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">
+                        {formatNumber(data.summaryTotals.totalSoQty)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
               )}
-            </motion.div>
+            </div>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
               <div className="text-center">
@@ -2584,151 +2625,227 @@ export default function OutboundPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
           ) : data?.fulfillmentTable && data.fulfillmentTable.length > 0 ? (
-            <motion.div
-              className="space-y-2 max-h-96 overflow-y-auto pr-2"
-              variants={{
-                visible: {
-                  transition: {
-                    staggerChildren: 0.08,
-                    delayChildren: 0.1,
-                  }
-                }
-              }}
-              initial="hidden"
-              animate="visible"
-            >
-              {/* Headers */}
-              <div className="grid grid-cols-5 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
-                <div className="text-center">Date</div>
-                <div className="text-center">SO Qty</div>
-                <div className="text-center">DN Qty</div>
-                <div className="text-center">Pending</div>
-                <div className="text-center">%</div>
+            <div className="relative">
+              {/* Scrollable container with sticky header */}
+              <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
+                {/* Headers - Sticky */}
+                <div className="grid grid-cols-5 gap-2 px-3 py-2.5 bg-gradient-to-r from-purple-100/95 to-purple-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-purple-200/50 dark:border-slate-700/50 text-[10px] font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+                  <div className="text-center">Date</div>
+                  <div className="text-center">SO Qty</div>
+                  <div className="text-center">DN Qty</div>
+                  <div className="text-center">Pending</div>
+                  <div className="text-center">%</div>
+                </div>
+
+                {/* Data Rows */}
+                <motion.div
+                  className="space-y-2 py-2"
+                  variants={{
+                    visible: {
+                      transition: {
+                        staggerChildren: 0.08,
+                        delayChildren: 0.1,
+                      }
+                    }
+                  }}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {data.fulfillmentTable.map((row, index) => (
+                    <motion.div
+                      key={row.date}
+                      variants={{
+                        hidden: {
+                          opacity: 0,
+                          x: -25,
+                          scale: 0.95,
+                          filter: "blur(4px)"
+                        },
+                        visible: {
+                          opacity: 1,
+                          x: 0,
+                          scale: 1,
+                          filter: "blur(0px)",
+                          transition: {
+                            type: "spring",
+                            stiffness: 400,
+                            damping: 28,
+                            mass: 0.6,
+                          },
+                        },
+                      }}
+                      className="relative px-1"
+                    >
+                      <motion.div
+                        className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-lg p-2.5 overflow-hidden transition-all duration-200"
+                        whileHover={{
+                          y: -1,
+                          scale: 1.005,
+                          transition: { type: "spring", stiffness: 400, damping: 25 }
+                        }}
+                      >
+                        {/* Status gradient overlay based on percentage */}
+                        <div
+                          className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
+                            ? 'from-green-500/20 via-green-500/10 to-transparent'
+                            : row.percentage >= 90
+                              ? 'from-blue-500/15 via-blue-500/5 to-transparent'
+                              : row.percentage >= 75
+                                ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
+                                : 'from-red-500/15 via-red-500/5 to-transparent'
+                            } pointer-events-none`}
+                          style={{
+                            backgroundSize: "30% 100%",
+                            backgroundPosition: "right",
+                            backgroundRepeat: "no-repeat"
+                          }}
+                        />
+
+                        {/* Grid Content */}
+                        <div className="relative grid grid-cols-5 gap-2 items-center text-center">
+                          {/* Date */}
+                          <div className="flex items-center justify-center gap-1">
+                            <span className="text-gray-900 dark:text-slate-200 font-medium text-xs truncate">
+                              {row.date}
+                            </span>
+                          </div>
+
+                          {/* SO Qty */}
+                          <div className="flex justify-center">
+                            <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                              <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
+                                {formatNumber(row.soQty)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* DN Qty */}
+                          <div className="flex justify-center">
+                            <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                              <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
+                                {formatNumber(row.dnQty)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Pending */}
+                          <div className="flex justify-center">
+                            <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${row.pending === 0
+                              ? 'bg-green-500/10 border border-green-500/30'
+                              : 'bg-red-500/10 border border-red-500/30'
+                              }`}>
+                              <span className={`text-xs font-medium font-mono ${row.pending === 0
+                                ? 'text-green-600 dark:text-green-400'
+                                : 'text-red-600 dark:text-red-400'
+                                }`}>
+                                {formatNumber(row.pending)}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Percentage */}
+                          <div className="flex justify-center">
+                            <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${row.percentage >= 100
+                              ? 'bg-green-500/20 border-2 border-green-500/50'
+                              : row.percentage >= 90
+                                ? 'bg-blue-500/10 border border-blue-500/30'
+                                : row.percentage >= 75
+                                  ? 'bg-yellow-500/10 border border-yellow-500/30'
+                                  : 'bg-red-500/10 border border-red-500/30'
+                              }`}>
+                              <span className={`text-xs font-bold font-mono ${row.percentage >= 100
+                                ? 'text-green-600 dark:text-green-400'
+                                : row.percentage >= 90
+                                  ? 'text-blue-600 dark:text-blue-400'
+                                  : row.percentage >= 75
+                                    ? 'text-yellow-600 dark:text-yellow-400'
+                                    : 'text-red-600 dark:text-red-400'
+                                }`}>
+                                {row.percentage.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </motion.div>
+                    </motion.div>
+                  ))}
+                </motion.div>
               </div>
 
-              {/* Data Rows */}
-              {data.fulfillmentTable.map((row, index) => (
-                <motion.div
-                  key={row.date}
-                  variants={{
-                    hidden: {
-                      opacity: 0,
-                      x: -25,
-                      scale: 0.95,
-                      filter: "blur(4px)"
-                    },
-                    visible: {
-                      opacity: 1,
-                      x: 0,
-                      scale: 1,
-                      filter: "blur(0px)",
-                      transition: {
-                        type: "spring",
-                        stiffness: 400,
-                        damping: 28,
-                        mass: 0.6,
-                      },
-                    },
-                  }}
-                  className="relative"
-                >
-                  <motion.div
-                    className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-xl p-4 overflow-hidden transition-all duration-200"
-                    whileHover={{
-                      y: -2,
-                      scale: 1.01,
-                      transition: { type: "spring", stiffness: 400, damping: 25 }
-                    }}
-                  >
-                    {/* Status gradient overlay based on percentage */}
-                    <div
-                      className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
-                        ? 'from-green-500/20 via-green-500/10 to-transparent'
-                        : row.percentage >= 90
-                          ? 'from-blue-500/15 via-blue-500/5 to-transparent'
-                          : row.percentage >= 75
-                            ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
-                            : 'from-red-500/15 via-red-500/5 to-transparent'
-                        } pointer-events-none`}
-                      style={{
-                        backgroundSize: "30% 100%",
-                        backgroundPosition: "right",
-                        backgroundRepeat: "no-repeat"
-                      }}
-                    />
+              {/* Average Row - Sticky at bottom, outside scroll container */}
+              {(() => {
+                const count = data.fulfillmentTable.length;
+                const avgSoQty = data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0) / count;
+                const avgDnQty = data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0) / count;
+                const avgPending = data.fulfillmentTable.reduce((sum, row) => sum + row.pending, 0) / count;
+                const avgPercentage = data.fulfillmentTable.reduce((sum, row) => sum + row.percentage, 0) / count;
 
-                    {/* Grid Content */}
-                    <div className="relative grid grid-cols-5 gap-4 items-center text-center">
-                      {/* Date */}
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
-                          <Calendar className="w-4 h-4 text-white" />
-                        </div>
-                        <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
-                          {row.date}
+                return (
+                  <div className="grid grid-cols-5 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-purple-100/95 via-purple-50/95 to-indigo-50/95 dark:from-purple-900/40 dark:via-purple-800/30 dark:to-indigo-900/30 backdrop-blur-sm border-2 border-purple-500/40 dark:border-purple-500/30 rounded-lg shadow-lg shadow-purple-500/10 sticky bottom-0 z-20">
+                    {/* Average Label */}
+                    <div className="flex items-center justify-center">
+                      <span className="text-purple-800 dark:text-purple-300 font-bold text-xs">AVG</span>
+                    </div>
+
+                    {/* Avg SO Qty */}
+                    <div className="flex justify-center">
+                      <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center">
+                        <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">
+                          {formatNumber(avgSoQty)}
                         </span>
                       </div>
+                    </div>
 
-                      {/* SO Qty */}
-                      <div className="flex justify-center">
-                        <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                          <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
-                            {formatNumber(row.soQty)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* DN Qty */}
-                      <div className="flex justify-center">
-                        <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                          <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
-                            {formatNumber(row.dnQty)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Pending */}
-                      <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.pending === 0
-                          ? 'bg-green-500/10 border border-green-500/30'
-                          : 'bg-red-500/10 border border-red-500/30'
-                          }`}>
-                          <span className={`text-sm font-medium font-mono ${row.pending === 0
-                            ? 'text-green-600 dark:text-green-400'
-                            : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {formatNumber(row.pending)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Percentage */}
-                      <div className="flex justify-center">
-                        <div className={`px-3 py-1.5 rounded-lg inline-flex items-center justify-center min-w-[5rem] ${row.percentage >= 100
-                          ? 'bg-green-500/20 border-2 border-green-500/50'
-                          : row.percentage >= 90
-                            ? 'bg-blue-500/10 border border-blue-500/30'
-                            : row.percentage >= 75
-                              ? 'bg-yellow-500/10 border border-yellow-500/30'
-                              : 'bg-red-500/10 border border-red-500/30'
-                          }`}>
-                          <span className={`text-sm font-bold font-mono ${row.percentage >= 100
-                            ? 'text-green-600 dark:text-green-400'
-                            : row.percentage >= 90
-                              ? 'text-blue-600 dark:text-blue-400'
-                              : row.percentage >= 75
-                                ? 'text-yellow-600 dark:text-yellow-400'
-                                : 'text-red-600 dark:text-red-400'
-                            }`}>
-                            {row.percentage.toFixed(2)}%
-                          </span>
-                        </div>
+                    {/* Avg DN Qty */}
+                    <div className="flex justify-center">
+                      <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center">
+                        <span className="text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">
+                          {formatNumber(avgDnQty)}
+                        </span>
                       </div>
                     </div>
-                  </motion.div>
-                </motion.div>
-              ))}
-            </motion.div>
+
+                    {/* Avg Pending */}
+                    <div className="flex justify-center">
+                      <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${avgPending === 0
+                        ? 'bg-green-500/20 border-2 border-green-500/50'
+                        : 'bg-red-500/20 border-2 border-red-500/50'
+                        }`}>
+                        <span className={`text-xs font-bold font-mono ${avgPending === 0
+                          ? 'text-green-700 dark:text-green-300'
+                          : 'text-red-700 dark:text-red-300'
+                          }`}>
+                          {formatNumber(avgPending)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Avg Percentage */}
+                    <div className="flex justify-center">
+                      <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${avgPercentage >= 100
+                        ? 'bg-green-500/30 border-2 border-green-500/60'
+                        : avgPercentage >= 90
+                          ? 'bg-blue-500/20 border-2 border-blue-500/50'
+                          : avgPercentage >= 75
+                            ? 'bg-yellow-500/20 border-2 border-yellow-500/50'
+                            : 'bg-red-500/20 border-2 border-red-500/50'
+                        }`}>
+                        <span className={`text-xs font-bold font-mono ${avgPercentage >= 100
+                          ? 'text-green-700 dark:text-green-300'
+                          : avgPercentage >= 90
+                            ? 'text-blue-700 dark:text-blue-300'
+                            : avgPercentage >= 75
+                              ? 'text-yellow-700 dark:text-yellow-300'
+                              : 'text-red-700 dark:text-red-300'
+                          }`}>
+                          {avgPercentage.toFixed(1)}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
               <div className="text-center">

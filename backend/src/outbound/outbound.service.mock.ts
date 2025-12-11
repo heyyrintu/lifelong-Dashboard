@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { CategoryNormalizerService } from './category-normalizer.service';
-import { 
-  classifyProductCategory, 
-  ProductCategory, 
-  PRODUCT_CATEGORY_LABELS, 
-  PRODUCT_CATEGORY_ORDER, 
-  productCategoryLabelToEnum 
+import {
+  classifyProductCategory,
+  ProductCategory,
+  PRODUCT_CATEGORY_LABELS,
+  PRODUCT_CATEGORY_ORDER,
+  productCategoryLabelToEnum
 } from './product-category.helper';
 import * as XLSX from 'xlsx';
 import * as fs from 'fs';
@@ -91,7 +91,7 @@ export class OutboundService {
   private latestUploadId: string | null = null;
   private uploads: UploadInfo[] = [];
 
-  constructor(private categoryNormalizer: CategoryNormalizerService) {}
+  constructor(private categoryNormalizer: CategoryNormalizerService) { }
 
   async uploadFile(file: Express.Multer.File): Promise<UploadResult> {
     if (!file) {
@@ -179,23 +179,23 @@ export class OutboundService {
       const [year, monthNum] = month.split('-');
       filteredData = filteredData.filter(row => {
         const date = new Date(row.delivery_note_date);
-        return date.getFullYear() === parseInt(year) && 
-               date.getMonth() + 1 === parseInt(monthNum);
+        return date.getFullYear() === parseInt(year) &&
+          date.getMonth() + 1 === parseInt(monthNum);
       });
     } else if (fromDate || toDate) {
       filteredData = filteredData.filter(row => {
         const rowDate = new Date(row.delivery_note_date);
         const fromDateObj = fromDate ? new Date(fromDate) : null;
         const toDateObj = toDate ? new Date(toDate) : null;
-        
+
         // Set time to start/end of day for inclusive filtering
         if (fromDateObj) fromDateObj.setHours(0, 0, 0, 0);
         if (toDateObj) toDateObj.setHours(23, 59, 59, 999);
-        
+
         let matches = true;
         if (fromDateObj && rowDate < fromDateObj) matches = false;
         if (toDateObj && rowDate > toDateObj) matches = false;
-        
+
         return matches;
       });
     }
@@ -326,7 +326,7 @@ export class OutboundService {
     // When month is selected, use filteredData (without product category filter)
     // Otherwise, use productCategoryFilteredData (with product category filter)
     const summaryDataForTotals = (month && month !== 'ALL') ? filteredData : productCategoryFilteredData;
-    
+
     // Generate day-by-day data for summary totals
     const dayDataMap: { [key: string]: any[] } = {};
     summaryDataForTotals.forEach(row => {
@@ -346,7 +346,7 @@ export class OutboundService {
         const rows = dayDataMap[dateKey];
         const date = new Date(dateKey);
         const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-        
+
         return {
           date: dateKey,
           label: `${date.getDate()} ${dayNames[date.getMonth()]}`,
@@ -386,13 +386,13 @@ export class OutboundService {
 
   private parseDate(dateValue: any): string | null {
     if (!dateValue) return null;
-    
+
     if (typeof dateValue === 'number') {
       // Excel date number
       const date = new Date((dateValue - 25569) * 86400 * 1000);
       return date.toISOString().split('T')[0];
     }
-    
+
     if (typeof dateValue === 'string') {
       // Try to parse as date string
       const date = new Date(dateValue);
@@ -400,7 +400,7 @@ export class OutboundService {
         return date.toISOString().split('T')[0];
       }
     }
-    
+
     return null;
   }
 
@@ -441,10 +441,10 @@ export class OutboundService {
       if (!row.delivery_note_date) {
         return;
       }
-      
+
       const date = new Date(row.delivery_note_date);
       let bucketKey: string;
-      
+
       switch (granularity) {
         case 'month':
           bucketKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
@@ -470,23 +470,23 @@ export class OutboundService {
       const dates = data.map(row => new Date(row.delivery_note_date));
       const minDate = new Date(Math.min(...dates.map(d => d.getTime())));
       const maxDate = new Date(Math.max(...dates.map(d => d.getTime())));
-      
+
       // If dates are in the same month, show all days of that month
       if (minDate.getFullYear() === maxDate.getFullYear() && minDate.getMonth() === maxDate.getMonth()) {
         const year = minDate.getFullYear();
         const month = minDate.getMonth();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
-        
+
         // Generate all days of the month
         for (let day = 1; day <= daysInMonth; day++) {
           const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           const rows = groupedData[dateKey] || [];
           const dnQty = rows.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0);
           const dnTotalCbm = rows.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0);
-          
+
           const date = new Date(year, month, day);
           const dayNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          
+
           points.push({
             key: dateKey,
             label: `${day} ${dayNames[month]}`,
@@ -502,9 +502,9 @@ export class OutboundService {
           const rows = groupedData[key];
           const dnQty = rows.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0);
           const dnTotalCbm = rows.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0);
-          
+
           const { startDate, endDate, label } = this.getTimeBucketInfo(key, granularity);
-          
+
           points.push({
             key,
             label,
@@ -521,9 +521,9 @@ export class OutboundService {
         const rows = groupedData[key];
         const dnQty = rows.reduce((sum, r) => sum + (r.delivery_note_qty || 0), 0);
         const dnTotalCbm = rows.reduce((sum, r) => sum + (r.dn_total_cbm || 0), 0);
-        
+
         const { startDate, endDate, label } = this.getTimeBucketInfo(key, granularity);
-        
+
         points.push({
           key,
           label,
@@ -561,17 +561,24 @@ export class OutboundService {
           endDate: endDate.toISOString().split('T')[0],
           label: `${monthNames[month - 1]} ${year}`,
         };
-      
+
       case 'week':
         const [weekYear, weekNum] = key.split('-W').map(Number);
         const weekStart = this.getWeekStart(weekYear, weekNum);
         const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000);
+
+        // Calculate week number within the month
+        const weekMonth = weekStart.getMonth();
+        const firstDayOfMonth = new Date(weekStart.getFullYear(), weekMonth, 1);
+        const weekOfMonth = Math.ceil((weekStart.getDate() + firstDayOfMonth.getDay()) / 7);
+        const monthNamesWeek = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
         return {
           startDate: weekStart.toISOString().split('T')[0],
           endDate: weekEnd.toISOString().split('T')[0],
-          label: `W${String(weekNum).padStart(2, '0')}`,
+          label: `Week${weekOfMonth}'${monthNamesWeek[weekMonth]}`,
         };
-      
+
       case 'day':
         const dayDate = new Date(key);
         return {
@@ -591,7 +598,7 @@ export class OutboundService {
   async generateSummaryExcel(summaryTotals: SummaryTotals): Promise<Buffer> {
     // Create workbook
     const workbook = XLSX.utils.book_new();
-    
+
     // Create summary data
     const summaryData = [
       ['Metric', 'Value'],
@@ -600,10 +607,10 @@ export class OutboundService {
       ['Total EDEL DN Qty', summaryTotals.totalEdelDnQty],
       ['Total EDEL DN CBM', summaryTotals.totalEdelDnCbm],
     ];
-    
+
     // Create worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(summaryData);
-    
+
     // Style the worksheet (basic styling)
     worksheet['A1'].s = {
       font: { bold: true },
@@ -613,16 +620,16 @@ export class OutboundService {
       font: { bold: true },
       fill: { fgColor: { rgb: 'FFE6E6' } }
     };
-    
+
     // Set column widths
     worksheet['!cols'] = [
       { width: 20 }, // Metric column
       { width: 15 }, // Value column
     ];
-    
+
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Summary');
-    
+
     // Generate buffer
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }
@@ -636,24 +643,24 @@ export class OutboundService {
   ): Promise<Buffer> {
     // Get summary data 
     const summary = await this.getSummary(uploadId, fromDate, toDate, month, productCategory);
-    
+
     // Create workbook
     const workbook = XLSX.utils.book_new();
-    
+
     // Create monthly summary data
     const monthlyData = [
       ['Metric', 'Value']
     ];
-    
+
     // Add summary totals
     monthlyData.push(['Total DN Qty', summary.summaryTotals.totalDnQty.toString()]);
     monthlyData.push(['Total DN CBM', summary.summaryTotals.totalDnCbm.toString()]);
     monthlyData.push(['Total EDEL DN Qty', summary.summaryTotals.totalEdelDnQty.toString()]);
     monthlyData.push(['Total EDEL DN CBM', summary.summaryTotals.totalEdelDnCbm.toString()]);
-    
+
     // Create worksheet
     const worksheet = XLSX.utils.aoa_to_sheet(monthlyData);
-    
+
     // Style the header row
     for (let col = 0; col < monthlyData[0].length; col++) {
       const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
@@ -662,16 +669,16 @@ export class OutboundService {
         fill: { fgColor: { rgb: 'FFE6E6' } }
       };
     }
-    
+
     // Set column widths
     worksheet['!cols'] = [
       { width: 20 }, // Metric column
       { width: 15 }, // Value column
     ];
-    
+
     // Add worksheet to workbook
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Monthly Summary');
-    
+
     // Generate buffer
     return XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
   }

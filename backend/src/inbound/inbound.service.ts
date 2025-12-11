@@ -25,6 +25,7 @@ export interface InboundCardMetrics {
   receivedQtyTotal: number;
   goodQtyTotal: number;
   totalCbm: number;
+  vehicleCount: number;
 }
 
 export interface TimeSeriesPoint {
@@ -60,6 +61,13 @@ export interface SummaryTotals {
   dayData: DayData[];
 }
 
+export interface ProductCategoryTableRow {
+  category: string;
+  skuCount: number;
+  receivedQty: number;
+  totalCbm: number;
+}
+
 export interface UploadInfo {
   uploadId: string;
   fileName: string;
@@ -79,6 +87,7 @@ export interface InboundSummaryResponse {
   productCategories: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
+  categoryTable: ProductCategoryTableRow[];
 }
 
 // Path to the static Item Master file - configurable via environment variable
@@ -310,6 +319,7 @@ export class InboundService implements OnModuleInit {
 
       // Parse all rows first (before transaction) to catch validation errors early
       const parsedRows: Array<{
+        srNo: string | null;
         dateOfUnload: Date | null;
         invoiceSku: string | null;
         receivedSku: string | null;
@@ -327,8 +337,9 @@ export class InboundService implements OnModuleInit {
         if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed):
-        // Date of Unload=column B (1), Invoice SKU=column I (8), Received SKU=column J (9)
+        // Sr No.=column A (0), Date of Unload=column B (1), Invoice SKU=column I (8), Received SKU=column J (9)
         // Invoice Qty=column K (10), Received Qty=column L (11), Good=column N (13)
+        const srNo = this.getCellValue(row[0]); // A
         const dateOfUnload = this.parseExcelDate(row[1]); // B
         const invoiceSku = this.getCellValue(row[8]); // I
         const receivedSku = this.getCellValue(row[9]); // J
@@ -355,6 +366,7 @@ export class InboundService implements OnModuleInit {
         const productCategory = this.categoryNormalizer.normalizeProductCategory(itemGroup);
 
         parsedRows.push({
+          srNo,
           dateOfUnload,
           invoiceSku,
           receivedSku,
@@ -524,15 +536,16 @@ export class InboundService implements OnModuleInit {
       ? productCategories.filter(c => c !== 'ALL')
       : undefined;
 
-    // Run parallel queries for metrics, dates, months, categories, and time series
+    // Run parallel queries for metrics, dates, months, categories, time series, and category table
     // (aggregating across all uploads if multiple)
-    const [cards, availableDates, availableMonths, productCategoriesList, timeSeries, summaryTotals] = await Promise.all([
+    const [cards, availableDates, availableMonths, productCategoriesList, timeSeries, summaryTotals, categoryTable] = await Promise.all([
       this.calculateCardMetricsOptimized(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
       this.getAvailableDates(targetUploadIds),
       this.getAvailableMonths(targetUploadIds),
       this.getProductCategories(targetUploadIds),
       this.generateTimeSeries(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter, granularity),
       this.getSummaryTotals(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
+      this.getProductCategoryTable(targetUploadIds, effectiveFromDate, effectiveToDate, productCategoryFilter),
     ]);
 
     const result: InboundSummaryResponse = {
@@ -542,6 +555,7 @@ export class InboundService implements OnModuleInit {
       productCategories: ['ALL', ...productCategoriesList],
       timeSeries,
       summaryTotals,
+      categoryTable,
     };
 
     // Store in cache
@@ -604,6 +618,7 @@ export class InboundService implements OnModuleInit {
       received_qty_total: number;
       good_qty_total: number;
       total_cbm: number;
+      vehicle_count: bigint;
     }]>(`
       SELECT 
         COUNT(DISTINCT invoice_sku) as invoice_sku_count,
@@ -611,7 +626,8 @@ export class InboundService implements OnModuleInit {
         COALESCE(SUM(invoice_qty), 0) as invoice_qty_total,
         COALESCE(SUM(received_qty), 0) as received_qty_total,
         COALESCE(SUM(good_qty), 0) as good_qty_total,
-        COALESCE(SUM(total_cbm), 0) as total_cbm
+        COALESCE(SUM(total_cbm), 0) as total_cbm,
+        COUNT(DISTINCT sr_no) as vehicle_count
       FROM inbound_rows
       WHERE upload_id = ANY($1) ${dateCondition}
     `, ...params);
@@ -624,6 +640,7 @@ export class InboundService implements OnModuleInit {
       receivedQtyTotal: Math.round(Number(row?.received_qty_total || 0) * 100) / 100,
       goodQtyTotal: Math.round(Number(row?.good_qty_total || 0) * 100) / 100,
       totalCbm: Math.round(Number(row?.total_cbm || 0) * 100) / 100,
+      vehicleCount: Number(row?.vehicle_count || 0),
     };
   }
 
@@ -744,7 +761,20 @@ export class InboundService implements OnModuleInit {
         const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
         endDate = `${bucketKey}-${String(lastDay).padStart(2, '0')}`;
       } else if (granularity === 'week') {
-        label = bucketKey;
+        // Parse week key (format: YYYY-WNN)
+        const [weekYear, weekNumStr] = bucketKey.split('-W');
+        const weekNum = parseInt(weekNumStr);
+
+        // Get week start date
+        const weekStart = this.getWeekStart(parseInt(weekYear), weekNum);
+
+        // Calculate week number within the month
+        const weekMonth = weekStart.getMonth();
+        const firstDayOfMonth = new Date(weekStart.getFullYear(), weekMonth, 1);
+        const weekOfMonth = Math.ceil((weekStart.getDate() + firstDayOfMonth.getDay()) / 7);
+
+        label = `Week${weekOfMonth}'${monthNames[weekMonth]}`;
+
         const sortedDates = data.dates.sort();
         startDate = sortedDates[0] || bucketKey;
         endDate = sortedDates[sortedDates.length - 1] || bucketKey;
@@ -844,6 +874,62 @@ export class InboundService implements OnModuleInit {
       totalEdelTotalCbm: Math.round(totalEdelTotalCbm * 100) / 100,
       dayData,
     };
+  }
+
+  /**
+   * Get product category table data
+   * Aggregates SKU count, received qty, and total CBM by product category
+   */
+  private async getProductCategoryTable(
+    uploadIds: string[],
+    fromDate?: string,
+    toDate?: string,
+    productCategories?: string[],
+  ): Promise<ProductCategoryTableRow[]> {
+    // Build SQL conditions
+    let dateCondition = '';
+    const params: any[] = [uploadIds];
+
+    if (fromDate) {
+      params.push(this.parseLocalDate(fromDate));
+      dateCondition += ` AND date_of_unload >= $${params.length}`;
+    }
+    if (toDate) {
+      params.push(this.parseLocalDate(toDate, true));
+      dateCondition += ` AND date_of_unload <= $${params.length}`;
+    }
+    if (productCategories && productCategories.length > 0) {
+      const placeholders = productCategories.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategories);
+      dateCondition += ` AND product_category IN (${placeholders})`;
+    }
+
+    // Query to aggregate by product category
+    const results = await this.prisma.$queryRawUnsafe<Array<{
+      product_category: string;
+      sku_count: bigint;
+      received_qty: number;
+      total_cbm: number;
+    }>>(`
+      SELECT 
+        product_category,
+        COUNT(DISTINCT received_sku) as sku_count,
+        COALESCE(SUM(received_qty), 0) as received_qty,
+        COALESCE(SUM(total_cbm), 0) as total_cbm
+      FROM inbound_rows
+      WHERE upload_id = ANY($1)
+        AND product_category IS NOT NULL
+        ${dateCondition}
+      GROUP BY product_category
+      ORDER BY product_category
+    `, ...params);
+
+    return results.map(row => ({
+      category: row.product_category,
+      skuCount: Number(row.sku_count || 0),
+      receivedQty: Math.round(Number(row.received_qty || 0) * 100) / 100,
+      totalCbm: Math.round(Number(row.total_cbm || 0) * 100) / 100,
+    }));
   }
 
   /**
@@ -982,6 +1068,24 @@ export class InboundService implements OnModuleInit {
     ];
     createStyledSheet('Summary Totals', dayHeader, dayRows, dayTotalsRow);
 
+    // Sheet 4: Product Category Table
+    const categoryHeader = ['Category', 'SKU Count', 'Received Qty', 'Total CBM'];
+    const categoryRows = (summary.categoryTable || []).map((row) => [
+      row.category,
+      row.skuCount,
+      Math.round((row.receivedQty || 0) * 100) / 100,
+      Math.round((row.totalCbm || 0) * 100) / 100,
+    ]);
+    const categoryTotalsRow = categoryRows.length
+      ? [
+        'Total',
+        categoryRows.reduce((sum, row) => sum + (Number(row[1]) || 0), 0),
+        categoryRows.reduce((sum, row) => sum + (Number(row[2]) || 0), 0),
+        categoryRows.reduce((sum, row) => sum + (Number(row[3]) || 0), 0),
+      ]
+      : undefined;
+    createStyledSheet('Product Category', categoryHeader, categoryRows, categoryTotalsRow);
+
     return Buffer.from(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }));
   }
 
@@ -991,6 +1095,12 @@ export class InboundService implements OnModuleInit {
     d.setUTCDate(d.getUTCDate() + 4 - dayNum);
     const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  }
+
+  private getWeekStart(year: number, week: number): Date {
+    const firstDayOfYear = new Date(year, 0, 1);
+    const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+    return new Date(year, 0, 1 + daysOffset);
   }
 
   // Helper methods

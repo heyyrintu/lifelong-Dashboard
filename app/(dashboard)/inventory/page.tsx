@@ -5,7 +5,7 @@ import { authenticatedFetch } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
-import { Boxes, Package, Box, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, TrendingUp, Download } from 'lucide-react';
+import { Boxes, Package, Box, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, TrendingUp, Download, Info, X } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -85,6 +85,11 @@ interface FastMovingSkusResponse {
     availableWarehouses: string[];
     availableProductCategories: string[];
   };
+  salesDateRange?: {
+    minDate: string | null;
+    maxDate: string | null;
+    totalDays: number;
+  };
 }
 
 interface ZeroOrderProduct {
@@ -98,6 +103,7 @@ interface ZeroOrderProduct {
   totalCbm: number;
   daysInStock: number;
   stockValue: string;
+  dnCount: number;
 }
 
 interface ZeroOrderProductsResponse {
@@ -132,6 +138,7 @@ function InventoryPageContent() {
   const [fastMovingWarehouse, setFastMovingWarehouse] = useState('ALL');
   const [fastMovingCategory, setFastMovingCategory] = useState('ALL');
   const [minAvgQty, setMinAvgQty] = useState(50);
+  const [fastMovingLimit, setFastMovingLimit] = useState(10);
   const [showFastMovingSection, setShowFastMovingSection] = useState(true);
   const [fastMovingPage, setFastMovingPage] = useState(0);
   const ITEMS_PER_PAGE = 20;
@@ -143,8 +150,13 @@ function InventoryPageContent() {
   const [zeroOrderWarehouse, setZeroOrderWarehouse] = useState('ALL');
   const [zeroOrderCategory, setZeroOrderCategory] = useState('ALL');
   const [minDaysInStock, setMinDaysInStock] = useState(7);
+  const [zeroOrderLimit, setZeroOrderLimit] = useState(10);
   const [showZeroOrderSection, setShowZeroOrderSection] = useState(true);
   const [zeroOrderPage, setZeroOrderPage] = useState(0);
+
+  // Info tooltip states
+  const [showFastMovingInfo, setShowFastMovingInfo] = useState(false);
+  const [showZeroOrderInfo, setShowZeroOrderInfo] = useState(false);
 
   // Filter states
   const [fromDate, setFromDate] = useState('');
@@ -325,7 +337,7 @@ function InventoryPageContent() {
         params.append('productCategory', fastMovingCategory);
       }
       params.append('minAvgQty', minAvgQty.toString());
-      params.append('limit', '50');
+      params.append('limit', fastMovingLimit.toString());
 
       const response = await authenticatedFetch(`/inventory/fast-moving-skus?${params.toString()}`);
 
@@ -346,13 +358,12 @@ function InventoryPageContent() {
     }
   };
 
-  // Fetch fast-moving SKUs on mount and when filters change
+  // Fetch fast-moving SKUs on mount only
   useEffect(() => {
     if (data) {
-      setFastMovingPage(0); // Reset to first page when filters change
       fetchFastMovingSkus();
     }
-  }, [data, fastMovingWarehouse, fastMovingCategory, minAvgQty]);
+  }, [data]);
 
   const getStockStatusColor = (status: string) => {
     switch (status) {
@@ -388,7 +399,28 @@ function InventoryPageContent() {
         params.append('productCategory', zeroOrderCategory);
       }
       params.append('minDaysInStock', minDaysInStock.toString());
-      params.append('limit', '100');
+      params.append('limit', zeroOrderLimit.toString());
+
+      // Add selected month as date range for DN count calculation
+      if (selectedMonth && selectedMonth !== 'ALL') {
+        const [year, month] = selectedMonth.split('-').map(Number);
+        if (year && month) {
+          const startDate = new Date(year, month - 1, 1);
+          const endDate = new Date(year, month, 0);
+          const formatDate = (d: Date) => {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+          };
+          params.append('fromDate', formatDate(startDate));
+          params.append('toDate', formatDate(endDate));
+        }
+      } else if (fromDate && toDate) {
+        // Use custom date range if no month selected
+        params.append('fromDate', fromDate);
+        params.append('toDate', toDate);
+      }
 
       const response = await authenticatedFetch(`/inventory/zero-order-products?${params.toString()}`);
 
@@ -409,13 +441,12 @@ function InventoryPageContent() {
     }
   };
 
-  // Fetch zero-order products when data loads or filters change
+  // Fetch zero-order products on mount only
   useEffect(() => {
     if (data) {
-      setZeroOrderPage(0);
       fetchZeroOrderProducts();
     }
-  }, [data, zeroOrderWarehouse, zeroOrderCategory, minDaysInStock]);
+  }, [data]);
 
   const getStockValueColor = (value: string) => {
     switch (value) {
@@ -573,6 +604,12 @@ function InventoryPageContent() {
     return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
   };
 
+  const getWeekStart = (year: number, week: number): Date => {
+    const firstDayOfYear = new Date(year, 0, 1);
+    const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+    return new Date(year, 0, 1 + daysOffset);
+  };
+
   const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
     if (!chartData || !chartData.points) return [];
     const points = chartData.points;
@@ -595,13 +632,20 @@ function InventoryPageContent() {
         const year = d.getFullYear();
         const month = d.getMonth();
         key = `${year}-${String(month + 1).padStart(2, '0')}`;
-        label = `${monthNames[month]}'${String(year).slice(2)}`;
+        label = `${monthNames[month]} ${year}`;
       } else {
         // week
         const year = d.getFullYear();
         const week = getISOWeek(d);
         key = `${year}-W${String(week).padStart(2, '0')}`;
-        label = `W${String(week).padStart(2, '0')}'${String(year).slice(2)}`;
+
+        // Calculate week label in format WeekN'Mon
+        const weekStart = getWeekStart(year, week);
+        const weekMonth = weekStart.getMonth();
+        const firstDayOfMonth = new Date(weekStart.getFullYear(), weekMonth, 1);
+        const weekOfMonth = Math.ceil((weekStart.getDate() + firstDayOfMonth.getDay()) / 7);
+
+        label = `Week${weekOfMonth}'${monthNames[weekMonth]}`;
       }
 
       if (!groups[key]) {
@@ -664,8 +708,58 @@ function InventoryPageContent() {
 
   const displayPoints = getDisplayPoints();
 
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
+
+    if (timeGranularity === 'month') return;
+
+    const payload = data.activePayload[0].payload;
+    const dateKey = payload.date; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
+
+    if (timeGranularity === 'week') {
+      const match = dateKey.match(/^(\d{4})-W(\d{1,2})$/);
+      if (match) {
+        const year = parseInt(match[1], 10);
+        const week = parseInt(match[2], 10);
+        const startDate = getWeekStart(year, week);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+
+        const formatDate = (d: Date) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
+
+        setFromDate(formatDate(startDate));
+        setToDate(formatDate(endDate));
+        setSelectedMonth('ALL');
+        setFiltersDirty(true);
+        // Trigger fetch immediately
+        setTimeout(() => fetchSummary(true), 0);
+      }
+    } else if (timeGranularity === 'day') {
+      // Day granularity: dateKey is "YYYY-MM-DD" or similar ISO
+      // Just in case, try to standardise
+      const d = new Date(dateKey);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        const dateStr = `${y}-${m}-${day}`;
+
+        setFromDate(dateStr);
+        setToDate(dateStr);
+        setSelectedMonth('ALL');
+        setFiltersDirty(true);
+        setTimeout(() => fetchSummary(true), 0);
+      }
+    }
+  };
+
   return (
-    <div>
+    <div className="relative min-h-screen">
       {/* Date & Category Filters - Premium Redesign */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -676,9 +770,9 @@ function InventoryPageContent() {
         {/* Decorative gradient blob */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end" suppressHydrationWarning={true}>
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
-          <div className="md:col-span-3 space-y-2">
+          <div className="md:col-span-2 space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
@@ -698,7 +792,7 @@ function InventoryPageContent() {
                   suppressHydrationWarning={true}
                 />
               </div>
-              <div className="px-1.5 text-gray-300 dark:text-slate-600">
+              <div className="px-3 text-gray-300 dark:text-slate-600">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
               <div className="relative flex-1">
@@ -720,7 +814,7 @@ function InventoryPageContent() {
           </div>
 
           {/* Month Selector */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
@@ -769,7 +863,7 @@ function InventoryPageContent() {
           </div>
 
           {/* Warehouse Filter */}
-          <div className="md:col-span-2 space-y-2">
+          <div className="space-y-2">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
@@ -795,7 +889,7 @@ function InventoryPageContent() {
           </div>
 
           {/* Product Category */}
-          <div className="md:col-span-3 space-y-2 relative" ref={categoryDropdownRef}>
+          <div className="space-y-2 relative" ref={categoryDropdownRef}>
             <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
@@ -878,36 +972,32 @@ function InventoryPageContent() {
           </div>
 
           {/* Apply & Reset Buttons */}
-          <div className="md:col-span-2 flex gap-2 items-end">
+          <div className="flex gap-2 items-end">
             <motion.button
               whileHover={{ scale: 1.05, translateY: -1 }}
               whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleDownloadSummary}
-              className="h-[36px] w-[40px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
+              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
               aria-label="Download inventory Excel"
               title="Download Excel"
             >
               <Download className="w-4 h-4" />
             </motion.button>
             <motion.button
-              whileHover={{ scale: 1.02, translateY: -2 }}
-              whileTap={{ scale: 0.98, translateY: 0 }}
+              whileHover={{ scale: 1.05, translateY: -2 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleFilter}
               disabled={loading}
-              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              title="Apply Filter"
+              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  <span>Updating...</span>
-                </>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <>
-                  <Search className="w-3.5 h-3.5 stroke-[2.5]" />
-                  <span>Apply Filter</span>
-                </>
+                <Search className="w-4 h-4 stroke-[2.5]" />
               )}
+              <span className="font-semibold text-xs">Filter</span>
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL') || (selectedItemGroup && selectedItemGroup !== 'ALL')) && (
               <motion.button
@@ -1073,7 +1163,11 @@ function InventoryPageContent() {
               </div>
               <div className="relative z-10">
                 <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={displayPoints} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
+                  <BarChart
+                    data={displayPoints}
+                    margin={{ top: 20, right: 20, bottom: 10, left: 0 }}
+                    onClick={handleChartClick}
+                  >
                     <defs>
                       <linearGradient id="inventoryQtyGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
@@ -1125,19 +1219,33 @@ function InventoryPageContent() {
                       content={<QtyLegend />}
                       wrapperStyle={{ paddingBottom: '20px' }}
                     />
-                    <Bar dataKey="inventoryQty" fill="url(#inventoryQtyGradient)" radius={[8, 8, 0, 0]} name="Inventory Qty">
+                    <Bar
+                      dataKey="inventoryQty"
+                      fill="url(#inventoryQtyGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="Inventory Qty"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="inventoryQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: any) => `${formatInLakhs(value)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
-                    <Bar dataKey="edelInventoryQty" fill="url(#edelInventoryQtyGradient)" radius={[8, 8, 0, 0]} name="EDEL Inventory Qty">
+                    <Bar
+                      dataKey="edelInventoryQty"
+                      fill="url(#edelInventoryQtyGradient)"
+                      radius={[8, 8, 0, 0]}
+                      name="EDEL Inventory Qty"
+                      cursor={timeGranularity !== 'month' ? "pointer" : "default"}
+                      activeBar={{ stroke: 'black', strokeWidth: 1 }}
+                    >
                       <LabelList
                         dataKey="edelInventoryQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: any) => `${formatInLakhs(value)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1306,14 +1414,73 @@ function InventoryPageContent() {
                       min={0}
                     />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Limit:</label>
+                    <select
+                      value={fastMovingLimit}
+                      onChange={(e) => setFastMovingLimit(parseInt(e.target.value))}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-900 dark:text-white"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
                   <button
-                    onClick={fetchFastMovingSkus}
+                    onClick={() => {
+                      setFastMovingPage(0);
+                      fetchFastMovingSkus();
+                    }}
                     disabled={fastMovingLoading}
                     className="flex items-center gap-2 px-4 py-1.5 bg-brandRed hover:bg-red-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${fastMovingLoading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    {fastMovingLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Search className="w-3.5 h-3.5" />
+                    )}
+                    Filter
                   </button>
+                  {/* Info Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowFastMovingInfo(!showFastMovingInfo)}
+                      className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
+                      title="Information"
+                    >
+                      <Info className="w-4 h-4" />
+                    </button>
+                    {showFastMovingInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        className="absolute z-[100] bottom-10 right-0 w-96 bg-white dark:bg-slate-800 border-2 border-blue-500 dark:border-blue-400 rounded-xl shadow-2xl p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Fast-Moving SKUs</h4>
+                          <button
+                            onClick={() => setShowFastMovingInfo(false)}
+                            className="w-6 h-6 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+                          >
+                            <X className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-slate-400 space-y-2">
+                          <p><strong>Purpose:</strong> Identify high-velocity items that need close stock monitoring.</p>
+                          <p><strong>Calculation:</strong></p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            <li>Calculates average inventory quantity per item across all dates</li>
+                            <li>Matches with outbound delivery notes to get sales data</li>
+                            <li>Sales/Day = Total sales ÷ Number of distinct days with sales</li>
+                            <li>Filters items with avg quantity &gt; Min Avg Qty threshold</li>
+                            <li>Shows: Avg Qty, Latest Stock, Sales/Day, DN Qty, DN CBM</li>
+                          </ul>
+                          <p><strong>Use Case:</strong> Monitor stock levels for popular items to prevent stockouts.</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1339,7 +1506,14 @@ function InventoryPageContent() {
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Min/Max</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Average Daily Sales (units/day) from Outbound">Sales/Day</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Average Daily Sales (units/day) from Outbound${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
+                              Sales/Day
+                              {fastMovingData?.salesDateRange && (
+                                <div className="text-[9px] font-normal normal-case text-blue-500 dark:text-blue-300 mt-0.5">
+                                  ({new Date(fastMovingData.salesDateRange.minDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {new Date(fastMovingData.salesDateRange.maxDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })})
+                                </div>
+                              )}
+                            </th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty">DN Qty</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM">DN CBM</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM</th>
@@ -1498,14 +1672,72 @@ function InventoryPageContent() {
                       min={0}
                     />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Limit:</label>
+                    <select
+                      value={zeroOrderLimit}
+                      onChange={(e) => setZeroOrderLimit(parseInt(e.target.value))}
+                      className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-900 dark:text-white"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </div>
                   <button
-                    onClick={fetchZeroOrderProducts}
+                    onClick={() => {
+                      setZeroOrderPage(0);
+                      fetchZeroOrderProducts();
+                    }}
                     disabled={zeroOrderLoading}
                     className="flex items-center gap-2 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                   >
-                    <RefreshCw className={`w-3.5 h-3.5 ${zeroOrderLoading ? 'animate-spin' : ''}`} />
-                    Refresh
+                    {zeroOrderLoading ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Search className="w-3.5 h-3.5" />
+                    )}
+                    Filter
                   </button>
+                  {/* Info Button */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowZeroOrderInfo(!showZeroOrderInfo)}
+                      className="w-8 h-8 rounded-full bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center transition-colors"
+                      title="Information"
+                    >
+                      <Info className="w-4 h-4" />
+                    </button>
+                    {showZeroOrderInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        className="absolute z-[100] bottom-10 right-0 w-96 bg-white dark:bg-slate-800 border-2 border-purple-500 dark:border-purple-400 rounded-xl shadow-2xl p-4"
+                      >
+                        <div className="flex items-start justify-between mb-3">
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Zero-Order Products</h4>
+                          <button
+                            onClick={() => setShowZeroOrderInfo(false)}
+                            className="w-6 h-6 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
+                          >
+                            <X className="w-4 h-4 text-gray-500 dark:text-slate-400" />
+                          </button>
+                        </div>
+                        <div className="text-xs text-gray-600 dark:text-slate-400 space-y-2">
+                          <p><strong>Purpose:</strong> Identify dead stock - items in inventory but never ordered.</p>
+                          <p><strong>Calculation:</strong></p>
+                          <ul className="list-disc list-inside space-y-1 ml-2">
+                            <li>Gets all items from inventory with their stock quantities</li>
+                            <li>Checks which items have NO matching delivery notes in outbound data</li>
+                            <li>Filters items with days in stock &gt;= Min Days threshold</li>
+                            <li>Shows: Avg Stock, Latest Stock, Days in Stock, Total CBM</li>
+                          </ul>
+                          <p><strong>Use Case:</strong> Identify items to clear, discount, or stop ordering to free up warehouse space.</p>
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1531,6 +1763,7 @@ function InventoryPageContent() {
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Stock</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Stock</th>
                             <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM Blocked</th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">DN Count</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -1548,6 +1781,7 @@ function InventoryPageContent() {
                                 <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.avgStockQty)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">{product.dnCount}</td>
                               </tr>
                             ))}
                         </tbody>

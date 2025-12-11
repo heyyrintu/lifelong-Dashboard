@@ -82,6 +82,11 @@ export interface FastMovingSkusResponse {
     availableWarehouses: string[];
     availableProductCategories: string[];
   };
+  salesDateRange?: {
+    minDate: string | null;
+    maxDate: string | null;
+    totalDays: number;
+  };
 }
 
 export interface ZeroOrderProduct {
@@ -95,6 +100,7 @@ export interface ZeroOrderProduct {
   totalCbm: number;
   daysInStock: number; // How many days this item has been sitting in inventory
   stockValue: string; // Classification: high, medium, low based on CBM
+  dnCount: number; // Delivery Note count for selected month/date range
 }
 
 export interface ZeroOrderProductsResponse {
@@ -146,7 +152,7 @@ export class InventoryService {
   async uploadInventory(filePath: string, fileName: string): Promise<InventoryUploadResult> {
     const startTime = Date.now();
     let upload: any = null;
-    
+
     try {
       // Create upload record with status "processing"
       upload = await this.prisma.inventoryUpload.create({
@@ -158,7 +164,7 @@ export class InventoryService {
 
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
-      
+
       // Find the correct sheet (Query Report or first sheet with data)
       let sheetName = workbook.SheetNames[0];
       for (const name of workbook.SheetNames) {
@@ -167,7 +173,7 @@ export class InventoryService {
           break;
         }
       }
-      
+
       const worksheet = workbook.Sheets[sheetName];
       const rawData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
@@ -249,7 +255,7 @@ export class InventoryService {
 
       // Process in batches to avoid memory issues with very large files
       const BATCH_SIZE = 500;
-      
+
       for (let batchStart = 0; batchStart < parsedRows.length; batchStart += BATCH_SIZE) {
         const batchEnd = Math.min(batchStart + BATCH_SIZE, parsedRows.length);
         const batch = parsedRows.slice(batchStart, batchEnd);
@@ -284,7 +290,7 @@ export class InventoryService {
           for (let i = 0; i < batch.length; i++) {
             const row = batch[i];
             const rowId = rowsWithIds[i].id;
-            
+
             for (const dq of row.dailyQuantities) {
               allDailyStocks.push({
                 inventoryRowId: rowId,
@@ -325,7 +331,7 @@ export class InventoryService {
       };
     } catch (error) {
       console.error('Error processing Inventory Excel file:', error);
-      
+
       // Update upload status to "failed" if upload was created
       if (upload) {
         await this.prisma.inventoryUpload.update({
@@ -337,7 +343,7 @@ export class InventoryService {
       // Clean up file if it exists
       try {
         fs.unlinkSync(filePath);
-      } catch {}
+      } catch { }
 
       const message = this.getErrorMessage(error);
       throw new Error(`Failed to process Inventory Excel file: ${message}`);
@@ -366,7 +372,7 @@ export class InventoryService {
     // Generate cache key with version to invalidate after logic changes
     // 'all' when no uploadId specified = aggregate across all uploads
     const cacheKey = `${this.CACHE_VERSION}-${uploadId || 'all'}-${fromDate || ''}-${toDate || ''}-${itemGroup || 'ALL'}-${(productCategories || []).sort().join(',') || 'ALL'}-${warehouse || 'ALL'}`;
-    
+
     // Check cache
     const cached = this.cache.get(cacheKey);
     if (cached) {
@@ -563,7 +569,7 @@ export class InventoryService {
     const inboundSkuCount = Number(inboundSkuResult[0]?.count ?? 0);
     const qtyRaw = (inventoryQtyResult[0] as any)?.total_avg_qty;
     const cbmRaw = totalCbmResult[0]?.total_cbm;
-    
+
     // Prisma Decimal has toString() method
     const inventoryQtyTotal = qtyRaw ? Number(String(qtyRaw)) : 0;
     const totalCbm = cbmRaw ? Number(String(cbmRaw)) : 0;
@@ -898,23 +904,23 @@ export class InventoryService {
       .map((r) => r.warehouse)
       .filter((w): w is string => w !== null && w !== '')
       .sort();
-    
+
     return ['ALL', ...warehouses];
   }
 
-/**
-   * Get fast-moving SKUs with availability analysis
-   * 
-   * Fast-moving SKUs are identified by:
-   * 1. High average daily quantity (top percentile)
-   * 2. Significant stock movement over time
-   * 
-   * Stock status is determined by comparing latest stock to average consumption:
-   * - Critical: < 7 days of stock
-   * - Low: 7-14 days of stock
-   * - Adequate: 14-30 days of stock
-   * - High: > 30 days of stock
-   */
+  /**
+     * Get fast-moving SKUs with availability analysis
+     * 
+     * Fast-moving SKUs are identified by:
+     * 1. High average daily quantity (top percentile)
+     * 2. Significant stock movement over time
+     * 
+     * Stock status is determined by comparing latest stock to average consumption:
+     * - Critical: < 7 days of stock
+     * - Low: 7-14 days of stock
+     * - Adequate: 14-30 days of stock
+     * - High: > 30 days of stock
+     */
   async getFastMovingSkus(
     warehouse?: string,
     productCategory?: string,
@@ -1005,7 +1011,7 @@ export class InventoryService {
         0 as sales_days,
     `;
 
-    const salesLeftJoin = outboundUploadIds.length > 0 
+    const salesLeftJoin = outboundUploadIds.length > 0
       ? `LEFT JOIN sales_data sd ON LOWER(TRIM(ss.item)) = LOWER(TRIM(sd.item))`
       : '';
 
@@ -1088,10 +1094,10 @@ export class InventoryService {
       const totalSalesQty = Number(row.total_sales_qty) || 0;
       const totalSalesCbm = Number(row.total_sales_cbm) || 0;
       const salesDays = Number(row.sales_days) || 1; // Avoid division by zero
-      
+
       // Calculate average daily sales (units/day)
       const avgDailySales = salesDays > 0 ? totalSalesQty / salesDays : 0;
-      
+
       // Calculate days of stock based on actual sales data if available, otherwise use estimate
       let daysOfStock: number;
       if (avgDailySales > 0) {
@@ -1100,8 +1106,8 @@ export class InventoryService {
       } else {
         // Fallback: estimate based on 10% daily turnover assumption
         const estimatedDailyConsumption = avgDailyQty * 0.1;
-        daysOfStock = estimatedDailyConsumption > 0 
-          ? Math.round(latestQty / estimatedDailyConsumption) 
+        daysOfStock = estimatedDailyConsumption > 0
+          ? Math.round(latestQty / estimatedDailyConsumption)
           : 999;
       }
 
@@ -1152,6 +1158,31 @@ export class InventoryService {
       this.getAvailableProductCategories(uploadIds),
     ]);
 
+    // Get sales date range from outbound data
+    let salesDateRange: { minDate: string | null; maxDate: string | null; totalDays: number } | undefined;
+    if (outboundUploadIds.length > 0) {
+      const dateRangeResult = await this.prisma.outboundRow.aggregate({
+        where: {
+          uploadId: { in: outboundUploadIds },
+          deliveryNoteDate: { not: null },
+        },
+        _min: { deliveryNoteDate: true },
+        _max: { deliveryNoteDate: true },
+      });
+
+      if (dateRangeResult._min.deliveryNoteDate && dateRangeResult._max.deliveryNoteDate) {
+        const minDate = dateRangeResult._min.deliveryNoteDate;
+        const maxDate = dateRangeResult._max.deliveryNoteDate;
+        const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+        salesDateRange = {
+          minDate: formatDateAsISO(minDate),
+          maxDate: formatDateAsISO(maxDate),
+          totalDays,
+        };
+      }
+    }
+
     return {
       skus,
       summary,
@@ -1159,23 +1190,27 @@ export class InventoryService {
         availableWarehouses,
         availableProductCategories: ['ALL', ...availableProductCategories],
       },
+      salesDateRange,
     };
   }
 
-/**
-   * Get products with zero orders (items in inventory but not in outbound)
-   * 
-   * These are SKUs that:
-   * 1. Have stock in inventory
-   * 2. Have NO matching delivery notes in outbound data
-   * 
-   * This helps identify dead stock or slow-moving items that may need attention.
-   */
+  /**
+     * Get products with zero orders (items in inventory but not in outbound)
+     * 
+     * These are SKUs that:
+     * 1. Have stock in inventory
+     * 2. Have NO matching delivery notes in outbound data
+     * 
+     * This helps identify dead stock or slow-moving items that may need attention.
+     * Now includes DN count for selected month/date range to show recent activity.
+     */
   async getZeroOrderProducts(
     warehouse?: string,
     productCategory?: string,
     minDaysInStock?: number,
     limit?: number,
+    fromDate?: string,
+    toDate?: string,
   ): Promise<ZeroOrderProductsResponse> {
     const startTime = Date.now();
 
@@ -1228,23 +1263,36 @@ export class InventoryService {
     // Query to find inventory items that don't exist in outbound
     // We compare inventory items against outbound delivery_note_item
     let query: string;
-    
+
     if (outboundUploadIds.length > 0) {
       // Add outbound upload IDs to params
       paramIdx++;
       params.push(outboundUploadIds);
-      
+      const outboundParamIdx = paramIdx;
+
+      // Build date filter for DN count
+      let dnDateFilter = '';
+      if (fromDate && toDate) {
+        const parsedFromDate = parseLocalDateStart(fromDate);
+        const parsedToDate = parseLocalDateEnd(toDate);
+        paramIdx++;
+        params.push(parsedFromDate);
+        paramIdx++;
+        params.push(parsedToDate);
+        dnDateFilter = ` AND delivery_note_date >= $${paramIdx - 1} AND delivery_note_date <= $${paramIdx} `;
+      }
+
       query = `
-        WITH inventory_items AS (
-          SELECT 
+        WITH inventory_items AS(
+      SELECT 
             ir.item,
-            ir.warehouse,
-            ir.item_group,
-            ir.product_category::text as product_category,
-            ir.cbm_per_unit,
-            AVG(ids.quantity) as avg_stock_qty,
-            COUNT(DISTINCT ids.stock_date) as days_in_stock,
-            (AVG(ids.quantity) * ir.cbm_per_unit) as total_cbm
+      ir.warehouse,
+      ir.item_group,
+      ir.product_category:: text as product_category,
+      ir.cbm_per_unit,
+      AVG(ids.quantity) as avg_stock_qty,
+      COUNT(DISTINCT ids.stock_date) as days_in_stock,
+      (AVG(ids.quantity) * ir.cbm_per_unit) as total_cbm
           FROM inventory_rows ir
           INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
           WHERE ir.upload_id = ANY($1)
@@ -1254,16 +1302,27 @@ export class InventoryService {
             ${categoryFilter}
           GROUP BY ir.item, ir.warehouse, ir.item_group, ir.product_category, ir.cbm_per_unit
           HAVING AVG(ids.quantity) > 0
-        ),
-        outbound_items AS (
-          SELECT DISTINCT delivery_note_item as item
+    ),
+      outbound_items AS(
+        SELECT DISTINCT delivery_note_item as item
           FROM outbound_rows
-          WHERE upload_id = ANY($${paramIdx})
+          WHERE upload_id = ANY($${outboundParamIdx})
             AND delivery_note_item IS NOT NULL
             AND delivery_note_qty > 0
+      ),
+        dn_count_for_period AS(
+          SELECT 
+            delivery_note_item as item,
+          COUNT(*) as dn_count
+          FROM outbound_rows
+          WHERE upload_id = ANY($${outboundParamIdx})
+            AND delivery_note_item IS NOT NULL
+            AND delivery_note_qty > 0
+            ${dnDateFilter}
+          GROUP BY delivery_note_item
         ),
-        latest_stock AS (
-          SELECT DISTINCT ON (ir.item, ir.warehouse)
+          latest_stock AS(
+            SELECT DISTINCT ON(ir.item, ir.warehouse)
             ir.item,
             ir.warehouse,
             ids.quantity as latest_qty
@@ -1272,38 +1331,40 @@ export class InventoryService {
           WHERE ir.upload_id = ANY($1)
             AND ir.is_total_row = false
           ORDER BY ir.item, ir.warehouse, ids.stock_date DESC
-        )
-        SELECT 
-          ii.item,
-          ii.warehouse,
-          ii.item_group,
-          ii.product_category,
-          ii.avg_stock_qty,
-          COALESCE(ls.latest_qty, 0) as latest_stock_qty,
-          ii.cbm_per_unit,
-          ii.total_cbm,
-          ii.days_in_stock
+          )
+    SELECT
+    ii.item,
+      ii.warehouse,
+      ii.item_group,
+      ii.product_category,
+      ii.avg_stock_qty,
+      COALESCE(ls.latest_qty, 0) as latest_stock_qty,
+      ii.cbm_per_unit,
+      ii.total_cbm,
+      ii.days_in_stock,
+      COALESCE(dn.dn_count, 0) as dn_count
         FROM inventory_items ii
         LEFT JOIN outbound_items oi ON LOWER(TRIM(ii.item)) = LOWER(TRIM(oi.item))
         LEFT JOIN latest_stock ls ON ls.item = ii.item AND ls.warehouse = ii.warehouse
+        LEFT JOIN dn_count_for_period dn ON LOWER(TRIM(ii.item)) = LOWER(TRIM(dn.item))
         WHERE oi.item IS NULL
           AND ii.days_in_stock >= ${minDays}
         ORDER BY ii.total_cbm DESC
-        LIMIT $${paramIdx - 1}
-      `;
+        LIMIT $${paramIdx - (dnDateFilter ? 2 : 0) - 1}
+    `;
     } else {
       // No outbound data - all inventory items are "zero order"
       query = `
-        WITH inventory_items AS (
-          SELECT 
+        WITH inventory_items AS(
+      SELECT 
             ir.item,
-            ir.warehouse,
-            ir.item_group,
-            ir.product_category::text as product_category,
-            ir.cbm_per_unit,
-            AVG(ids.quantity) as avg_stock_qty,
-            COUNT(DISTINCT ids.stock_date) as days_in_stock,
-            (AVG(ids.quantity) * ir.cbm_per_unit) as total_cbm
+      ir.warehouse,
+      ir.item_group,
+      ir.product_category:: text as product_category,
+      ir.cbm_per_unit,
+      AVG(ids.quantity) as avg_stock_qty,
+      COUNT(DISTINCT ids.stock_date) as days_in_stock,
+      (AVG(ids.quantity) * ir.cbm_per_unit) as total_cbm
           FROM inventory_rows ir
           INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
           WHERE ir.upload_id = ANY($1)
@@ -1313,34 +1374,35 @@ export class InventoryService {
             ${categoryFilter}
           GROUP BY ir.item, ir.warehouse, ir.item_group, ir.product_category, ir.cbm_per_unit
           HAVING AVG(ids.quantity) > 0
-        ),
-        latest_stock AS (
-          SELECT DISTINCT ON (ir.item, ir.warehouse)
+    ),
+      latest_stock AS(
+        SELECT DISTINCT ON(ir.item, ir.warehouse)
             ir.item,
-            ir.warehouse,
-            ids.quantity as latest_qty
+        ir.warehouse,
+        ids.quantity as latest_qty
           FROM inventory_rows ir
           INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
           WHERE ir.upload_id = ANY($1)
             AND ir.is_total_row = false
           ORDER BY ir.item, ir.warehouse, ids.stock_date DESC
-        )
-        SELECT 
-          ii.item,
-          ii.warehouse,
-          ii.item_group,
-          ii.product_category,
-          ii.avg_stock_qty,
-          COALESCE(ls.latest_qty, 0) as latest_stock_qty,
-          ii.cbm_per_unit,
-          ii.total_cbm,
-          ii.days_in_stock
+      )
+    SELECT
+    ii.item,
+      ii.warehouse,
+      ii.item_group,
+      ii.product_category,
+      ii.avg_stock_qty,
+      COALESCE(ls.latest_qty, 0) as latest_stock_qty,
+      ii.cbm_per_unit,
+      ii.total_cbm,
+      ii.days_in_stock,
+      0 as dn_count
         FROM inventory_items ii
         LEFT JOIN latest_stock ls ON ls.item = ii.item AND ls.warehouse = ii.warehouse
         WHERE ii.days_in_stock >= ${minDays}
         ORDER BY ii.total_cbm DESC
         LIMIT $${paramIdx}
-      `;
+    `;
     }
 
     const results = await this.prisma.$queryRawUnsafe<Array<{
@@ -1353,12 +1415,13 @@ export class InventoryService {
       cbm_per_unit: number;
       total_cbm: number;
       days_in_stock: number;
+      dn_count?: number;
     }>>(query, ...params);
 
     // Process results and classify by CBM value
     const products: ZeroOrderProduct[] = results.map(row => {
       const totalCbm = Number(row.total_cbm) || 0;
-      
+
       // Classify stock value based on CBM
       let stockValue: string;
       if (totalCbm >= 1) {
@@ -1380,6 +1443,7 @@ export class InventoryService {
         totalCbm: Math.round(totalCbm * 100) / 100,
         daysInStock: Number(row.days_in_stock) || 0,
         stockValue,
+        dnCount: Number(row.dn_count) || 0,
       };
     });
 
@@ -1439,7 +1503,7 @@ export class InventoryService {
     const createStyledSheet = (
       sheetName: string,
       header: string[],
-      rows: Array<Array<string | number>>, 
+      rows: Array<Array<string | number>>,
       totalsRow?: Array<string | number>,
     ) => {
       const data = [header, ...rows];

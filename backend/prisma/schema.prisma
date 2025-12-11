@@ -101,6 +101,7 @@ model InboundRow {
   uploadId       String        @map("upload_id")
   upload         InboundUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
+  srNo           String?       @map("sr_no") // Sr No. from column A (vehicle identifier)
   dateOfUnload   DateTime?     @map("date_of_unload")
   invoiceSku     String?       @map("invoice_sku")
   receivedSku    String?       @map("received_sku")
@@ -121,6 +122,7 @@ model InboundRow {
   @@index([dateOfUnload])
   @@index([itemGroup])
   @@index([productCategory])
+  @@index([srNo])
   // Composite index for getSummary date filtering: WHERE uploadId = ? AND dateOfUnload BETWEEN ? AND ?
   @@index([uploadId, dateOfUnload])
   @@map("inbound_rows")
