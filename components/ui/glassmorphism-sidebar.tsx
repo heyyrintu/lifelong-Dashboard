@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 
 // Type definitions
 type PageKey = 'Dashboard' | 'Analytics' | 'Users' | 'Projects' | 'Tasks';
@@ -179,7 +180,7 @@ const Sidebar = ({ activePage, setActivePage }: SidebarProps) => (
         </nav>
         <div className="p-4 border-t border-white/10">
             <div className="flex items-center gap-3">
-                <img src="https://i.pravatar.cc/150?u=serafim" alt="User Avatar" className="w-10 h-10 rounded-full border-2 border-indigo-400" />
+                <Image src="https://i.pravatar.cc/150?u=serafim" alt="User Avatar" width={40} height={40} className="w-10 h-10 rounded-full border-2 border-indigo-400" />
                 <div>
                     <p className="font-semibold text-white">Serafim P.</p>
                     <p className="text-xs text-gray-400">Admin</p>

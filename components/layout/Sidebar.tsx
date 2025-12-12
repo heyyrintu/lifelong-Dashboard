@@ -4,6 +4,7 @@ import { useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import Image from 'next/image';
 import {
   LayoutDashboard,
   ArrowDownToLine,
@@ -121,9 +122,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="flex flex-col h-full relative z-10">
           {/* Logo section */}
           <div className="relative p-6 border-b border-gray-200/50 dark:border-white/10 flex items-center justify-center">
-            <img
+            <Image
               src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
               alt="Drona MIS logo"
+              width={80}
+              height={80}
               className="h-20 w-20 rounded-2xl object-cover"
             />
             <button

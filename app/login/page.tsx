@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import Image from 'next/image';
 
 type AuthMethod = 'email-password' | 'email-otp' | 'phone-otp';
 
@@ -60,7 +61,7 @@ export default function LoginPage() {
         setPhone('+91');
       }
     }
-  }, [user, authMethod, otpSent]);
+  }, [user, authMethod, otpSent, phone]);
 
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -251,9 +252,11 @@ export default function LoginPage() {
           {/* Left Side - Branding */}
           <div className="hidden lg:flex flex-col items-center justify-center text-center space-y-6" role="complementary" aria-label="Brand information">
             <div className="relative">
-              <img
+              <Image
                 src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
                 alt="Drona MIS logo"
+                width={128}
+                height={128}
                 className="h-32 w-32 rounded-3xl object-cover shadow-2xl ring-4 ring-brandRed/20"
               />
               <div className="absolute -inset-4 bg-gradient-to-r from-brandRed/20 to-brandYellow/20 rounded-full blur-xl -z-10"></div>

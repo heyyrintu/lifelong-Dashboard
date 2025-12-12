@@ -12,7 +12,6 @@ import {
   Box,
   ChevronDown,
   Check,
-  Clock,
   Calendar,
   RefreshCw,
   Search,
@@ -22,6 +21,7 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 import { authenticatedFetch } from '@/lib/api';
+import { formatMonthLabel } from '@/lib/date-utils';
 
 interface FulfillmentRow {
   date: string;
@@ -193,6 +193,7 @@ export default function SummaryPage() {
 
   useEffect(() => {
     fetchSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close dropdown when clicking outside
@@ -417,24 +418,6 @@ export default function SummaryPage() {
     if (isNaN(value)) return '0 K';
     const thousands = value / 1000;
     return `${thousands.toFixed(decimals)} K`;
-  };
-
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-  const formatMonthLabel = (month: string): string => {
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
   };
 
   const averageFulfillment = useMemo(() => {
@@ -1275,7 +1258,7 @@ export default function SummaryPage() {
                 initial="hidden"
                 animate="visible"
               >
-                {data.fulfillmentTable.map((row, index) => (
+                {data.fulfillmentTable.map((row) => (
                   <motion.div
                     key={row.date}
                     variants={{
