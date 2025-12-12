@@ -245,8 +245,9 @@ function InventoryPageContent() {
           setToDate(result.filters.availableDateRange.maxDate);
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching inventory data');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching inventory data';
+      setError(errorMessage);
       setData(null);
     } finally {
       setLoading(false);
@@ -350,8 +351,9 @@ function InventoryPageContent() {
 
       const result: FastMovingSkusResponse = await response.json();
       setFastMovingData(result);
-    } catch (err: any) {
-      setFastMovingError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setFastMovingError(errorMessage);
       setFastMovingData(null);
     } finally {
       setFastMovingLoading(false);
@@ -363,27 +365,29 @@ function InventoryPageContent() {
     if (data) {
       fetchFastMovingSkus();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  const getStockStatusColor = (status: string) => {
-    switch (status) {
-      case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'low': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
-      case 'adequate': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      case 'high': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
+  // getStockStatusColor and getStockStatusIcon are defined but not used - comment them out
+  // const getStockStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'critical': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+  //     case 'low': return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
+  //     case 'adequate': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+  //     case 'high': return 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400';
+  //     default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+  //   }
+  // };
 
-  const getStockStatusIcon = (status: string) => {
-    switch (status) {
-      case 'critical': return '🔴';
-      case 'low': return '🟠';
-      case 'adequate': return '🟢';
-      case 'high': return '🔵';
-      default: return '⚪';
-    }
-  };
+  // const getStockStatusIcon = (status: string) => {
+  //   switch (status) {
+  //     case 'critical': return '🔴';
+  //     case 'low': return '🟠';
+  //     case 'adequate': return '🟢';
+  //     case 'high': return '🔵';
+  //     default: return '⚪';
+  //   }
+  // };
 
   // Fetch zero-order products
   const fetchZeroOrderProducts = async () => {
@@ -433,8 +437,9 @@ function InventoryPageContent() {
 
       const result: ZeroOrderProductsResponse = await response.json();
       setZeroOrderData(result);
-    } catch (err: any) {
-      setZeroOrderError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setZeroOrderError(errorMessage);
       setZeroOrderData(null);
     } finally {
       setZeroOrderLoading(false);
@@ -446,25 +451,27 @@ function InventoryPageContent() {
     if (data) {
       fetchZeroOrderProducts();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data]);
 
-  const getStockValueColor = (value: string) => {
-    switch (value) {
-      case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
-    }
-  };
+  // getStockValueColor and getStockValueIcon are defined but not used - comment them out
+  // const getStockValueColor = (value: string) => {
+  //   switch (value) {
+  //     case 'high': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+  //     case 'medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
+  //     case 'low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
+  //     default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400';
+  //   }
+  // };
 
-  const getStockValueIcon = (value: string) => {
-    switch (value) {
-      case 'high': return '🔴';
-      case 'medium': return '🟡';
-      case 'low': return '🟢';
-      default: return '⚪';
-    }
-  };
+  // const getStockValueIcon = (value: string) => {
+  //   switch (value) {
+  //     case 'high': return '🔴';
+  //     case 'medium': return '🟡';
+  //     case 'low': return '🟢';
+  //     default: return '⚪';
+  //   }
+  // };
 
   const toggleProductCategory = (category: string) => {
     setSelectedProductCategories(prev => {
@@ -708,7 +715,7 @@ function InventoryPageContent() {
 
   const displayPoints = getDisplayPoints();
 
-  const handleChartClick = (data: any) => {
+  const handleChartClick = (data: { activePayload?: Array<{ payload: { date?: string; startDate?: string; endDate?: string } }> } | null) => {
     if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     if (timeGranularity === 'month') return;
@@ -1230,7 +1237,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="inventoryQty"
                         position="top"
-                        formatter={(value: any) => `${formatInLakhs(value)} L`}
+                        formatter={(value: number | string) => `${formatInLakhs(value)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1245,7 +1252,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelInventoryQty"
                         position="top"
-                        formatter={(value: any) => `${formatInLakhs(value)} L`}
+                        formatter={(value: number | string) => `${formatInLakhs(value)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1328,7 +1335,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="totalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: number | string) => formatNumber(value, 2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1336,7 +1343,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: number | string) => formatNumber(value, 2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>

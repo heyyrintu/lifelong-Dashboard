@@ -4,6 +4,8 @@ import { Moon, Sun } from 'lucide-react'
 import { useTheme } from './theme-provider'
 
 export function ThemeToggle() {
+  // theme is used for transitions but not directly in code
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { theme, toggleTheme } = useTheme()
 
   return (
