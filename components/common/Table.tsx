@@ -40,14 +40,17 @@ export default function Table({ columns, data, emptyMessage = 'No data available
                   key={rowIndex} 
                   className="bg-white dark:bg-slate-800/50 odd:bg-white even:bg-gray-50 dark:odd:bg-slate-800/50 dark:even:bg-slate-800/30 hover:bg-gray-100 dark:hover:bg-slate-700/50 transition-colors"
                 >
-                  {columns.map((column, colIndex) => (
-                    <td
-                      key={colIndex}
-                      className={`px-6 py-4 text-sm text-gray-900 dark:text-slate-300 ${column.className || ''}`}
-                    >
-                      {row[column.accessor] !== null && row[column.accessor] !== undefined ? String(row[column.accessor]) : '-'}
-                    </td>
-                  ))}
+                  {columns.map((column, colIndex) => {
+                    const cellValue = row[column.accessor];
+                    return (
+                      <td
+                        key={colIndex}
+                        className={`px-6 py-4 text-sm text-gray-900 dark:text-slate-300 ${column.className || ''}`}
+                      >
+                        {cellValue !== null && cellValue !== undefined ? String(cellValue) : '-'}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))
             )}

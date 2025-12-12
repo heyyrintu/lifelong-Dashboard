@@ -18,6 +18,7 @@ import {
   Pie,
 } from 'recharts';
 import { authenticatedFetch } from '@/lib/api';
+import { formatMonthLabel } from '@/lib/date-utils';
 
 interface CardMetrics {
   soSku: number;
@@ -592,24 +593,6 @@ export default function OutboundPage() {
   const formatProductCategory = useCallback((category: string): string => {
     return CATEGORY_LABELS[category] || category;
   }, [CATEGORY_LABELS]);
-
-  // Format backend month value (e.g. 2025-11) to display label like Nov'25
-  const formatMonthLabel = useCallback((month: string): string => {
-    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
-  }, []);
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">

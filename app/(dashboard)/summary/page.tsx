@@ -21,6 +21,7 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 import { authenticatedFetch } from '@/lib/api';
+import { formatMonthLabel } from '@/lib/date-utils';
 
 interface FulfillmentRow {
   date: string;
@@ -419,24 +420,6 @@ export default function SummaryPage() {
     return `${thousands.toFixed(decimals)} K`;
   };
 
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-  const formatMonthLabel = (month: string): string => {
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
-  };
-
   const averageFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return 0;
@@ -446,24 +429,6 @@ export default function SummaryPage() {
 
   // Calculate monthly fulfillment rates for line chart
   const monthlyFulfillmentData = useMemo((): { month: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
-    const MONTH_LABELS_LOCAL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-    
-    const formatMonthLabelLocal = (month: string): string => {
-      if (month === 'ALL') return 'All Months';
-
-      const match = month.match(/^(\d{4})-(\d{1,2})$/);
-      if (match) {
-        const [, yearStr, monthStr] = match;
-        const monthIndex = parseInt(monthStr, 10) - 1;
-        if (monthIndex >= 0 && monthIndex < 12) {
-          const shortYear = yearStr.slice(2);
-          return `${MONTH_LABELS_LOCAL[monthIndex]}'${shortYear}`;
-        }
-      }
-
-      return month;
-    };
-
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return [];
 
@@ -519,7 +484,7 @@ export default function SummaryPage() {
     const monthlyData = Object.entries(monthlyGroups)
       .map(([month, { soQty, dnQty }]) => ({
         month,
-        label: formatMonthLabelLocal(month),
+        label: formatMonthLabel(month),
         fulfillmentRate: soQty > 0 ? Math.min(100, (dnQty / soQty) * 100) : 0,
         soQty,
         dnQty
