@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import {
@@ -12,7 +12,6 @@ import {
   Box,
   ChevronDown,
   Check,
-  Clock,
   Calendar,
   RefreshCw,
   Search,
@@ -193,6 +192,7 @@ export default function SummaryPage() {
 
   useEffect(() => {
     fetchSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close dropdown when clicking outside
@@ -446,6 +446,24 @@ export default function SummaryPage() {
 
   // Calculate monthly fulfillment rates for line chart
   const monthlyFulfillmentData = useMemo((): { month: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
+    const MONTH_LABELS_LOCAL = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+    
+    const formatMonthLabelLocal = (month: string): string => {
+      if (month === 'ALL') return 'All Months';
+
+      const match = month.match(/^(\d{4})-(\d{1,2})$/);
+      if (match) {
+        const [, yearStr, monthStr] = match;
+        const monthIndex = parseInt(monthStr, 10) - 1;
+        if (monthIndex >= 0 && monthIndex < 12) {
+          const shortYear = yearStr.slice(2);
+          return `${MONTH_LABELS_LOCAL[monthIndex]}'${shortYear}`;
+        }
+      }
+
+      return month;
+    };
+
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return [];
 
@@ -501,7 +519,7 @@ export default function SummaryPage() {
     const monthlyData = Object.entries(monthlyGroups)
       .map(([month, { soQty, dnQty }]) => ({
         month,
-        label: formatMonthLabel(month),
+        label: formatMonthLabelLocal(month),
         fulfillmentRate: soQty > 0 ? Math.min(100, (dnQty / soQty) * 100) : 0,
         soQty,
         dnQty
@@ -1275,7 +1293,7 @@ export default function SummaryPage() {
                 initial="hidden"
                 animate="visible"
               >
-                {data.fulfillmentTable.map((row, index) => (
+                {data.fulfillmentTable.map((row) => (
                   <motion.div
                     key={row.date}
                     variants={{

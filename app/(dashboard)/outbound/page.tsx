@@ -2,10 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import PageHeader from '@/components/common/PageHeader';
-import { MetricCard } from '@/components/ui/metric-card';
-import Table from '@/components/common/Table';
-import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, Filter, X, RefreshCw, Search, FileText, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
+import { Package, TrendingUp, Box, ArrowRightLeft, Download, ArrowUpFromLine, ChevronDown, Check, Calendar, RefreshCw, Search, FileText, Trophy, ArrowUp, ArrowDown } from 'lucide-react';
 import {
   BarChart,
   Bar,
@@ -106,13 +103,13 @@ interface SummaryResponse {
   };
 }
 
-interface UploadInfo {
-  uploadId: string;
-  fileName: string;
-  uploadedAt: string;
-  rowsInserted: number;
-  status: string;
-}
+// interface UploadInfo {
+//   uploadId: string;
+//   fileName: string;
+//   uploadedAt: string;
+//   rowsInserted: number;
+//   status: string;
+// }
 
 interface TopProduct {
   rank: number;
@@ -130,7 +127,7 @@ export default function OutboundPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
   // Normalize available date range - some endpoints use different keys
-  const availableDateRange = data?.availableDateRange ?? (data as any)?.filters?.availableDateRange ?? null;
+  const availableDateRange = data?.availableDateRange ?? (data as Record<string, unknown>)?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
 
@@ -280,8 +277,9 @@ export default function OutboundPage() {
           const topProductsResult: TopProduct[] = await topProductsResponse.json();
           setTopProducts(topProductsResult);
         }
-      } catch (err: any) {
-        setError(err.message || 'An error occurred while fetching data');
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
+        setError(errorMessage);
         setData(null);
         setChartData(null);
       } finally {
@@ -309,8 +307,9 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setChartData(result.timeSeries);
-    } catch (err: any) {
-      console.error('Chart data fetch error:', err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Chart data fetch error';
+      console.error('Chart data fetch error:', errorMessage);
       setChartData(null);
     } finally {
       setChartLoading(false);
@@ -351,8 +350,9 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setData(result);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching data');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
+      setError(errorMessage);
       setData(null);
     } finally {
       setLoading(false);
@@ -392,8 +392,9 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setData(result);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching data');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching data';
+      setError(errorMessage);
       setData(null);
     } finally {
       setLoading(false);
@@ -446,8 +447,9 @@ export default function OutboundPage() {
 
       const result: TopProduct[] = await response.json();
       setTopProducts(result);
-    } catch (err: any) {
-      console.error('Top products fetch error:', err.message);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Top products fetch error';
+      console.error('Top products fetch error:', errorMessage);
       setTopProducts([]);
     } finally {
       setTopProductsLoading(false);
@@ -592,9 +594,8 @@ export default function OutboundPage() {
   }, [CATEGORY_LABELS]);
 
   // Format backend month value (e.g. 2025-11) to display label like Nov'25
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
   const formatMonthLabel = useCallback((month: string): string => {
+    const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
     if (month === 'ALL') return 'All Months';
 
     const match = month.match(/^(\d{4})-(\d{1,2})$/);
@@ -636,16 +637,16 @@ export default function OutboundPage() {
     </div>
   );
 
-  const columns = [
-    { header: 'Category', accessor: 'categoryLabel' },
-    { header: 'SO SKU Count', accessor: 'soCount' },
-    { header: 'SO Qty', accessor: 'soQty' },
-    { header: 'SO Total CBM', accessor: 'soTotalCbm' },
-    { header: 'DN SKU Count', accessor: 'dnCount' },
-    { header: 'DN Qty', accessor: 'dnQty' },
-    { header: 'DN Total CBM', accessor: 'dnTotalCbm' },
-    { header: '(SO - DN) Qty', accessor: 'soMinusDnQty' },
-  ];
+  // const columns = [
+  //   { header: 'Category', accessor: 'categoryLabel' },
+  //   { header: 'SO SKU Count', accessor: 'soCount' },
+  //   { header: 'SO Qty', accessor: 'soQty' },
+  //   { header: 'SO Total CBM', accessor: 'soTotalCbm' },
+  //   { header: 'DN SKU Count', accessor: 'dnCount' },
+  //   { header: 'DN Qty', accessor: 'dnQty' },
+  //   { header: 'DN Total CBM', accessor: 'dnTotalCbm' },
+  //   { header: '(SO - DN) Qty', accessor: 'soMinusDnQty' },
+  // ];
 
   // Empty state
   if (!loading && error) {
@@ -666,7 +667,7 @@ export default function OutboundPage() {
     );
   }
 
-  const handleChartClick = (data: any) => {
+  const handleChartClick = (data: { activePayload?: Array<{ payload: { startDate?: string; endDate?: string } }> } | null) => {
     if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     // Per user request: exclude month granularity clicking
@@ -1463,7 +1464,7 @@ export default function OutboundPage() {
               </div>
 
               {/* Data Rows */}
-              {categoryTableWithTotal.map((row, index) => (
+              {categoryTableWithTotal.map((row) => (
                 <motion.div
                   key={row.categoryLabel}
                   variants={{
@@ -2184,7 +2185,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: number | string) => formatInLakhs(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2199,7 +2200,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: number | string) => formatInLakhs(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2306,7 +2307,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatCbmForChart(value)}
+                        formatter={(value: number | string) => formatCbmForChart(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2321,7 +2322,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatCbmForChart(value)}
+                        formatter={(value: number | string) => formatCbmForChart(value)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2651,7 +2652,7 @@ export default function OutboundPage() {
                   initial="hidden"
                   animate="visible"
                 >
-                  {data.fulfillmentTable.map((row, index) => (
+                  {data.fulfillmentTable.map((row) => (
                     <motion.div
                       key={row.date}
                       variants={{
