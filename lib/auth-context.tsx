@@ -25,6 +25,24 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function formatAuthError(error: any, fallbackMessage: string): string {
+  const message = typeof error?.message === 'string' ? error.message : '';
+
+  // In browsers, CORS/mixed-content/DNS failures frequently surface as a generic TypeError: "Failed to fetch".
+  if (
+    error instanceof TypeError ||
+    /Failed to fetch|NetworkError|Load failed/i.test(message)
+  ) {
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const domainHint = origin
+      ? ` Add ${origin} in Appwrite Console → Settings → Domains.`
+      : ' Add your site domain in Appwrite Console → Settings → Domains.';
+    return `Network error contacting Appwrite.${domainHint}`;
+  }
+
+  return message || fallbackMessage;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
@@ -197,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Session error. Please try again.');
         }
       }
-      throw new Error(error.message || 'Login failed');
+      throw new Error(formatAuthError(error, 'Login failed'));
     } finally {
       authInProgress.current = false;
     }
@@ -239,7 +257,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Session error. Please try again.');
         }
       }
-      throw new Error(error.message || 'Registration failed');
+      throw new Error(formatAuthError(error, 'Registration failed'));
     } finally {
       authInProgress.current = false;
     }
@@ -250,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await account.createEmailToken('unique()', email);
       return token;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to send email OTP');
+      throw new Error(formatAuthError(error, 'Failed to send email OTP'));
     }
   }, []);
 
@@ -289,7 +307,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Session error. Please try again.');
         }
       }
-      throw new Error(error.message || 'Invalid OTP');
+      throw new Error(formatAuthError(error, 'Invalid OTP'));
     } finally {
       authInProgress.current = false;
     }
@@ -316,7 +334,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = await account.createPhoneToken('unique()', formattedPhone);
       return token;
     } catch (error: any) {
-      throw new Error(error.message || 'Failed to send phone OTP');
+      throw new Error(formatAuthError(error, 'Failed to send phone OTP'));
     }
   }, []);
 
@@ -355,7 +373,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           throw new Error('Session error. Please try again.');
         }
       }
-      throw new Error(error.message || 'Invalid OTP');
+      throw new Error(formatAuthError(error, 'Invalid OTP'));
     } finally {
       authInProgress.current = false;
     }
@@ -377,7 +395,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       account.createOAuth2Session(OAuthProvider.Google, successUrl, failureUrl);
     } catch (error: any) {
-      throw new Error(error.message || 'Google login failed');
+      throw new Error(formatAuthError(error, 'Google login failed'));
     }
   }, [checkExistingSession]);
 
@@ -397,7 +415,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       account.createOAuth2Session(OAuthProvider.Microsoft, successUrl, failureUrl);
     } catch (error: any) {
-      throw new Error(error.message || 'Microsoft login failed');
+      throw new Error(formatAuthError(error, 'Microsoft login failed'));
     }
   }, [checkExistingSession]);
 
@@ -412,7 +430,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsAdmin(false);
       // Only throw if it's not a "no session" error
       if (!error.message?.includes('missing')) {
-        throw new Error(error.message || 'Logout failed');
+        throw new Error(formatAuthError(error, 'Logout failed'));
       }
     }
   }, []);
