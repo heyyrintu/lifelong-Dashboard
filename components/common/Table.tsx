@@ -45,7 +45,7 @@ export default function Table({ columns, data, emptyMessage = 'No data available
                       key={colIndex}
                       className={`px-6 py-4 text-sm text-gray-900 dark:text-slate-300 ${column.className || ''}`}
                     >
-                      {row[column.accessor] || '-'}
+                      {row[column.accessor] !== null && row[column.accessor] !== undefined ? String(row[column.accessor]) : '-'}
                     </td>
                   ))}
                 </tr>

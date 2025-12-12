@@ -715,13 +715,16 @@ function InventoryPageContent() {
 
   const displayPoints = getDisplayPoints();
 
-  const handleChartClick = (data: { activePayload?: Array<{ payload: { date?: string; startDate?: string; endDate?: string } }> } | null) => {
-    if (!data || !data.activePayload || !data.activePayload[0]) return;
+  const handleChartClick = (data: unknown) => {
+    const typedData = data as { activePayload?: Array<{ payload: { date?: string; startDate?: string; endDate?: string } }> } | null;
+    if (!typedData || !typedData.activePayload || !typedData.activePayload[0]) return;
 
     if (timeGranularity === 'month') return;
 
-    const payload = data.activePayload[0].payload;
+    const payload = typedData.activePayload[0].payload;
     const dateKey = payload.date; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
+
+    if (!dateKey) return;
 
     if (timeGranularity === 'week') {
       const match = dateKey.match(/^(\d{4})-W(\d{1,2})$/);
@@ -1237,7 +1240,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="inventoryQty"
                         position="top"
-                        formatter={(value: number | string) => `${formatInLakhs(value)} L`}
+                        formatter={(value) => `${formatInLakhs(value as number)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1252,7 +1255,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelInventoryQty"
                         position="top"
-                        formatter={(value: number | string) => `${formatInLakhs(value)} L`}
+                        formatter={(value) => `${formatInLakhs(value as number)} L`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1335,7 +1338,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="totalCbm"
                         position="top"
-                        formatter={(value: number | string) => formatNumber(value, 2)}
+                        formatter={(value) => formatNumber(value as number, 2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1343,7 +1346,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelTotalCbm"
                         position="top"
-                        formatter={(value: number | string) => formatNumber(value, 2)}
+                        formatter={(value) => formatNumber(value as number, 2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>

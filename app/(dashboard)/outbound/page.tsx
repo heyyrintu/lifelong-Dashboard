@@ -127,7 +127,7 @@ export default function OutboundPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
   // Normalize available date range - some endpoints use different keys
-  const availableDateRange = data?.availableDateRange ?? (data as Record<string, unknown>)?.filters?.availableDateRange ?? null;
+  const availableDateRange = data?.availableDateRange ?? (data as { filters?: { availableDateRange?: { minDate?: string; maxDate?: string } } })?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
 
@@ -667,13 +667,14 @@ export default function OutboundPage() {
     );
   }
 
-  const handleChartClick = (data: { activePayload?: Array<{ payload: { startDate?: string; endDate?: string } }> } | null) => {
-    if (!data || !data.activePayload || !data.activePayload[0]) return;
+  const handleChartClick = (data: unknown) => {
+    const typedData = data as { activePayload?: Array<{ payload: { startDate?: string; endDate?: string } }> } | null;
+    if (!typedData || !typedData.activePayload || !typedData.activePayload[0]) return;
 
     // Per user request: exclude month granularity clicking
     if (timeGranularity === 'month') return;
 
-    const payload = data.activePayload[0].payload;
+    const payload = typedData.activePayload[0].payload;
     if (payload.startDate && payload.endDate) {
       setFromDate(payload.startDate);
       setToDate(payload.endDate);
@@ -2185,7 +2186,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soQty"
                         position="top"
-                        formatter={(value: number | string) => formatInLakhs(value)}
+                        formatter={(value) => formatInLakhs(value as number)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2200,7 +2201,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnQty"
                         position="top"
-                        formatter={(value: number | string) => formatInLakhs(value)}
+                        formatter={(value) => formatInLakhs(value as number)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2307,7 +2308,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soTotalCbm"
                         position="top"
-                        formatter={(value: number | string) => formatCbmForChart(value)}
+                        formatter={(value) => formatCbmForChart(value as number)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2322,7 +2323,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnTotalCbm"
                         position="top"
-                        formatter={(value: number | string) => formatCbmForChart(value)}
+                        formatter={(value) => formatCbmForChart(value as number)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
