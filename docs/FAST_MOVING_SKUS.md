@@ -5,7 +5,7 @@
 This document covers two key inventory analytics features:
 
 1. **Fast-Moving SKUs Availability** - Monitor stock levels for high-velocity items
-2. **Products With Zero Orders** - Identify dead stock and slow-moving inventory
+2. **Slow Moving SKUs** - Identify dead stock and slow-moving inventory
 
 Both features help warehouse managers optimize inventory and reduce costs.
 
@@ -20,11 +20,11 @@ Both features help warehouse managers optimize inventory and reduce costs.
 4. [Stock Status Classification](#stock-status-classification)
 5. [Fast-Moving API Reference](#fast-moving-api-reference)
 
-### Products With Zero Orders
-6. [Zero-Order Products Description](#zero-order-products-description)
-7. [Zero-Order Calculation Methods](#zero-order-calculation-methods)
+### Slow Moving SKUs
+1. [Slow Moving SKUs Description](#slow-moving-skus-description)
+7. [Slow Moving SKUs Calculation Methods](#slow-moving-skus-calculation-methods)
 8. [Stock Value Classification](#stock-value-classification)
-9. [Zero-Order API Reference](#zero-order-api-reference)
+9. [Slow Moving SKUs API Reference](#slow-moving-skus-api-reference)
 
 ### Common
 10. [Frontend Usage](#frontend-usage)
@@ -263,18 +263,18 @@ curl "http://localhost:3001/inventory/fast-moving-skus?warehouse=HR-11&minAvgQty
 
 ---
 
-## Zero-Order Products Description
+## Slow Moving SKUs Description
 
-### What are Zero-Order Products?
+### What are Slow Moving SKUs?
 
-Zero-order products are inventory items that:
+Slow-moving SKUs are inventory items that:
 - **Have stock in inventory** (quantity > 0)
 - **Have NO matching delivery notes** in outbound data
 - **Are occupying warehouse space** without generating revenue
 
 These are also known as **dead stock** or **slow-moving inventory**.
 
-### Why Track Zero-Order Products?
+### Why Track Slow Moving SKUs?
 
 | Issue | Impact |
 |-------|--------|
@@ -295,9 +295,9 @@ These are also known as **dead stock** or **slow-moving inventory**.
 
 ---
 
-## Zero-Order Calculation Methods
+## Slow Moving SKUs Calculation Methods
 
-### 1. Identifying Zero-Order Products
+### 1. Identifying Slow Moving SKUs
 
 ```sql
 -- Find inventory items NOT in outbound
@@ -311,7 +311,7 @@ WHERE outbound.item IS NULL  -- No matching outbound order
 1. Get all unique items from inventory data
 2. Get all unique items from outbound delivery notes
 3. Find items that exist in inventory but NOT in outbound
-4. These are "zero-order" products
+4. These are slow-moving SKUs
 
 ### 2. Days in Stock
 
@@ -358,7 +358,7 @@ if (totalCbm >= 1) {
 
 ---
 
-## Zero-Order API Reference
+## Slow Moving SKUs API Reference
 
 ### Endpoint
 
@@ -421,7 +421,7 @@ curl "http://localhost:3001/inventory/zero-order-products?warehouse=HR-11&minDay
 
 Navigate to: `/inventory` → Scroll down to see both sections:
 1. **Fast-Moving SKUs Availability** - High-velocity items
-2. **Products With Zero Orders** - Dead stock analysis
+2. **Slow Moving SKUs** - Dead stock analysis
 
 ### Features
 
@@ -433,6 +433,10 @@ Navigate to: `/inventory` → Scroll down to see both sections:
 3. **Paginated Table**: Shows 20 items per page with navigation
 4. **Scrollable**: Table has max height with scroll for better UX
 5. **Collapsible**: Section can be collapsed/expanded
+
+Navigate to: `/inventory` → Scroll down to see both sections:
+1. **Fast-Moving SKUs Availability** - High-velocity items
+2. **Slow Moving SKUs** - Dead stock analysis
 
 ### Filter Controls
 

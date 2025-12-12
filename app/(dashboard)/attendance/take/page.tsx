@@ -302,7 +302,7 @@ function TakeAttendancePageContent() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {/* Date Picker */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               <Calendar className="w-3.5 h-3.5" /> Date
             </label>
             <input
@@ -315,7 +315,7 @@ function TakeAttendancePageContent() {
 
           {/* Employee Type Filter */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               <Users className="w-3.5 h-3.5" /> Employee Type
             </label>
             <select
@@ -331,7 +331,7 @@ function TakeAttendancePageContent() {
 
           {/* Search */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               <Search className="w-3.5 h-3.5" /> Search
             </label>
             <div className="relative">
@@ -348,7 +348,7 @@ function TakeAttendancePageContent() {
 
           {/* Actions */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
               Actions
             </label>
             <div className="flex gap-2">
@@ -404,15 +404,15 @@ function TakeAttendancePageContent() {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700">
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Employee</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">In Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Out Time</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Hrs</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">OT Hrs</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Remarks</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
+                <tr className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg">
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Employee</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">In Time</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Out Time</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Total Hrs</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">OT Hrs</th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Remarks</th>
+                  <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">

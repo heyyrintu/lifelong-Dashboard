@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import {
   LayoutDashboard,
@@ -14,6 +14,8 @@ import {
   X,
   UserCheck,
   ClipboardList,
+  LogOut,
+  User as UserIcon,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -77,7 +79,9 @@ const menuItems: MenuItem[] = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const router = useRouter();
+  const { isAdmin, user, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // Memoize filtered menu items to prevent recalculation on every render
   const visibleMenuItems = useMemo(() => 
@@ -91,6 +95,18 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       onClose();
     }
   }, [onClose]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <>
@@ -170,7 +186,42 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             </ul>
           </nav>
 
-          {/* Footer (intentionally left empty) */}
+          {/* User Info and Logout - Compact Design */}
+          {user && (
+            <div className="mt-auto p-3 border-t border-gray-200/50 dark:border-white/10">
+              <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg
+                bg-white/40 dark:bg-slate-800/40
+                border border-gray-200/30 dark:border-slate-700/30">
+                <div className="w-8 h-8 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center flex-shrink-0">
+                  <UserIcon className="w-4 h-4 text-white" />
+                </div>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">
+                    {user.name || 'User'}
+                  </span>
+                  <span className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
+                    {user.email}
+                  </span>
+                </div>
+              </div>
+              
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="w-full flex items-center justify-center gap-2 px-3 py-2
+                  text-xs font-medium text-red-600 dark:text-red-400 
+                  bg-red-50/50 dark:bg-red-900/10
+                  hover:bg-red-100/70 dark:hover:bg-red-900/20 
+                  border border-red-200/50 dark:border-red-900/30
+                  rounded-lg
+                  transition-all duration-200 
+                  disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span>Logout</span>
+              </button>
+            </div>
+          )}
         </div>
       </aside>
     </>

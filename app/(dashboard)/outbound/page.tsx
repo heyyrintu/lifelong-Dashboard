@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
+import { useDateFilter } from '@/lib/date-filter-context';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -162,6 +163,51 @@ export default function OutboundPage() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [filtersDirty, setFiltersDirty] = useState(false);
+  const { setLabel: setDateFilterLabel } = useDateFilter();
+
+  const formatToDDMMYYYY = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
+    // Parse as UTC to avoid timezone issues
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const selectedDateRangeLabel = useMemo(() => {
+    if (selectedMonth && selectedMonth !== 'ALL') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      if (year && month) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 0));
+        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+      }
+      return selectedMonth;
+    }
+    if (fromDate && toDate) {
+      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
+      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+    }
+    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
+    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    if (data?.availableDateRange) return `${formatToDDMMYYYY(data.availableDateRange.minDate)} to ${formatToDDMMYYYY(data.availableDateRange.maxDate)}`;
+    return 'All Dates';
+  }, [fromDate, toDate, selectedMonth, data?.availableDateRange]);
+
+  useEffect(() => {
+    setDateFilterLabel(selectedDateRangeLabel);
+  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   const categoryRows = useMemo(() => {
     return (data?.categoryTable || []).filter(row => row.categoryLabel !== 'TOTAL');
@@ -697,7 +743,7 @@ export default function OutboundPage() {
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
           <div className="md:col-span-2 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -739,7 +785,7 @@ export default function OutboundPage() {
 
           {/* Month Selector */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -783,7 +829,7 @@ export default function OutboundPage() {
 
           {/* Warehouse Filter */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -812,7 +858,7 @@ export default function OutboundPage() {
 
           {/* Product Category */}
           <div className="space-y-2 relative" ref={categoryDropdownRef}>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
@@ -846,7 +892,7 @@ export default function OutboundPage() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -854,7 +900,7 @@ export default function OutboundPage() {
                   <button
                     type="button"
                     onClick={clearAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                   >
                     Clear
                   </button>
@@ -974,7 +1020,7 @@ export default function OutboundPage() {
                   <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO SKU</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO SKU</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Unique Sales Order Items</p>
                 </div>
               </div>
@@ -989,7 +1035,7 @@ export default function OutboundPage() {
                   <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO Qty</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO Qty</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Total Sales Order Quantity</p>
                 </div>
               </div>
@@ -1004,7 +1050,7 @@ export default function OutboundPage() {
                   <Box className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO Total CBM</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO Total CBM</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Sales Order Volume</p>
                 </div>
               </div>
@@ -1043,7 +1089,7 @@ export default function OutboundPage() {
                   <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN SKU</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN SKU</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Unique Delivery Note Items</p>
                 </div>
               </div>
@@ -1058,7 +1104,7 @@ export default function OutboundPage() {
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN Qty</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Qty</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Total Delivery Note Quantity</p>
                 </div>
               </div>
@@ -1073,7 +1119,7 @@ export default function OutboundPage() {
                   <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN Total CBM</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Total CBM</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Delivery Note Volume</p>
                 </div>
               </div>
@@ -1451,7 +1497,7 @@ export default function OutboundPage() {
               animate="visible"
             >
               {/* Headers */}
-              <div className="grid grid-cols-9 gap-4 px-4 py-3 mb-2 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider relative z-10">
+              <div className="grid grid-cols-9 gap-4 px-4 py-3 mb-2 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-gray-200/50 dark:border-slate-700/50 text-sm font-bold uppercase tracking-wider relative z-10 text-gray-700 dark:text-white">
                 <div className="col-span-2 text-left">Category</div>
                 <div className="col-span-1 text-center">SO Count</div>
                 <div className="col-span-1 text-center">SO Qty</div>
@@ -1519,7 +1565,7 @@ export default function OutboundPage() {
                         {row.categoryLabel === 'TOTAL' ? (
                           <>
                             <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-brandRed/70 flex items-center justify-center border-2 border-brandRed/50">
-                              <span className="text-white text-xs font-bold">Σ</span>
+                              <span className="text-white text-sm font-bold">Σ</span>
                             </div>
                             <span className="text-brandRed dark:text-brandRed font-bold text-lg">
                               {row.categoryLabel}
@@ -1980,17 +2026,17 @@ export default function OutboundPage() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b border-gray-200/50 dark:border-slate-700/50">
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Rank</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Product Item</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                  <tr className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg">
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Rank</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Product Item</th>
+                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Category</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">
                       <span className={topProductsRankBy === 'qty' ? 'text-amber-600 dark:text-amber-400' : ''}>DN Qty</span>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">
                       <span className={topProductsRankBy === 'cbm' ? 'text-amber-600 dark:text-amber-400' : ''}>DN CBM</span>
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider">% of Total</th>
+                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">% of Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -2107,7 +2153,7 @@ export default function OutboundPage() {
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO Qty vs DN Qty</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison over time (in Lakhs)</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison (in Lakhs)</p>
               </div>
             </div>
             {chartLoading ? (
@@ -2229,7 +2275,7 @@ export default function OutboundPage() {
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div>
                 <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO CBM vs DN CBM</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison over time</p>
+                <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison</p>
               </div>
             </div>
             {chartLoading ? (
@@ -2374,7 +2420,7 @@ export default function OutboundPage() {
               {/* Scrollable container with sticky header and footer */}
               <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
                 {/* Headers - Sticky */}
-                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 bg-gradient-to-r from-gray-100/95 to-gray-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-[10px] font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 bg-gradient-to-r from-gray-100/95 to-gray-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
                   <div className="text-left">Date</div>
                   <div className="text-center">DN Qty</div>
                   <div className="text-center">DN CBM</div>
@@ -2447,7 +2493,7 @@ export default function OutboundPage() {
                           <div className="relative grid grid-cols-8 gap-2 items-center">
                             {/* Date */}
                             <div className="flex items-center gap-2">
-                              <span className="text-xs font-bold text-gray-500 dark:text-slate-400">
+                              <span className="text-sm font-bold text-gray-500 dark:text-slate-400">
                                 {String(index + 1).padStart(2, '0')}
                               </span>
                               <span className="text-gray-900 dark:text-slate-200 text-xs font-medium truncate">
@@ -2527,58 +2573,60 @@ export default function OutboundPage() {
 
               {/* Total Row - Sticky at bottom, outside scroll container */}
               {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 && (
-                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-green-100/95 via-green-50/95 to-emerald-50/95 dark:from-green-900/40 dark:via-green-800/30 dark:to-emerald-900/30 backdrop-blur-sm border-2 border-green-500/40 dark:border-green-500/30 rounded-lg shadow-lg shadow-green-500/10 sticky bottom-0 z-20">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-green-700 dark:text-green-400">Σ</span>
-                    <span className="text-green-800 dark:text-green-300 text-xs font-bold">TOTAL</span>
+                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-green-100/95 via-green-50/95 to-emerald-50/95 dark:from-green-900/40 dark:via-green-800/30 dark:to-emerald-900/30 backdrop-blur-sm border-2 border-green-500/40 dark:border-green-500/30 rounded-lg shadow-lg shadow-green-500/10 sticky bottom-0 z-20 items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                      <TrendingUp className="w-4 h-4 text-white" />
+                    </div>
+                    <span className="text-green-800 dark:text-green-300 text-sm font-bold">Total</span>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center">
-                      <span className="text-green-700 dark:text-green-300 text-xs font-bold font-mono">
-                        {formatNumber(data.summaryTotals.totalDnQty)}
-                      </span>
+
+                  {/* DN Qty */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-2 py-1 rounded-md bg-green-500/20 border border-green-500/30 inline-flex items-center justify-center">
+                      <span className="text-green-700 dark:text-green-300 text-sm font-bold font-mono min-w-[4rem] text-center">{formatNumber(data.summaryTotals.totalDnQty)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center">
-                      <span className="text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">
-                        {formatNumber(data.summaryTotals.totalDnCbm, 2)}
-                      </span>
+
+                  {/* DN CBM */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                      <span className="text-blue-700 dark:text-blue-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalDnCbm, 2)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-purple-500/20 border-2 border-purple-500/50 inline-flex items-center justify-center">
-                      <span className="text-purple-700 dark:text-purple-300 text-xs font-bold font-mono">
-                        {formatNumber(data.summaryTotals.totalEdelDnQty)}
-                      </span>
+
+                  {/* EDEL Qty */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                      <span className="text-purple-700 dark:text-purple-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnQty)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-orange-500/20 border-2 border-orange-500/50 inline-flex items-center justify-center">
-                      <span className="text-orange-700 dark:text-orange-300 text-xs font-bold font-mono">
-                        {formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}
-                      </span>
+
+                  {/* EDEL CBM */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
+                      <span className="text-orange-700 dark:text-orange-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-red-500/20 border-2 border-red-500/50 inline-flex items-center justify-center">
-                      <span className="text-red-700 dark:text-red-300 text-xs font-bold font-mono">
-                        {formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}
-                      </span>
+
+                  {/* Pend Qty */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                      <span className="text-red-700 dark:text-red-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-amber-500/20 border-2 border-amber-500/50 inline-flex items-center justify-center">
-                      <span className="text-amber-700 dark:text-amber-300 text-xs font-bold font-mono">
-                        {formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}
-                      </span>
+
+                  {/* Pend CBM */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                      <span className="text-amber-700 dark:text-amber-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}</span>
                     </div>
                   </div>
-                  <div className="flex justify-center">
-                    <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center">
-                      <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">
-                        {formatNumber(data.summaryTotals.totalSoQty)}
-                      </span>
+
+                  {/* SO Qty */}
+                  <div className="col-span-1 flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                      <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalSoQty)}</span>
                     </div>
                   </div>
                 </div>
@@ -2629,7 +2677,7 @@ export default function OutboundPage() {
               {/* Scrollable container with sticky header */}
               <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
                 {/* Headers - Sticky */}
-                <div className="grid grid-cols-5 gap-2 px-3 py-2.5 bg-gradient-to-r from-purple-100/95 to-purple-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-purple-200/50 dark:border-slate-700/50 text-[10px] font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+                <div className="grid grid-cols-5 gap-2 px-3 py-2.5 bg-gradient-to-r from-purple-100/95 to-purple-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-purple-200/50 dark:border-slate-700/50 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
                   <div className="text-center">Date</div>
                   <div className="text-center">SO Qty</div>
                   <div className="text-center">DN Qty</div>
@@ -2753,7 +2801,7 @@ export default function OutboundPage() {
                                   ? 'bg-yellow-500/10 border border-yellow-500/30'
                                   : 'bg-red-500/10 border border-red-500/30'
                               }`}>
-                              <span className={`text-xs font-bold font-mono ${row.percentage >= 100
+                              <span className={`text-sm font-bold font-mono ${row.percentage >= 100
                                 ? 'text-green-600 dark:text-green-400'
                                 : row.percentage >= 90
                                   ? 'text-blue-600 dark:text-blue-400'
@@ -2790,7 +2838,7 @@ export default function OutboundPage() {
                     {/* Avg SO Qty */}
                     <div className="flex justify-center">
                       <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center">
-                        <span className="text-indigo-700 dark:text-indigo-300 text-xs font-bold font-mono">
+                        <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold font-mono">
                           {formatNumber(avgSoQty)}
                         </span>
                       </div>
@@ -2799,7 +2847,7 @@ export default function OutboundPage() {
                     {/* Avg DN Qty */}
                     <div className="flex justify-center">
                       <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center">
-                        <span className="text-blue-700 dark:text-blue-300 text-xs font-bold font-mono">
+                        <span className="text-blue-700 dark:text-blue-300 text-sm font-bold font-mono">
                           {formatNumber(avgDnQty)}
                         </span>
                       </div>
@@ -2811,7 +2859,7 @@ export default function OutboundPage() {
                         ? 'bg-green-500/20 border-2 border-green-500/50'
                         : 'bg-red-500/20 border-2 border-red-500/50'
                         }`}>
-                        <span className={`text-xs font-bold font-mono ${avgPending === 0
+                        <span className={`text-sm font-bold font-mono ${avgPending === 0
                           ? 'text-green-700 dark:text-green-300'
                           : 'text-red-700 dark:text-red-300'
                           }`}>
@@ -2830,7 +2878,7 @@ export default function OutboundPage() {
                             ? 'bg-yellow-500/20 border-2 border-yellow-500/50'
                             : 'bg-red-500/20 border-2 border-red-500/50'
                         }`}>
-                        <span className={`text-xs font-bold font-mono ${avgPercentage >= 100
+                        <span className={`text-sm font-bold font-mono ${avgPercentage >= 100
                           ? 'text-green-700 dark:text-green-300'
                           : avgPercentage >= 90
                             ? 'text-blue-700 dark:text-blue-300'

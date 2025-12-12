@@ -227,7 +227,7 @@ export class InventoryController {
         throw error;
       }
       throw new HttpException(
-        this.getErrorMessage(error, 'Failed to fetch zero-order products'),
+        this.getErrorMessage(error, 'Failed to fetch slow-moving SKUs'),
         HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }

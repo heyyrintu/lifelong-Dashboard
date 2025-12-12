@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
+import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -118,6 +119,46 @@ function BillingPageContent() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
+  const { setLabel: setDateFilterLabel } = useDateFilter();
+
+  const formatToDDMMYYYY = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
+    // Parse as UTC to avoid timezone issues
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const selectedDateRangeLabel = useMemo(() => {
+    if (selectedYear && selectedMonth) {
+      const start = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
+      const end = new Date(Date.UTC(selectedYear, selectedMonth, 0));
+      return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+    }
+    if (fromDate && toDate) {
+      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
+      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+    }
+    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
+    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    return 'All Dates';
+  }, [fromDate, toDate, selectedYear, selectedMonth]);
+
+  useEffect(() => {
+    setDateFilterLabel(selectedDateRangeLabel);
+  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   // Data states
   const [billingPeriod, setBillingPeriod] = useState<BillingPeriod | null>(null);
@@ -416,7 +457,7 @@ function BillingPageContent() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
           {/* Customer Name */}
           <div className="md:col-span-3 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Building2 className="w-3.5 h-3.5" /> Customer
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -432,7 +473,7 @@ function BillingPageContent() {
 
           {/* Location */}
           <div className="md:col-span-3 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <MapPin className="w-3.5 h-3.5" /> Location
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -448,7 +489,7 @@ function BillingPageContent() {
 
           {/* Month/Year Picker */}
           <div className="md:col-span-3 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Billing Month
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -477,7 +518,7 @@ function BillingPageContent() {
               whileTap={{ scale: 0.98, translateY: 0 }}
               onClick={handleGenerateBilling}
               disabled={generating}
-              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-xs font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              className="flex-1 h-[36px] bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl text-sm font-bold tracking-wide shadow-lg shadow-brandRed/25 flex items-center justify-center gap-1.5 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
             >
               {generating ? (
                 <>
@@ -659,23 +700,23 @@ function BillingPageContent() {
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="bg-gradient-to-r from-brandRed to-red-600 text-white">
-                    <th className="px-4 py-3 text-left text-xs font-bold uppercase tracking-wider w-2/5">
+                  <tr className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg">
+                    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-2/5">
                       Particulars
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-1/8">
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-1/8">
                       Qty
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-1/8">
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-1/8">
                       CBM
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider w-1/8">
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-1/8">
                       Rate
                     </th>
-                    <th className="px-4 py-3 text-right text-xs font-bold uppercase tracking-wider w-1/6">
+                    <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-1/6">
                       Amount
                     </th>
-                    <th className="px-4 py-3 text-center text-xs font-bold uppercase tracking-wider w-16">
+                    <th className="px-4 py-3 text-center text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider w-16">
                       Actions
                     </th>
                   </tr>

@@ -1,10 +1,9 @@
 'use client';
 
-import { Menu, LogOut, User as UserIcon } from 'lucide-react';
-import { usePathname, useRouter } from 'next/navigation';
+import { Menu, Calendar } from 'lucide-react';
+import { usePathname } from 'next/navigation';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { useAuth } from '@/lib/auth-context';
-import { useState } from 'react';
+import { useDateFilter } from '@/lib/date-filter-context';
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -12,9 +11,74 @@ interface HeaderProps {
 
 export default function Header({ onMenuClick }: HeaderProps) {
   const pathname = usePathname();
-  const { user, logout } = useAuth();
-  const router = useRouter();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const { label } = useDateFilter();
+
+  const formatSingleDate = (dateStr: string): string => {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    
+    // DD-MM-YYYY
+    const ddmmMatch = dateStr.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (ddmmMatch) {
+      const dd = ddmmMatch[1].padStart(2, '0');
+      const mm = ddmmMatch[2].padStart(2, '0');
+      const yyyy = ddmmMatch[3];
+      const iso = `${yyyy}-${mm}-${dd}T00:00:00Z`;
+      const d = new Date(iso);
+      if (!Number.isNaN(d.getTime())) {
+        return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      }
+    }
+
+    // YYYY-MM-DD
+    const ymdMatch = dateStr.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (ymdMatch) {
+      const yyyy = ymdMatch[1];
+      const mm = String(Number(ymdMatch[2])).padStart(2, '0');
+      const dd = String(Number(ymdMatch[3])).padStart(2, '0');
+      const iso = `${yyyy}-${mm}-${dd}T00:00:00Z`;
+      const d = new Date(iso);
+      if (!Number.isNaN(d.getTime())) {
+        return `${d.getUTCDate()} ${monthNames[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      }
+    }
+
+    return dateStr;
+  };
+
+  const formatLabelToFullDate = (lbl: string) => {
+    if (!lbl) return '';
+    
+    // Handle special labels
+    if (/All Dates/i.test(lbl) || /ALL/i.test(lbl)) {
+      return lbl;
+    }
+
+    // Handle date ranges with " to "
+    if (/\s+to\s+/i.test(lbl)) {
+      const parts = lbl.split(/\s+to\s+/i);
+      if (parts.length === 2) {
+        return `${formatSingleDate(parts[0])} to ${formatSingleDate(parts[1])}`;
+      }
+      return lbl;
+    }
+
+    // Handle "From" prefix
+    if (/^From\s+/i.test(lbl)) {
+      const dateStr = lbl.replace(/^From\s+/i, '');
+      return `From ${formatSingleDate(dateStr)}`;
+    }
+
+    // Handle "Up to" prefix
+    if (/^Up to\s+/i.test(lbl)) {
+      const dateStr = lbl.replace(/^Up to\s+/i, '');
+      return `Up to ${formatSingleDate(dateStr)}`;
+    }
+
+    // Single date
+    return formatSingleDate(lbl);
+  };
+
+  const displayedLabel = formatLabelToFullDate(label);
 
   const getPageName = () => {
     const routes: Record<string, string> = {
@@ -26,18 +90,6 @@ export default function Header({ onMenuClick }: HeaderProps) {
       '/billing': 'Billing',
     };
     return routes[pathname] || 'Dashboard';
-  };
-
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
   };
 
   return (
@@ -71,49 +123,22 @@ export default function Header({ onMenuClick }: HeaderProps) {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          {/* User Info Card */}
-          {user && (
-            <div className="hidden md:flex items-center gap-2 sm:gap-3 px-2 sm:px-4 py-2 sm:py-2.5 
-              backdrop-blur-md backdrop-saturate-150
-              border border-gray-200/50 dark:border-slate-700/50
-              rounded-xl shadow-sm
-              hover:shadow-md transition-all duration-200
-              bg-gradient-to-br from-white/95 to-amber-50/40 
-              dark:from-slate-800/95 dark:to-rose-900/25
-              max-w-[200px]">
-              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center shadow-md ring-2 ring-white/50 dark:ring-slate-700/50 flex-shrink-0">
-                <UserIcon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-slate-100 truncate">
-                  {user.name || 'User'}
-                </span>
-                <span className="text-xs text-gray-600 dark:text-slate-400 truncate">
-                  {user.email}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            disabled={isLoggingOut}
-            className="flex items-center gap-2 px-4 py-2.5 
-              text-sm font-medium text-red-600 dark:text-red-400 
-              bg-white/80 dark:bg-slate-800/80
-              backdrop-blur-md backdrop-saturate-150
-              border border-red-200/50 dark:border-red-900/30
-              hover:bg-red-50/80 dark:hover:bg-red-900/20 
-              rounded-xl shadow-sm hover:shadow-md
-              transition-all duration-200 
-              disabled:opacity-50 disabled:cursor-not-allowed
-              disabled:hover:bg-white/80 dark:disabled:hover:bg-slate-800/80"
-            title="Logout"
-          >
-            <LogOut className="w-4 h-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </button>
+          {/* Selected Date Display */}
+          <div className="flex items-center gap-2 px-3 py-2
+            bg-white/80 dark:bg-slate-800/80
+            backdrop-blur-md backdrop-saturate-150
+            border border-gray-200/50 dark:border-slate-700/50
+            rounded-xl shadow-sm hover:shadow-md
+            transition-all duration-200">
+            <Calendar className="w-4 h-4 text-gray-600 dark:text-slate-400" />
+            <time
+              dateTime={label}
+              className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate max-w-[240px]"
+              title={label}
+              aria-label={`Selected date: ${label}`}>
+              {displayedLabel}
+            </time>
+          </div>
 
           {/* Theme Toggle */}
           <div className="bg-white/80 dark:bg-slate-800/80

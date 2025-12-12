@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { useDateFilter } from '@/lib/date-filter-context';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import {
@@ -50,6 +51,8 @@ interface QuickSummaryData {
   productCategories: string[];
   fulfillmentTable?: FulfillmentRow[];
 }
+
+type FulfillmentRow = QuickSummaryData['fulfillmentTable'][number];
 
 
 
@@ -179,6 +182,7 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
 export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<QuickSummaryData | null>(null);
+  const [fullFulfillmentTable, setFullFulfillmentTable] = useState<FulfillmentRow[]>([]);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [selectedMonth, setSelectedMonth] = useState('ALL');
@@ -190,10 +194,92 @@ export default function SummaryPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>(['ALL']);
   const [availableWarehouses, setAvailableWarehouses] = useState<string[]>(['ALL']);
   const [availableDates, setAvailableDates] = useState<{ minDate: string; maxDate: string } | null>(null);
+  const formatToDDMMYYYY = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+
+    // Already in DD-MM-YYYY format
+    let match = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+    if (match) {
+      const dd = String(match[1]).padStart(2, '0');
+      const mm = String(match[2]).padStart(2, '0');
+      return `${dd}-${mm}-${match[3]}`;
+    }
+
+    // Handle YYYY-MM-DD
+    match = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (match) {
+      const dd = String(match[3]).padStart(2, '0');
+      const mm = String(match[2]).padStart(2, '0');
+      return `${dd}-${mm}-${match[1]}`;
+    }
+
+    // Handle DD Mon YYYY (e.g., 01 Nov 2025)
+    match = dateStr.match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{4})$/);
+    if (match) {
+      const dd = String(match[1]).padStart(2, '0');
+      const monthMap: Record<string, string> = { Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06', Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12' };
+      const monShort = match[2].slice(0, 3);
+      const mm = monthMap[monShort] || '01';
+      return `${dd}-${mm}-${match[3]}`;
+    }
+
+    // Fallback: try parsing with Date
+    const d = new Date(dateStr);
+    if (!Number.isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
+    }
+
+    return dateStr;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
 
   useEffect(() => {
     fetchSummary();
   }, []);
+
+  const { setLabel: setDateFilterLabel } = useDateFilter();
+
+  const selectedDateRangeLabel = useMemo(() => {
+    // Prefer a selected month label (e.g. "Nov 2025")
+    if (selectedMonth && selectedMonth !== 'ALL') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      if (year && month) {
+        // Show the full date range for the selected month in DD-MM-YYYY format using UTC to avoid tz shifts
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 0));
+        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+      }
+      return selectedMonth;
+    }
+
+    // If custom date range is selected
+    if (fromDate && toDate) {
+      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
+      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+    }
+    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
+    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+
+    // Fallback to the available data range when no explicit selection
+    if (availableDates) return `${formatToDDMMYYYY(availableDates.minDate)} to ${formatToDDMMYYYY(availableDates.maxDate)}`;
+
+    return 'All Dates';
+  }, [fromDate, toDate, selectedMonth, availableDates]);
+
+  // Update the global date filter label for header and other components
+  useEffect(() => {
+    setDateFilterLabel(selectedDateRangeLabel);
+  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -219,10 +305,10 @@ export default function SummaryPage() {
           if (selectedMonth && selectedMonth !== 'ALL') {
             const [year, month] = selectedMonth.split('-').map(Number);
             if (year && month) {
-              const startDate = new Date(year, month - 1, 1);
-              const endDate = new Date(year, month, 0, 23, 59, 59);
-              params.append('fromDate', startDate.toISOString().split('T')[0]);
-              params.append('toDate', endDate.toISOString().split('T')[0]);
+              const startDate = new Date(Date.UTC(year, month - 1, 1));
+              const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+              params.append('fromDate', formatDateUTC(startDate));
+              params.append('toDate', formatDateUTC(endDate));
             }
           } else {
             if (fromDate) params.append('fromDate', fromDate);
@@ -243,17 +329,19 @@ export default function SummaryPage() {
 
       const queryString = buildParams();
 
-      // Fetch all three endpoints in parallel
-      const [inboundRes, inventoryRes, outboundRes] = await Promise.all([
+      // Fetch endpoints in parallel (filtered + unfiltered outbound for full monthly trend)
+      const [inboundRes, inventoryRes, outboundRes, outboundFullRes] = await Promise.all([
         authenticatedFetch(`/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
         authenticatedFetch(`/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
         authenticatedFetch(`/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
+        authenticatedFetch(`/outbound/summary`).catch(() => null),
       ]);
 
       // Parse responses
       const inboundData = inboundRes?.ok ? await inboundRes.json() : null;
       const inventoryData = inventoryRes?.ok ? await inventoryRes.json() : null;
       const outboundData = outboundRes?.ok ? await outboundRes.json() : null;
+      const outboundFullData = outboundFullRes?.ok ? await outboundFullRes.json() : null;
 
       // Collect product categories, warehouses, and months from all sources
       const categories = new Set<string>();
@@ -324,6 +412,7 @@ export default function SummaryPage() {
       };
 
       setData(summaryData);
+      setFullFulfillmentTable(outboundFullData?.fulfillmentTable || outboundData?.fulfillmentTable || []);
     } catch (error) {
       console.error('Failed to fetch summary:', error);
       setData(null);
@@ -509,7 +598,7 @@ export default function SummaryPage() {
       .sort((a, b) => a.month.localeCompare(b.month));
 
     return monthlyData;
-  }, [data?.fulfillmentTable]);
+  }, [fullFulfillmentTable, data?.fulfillmentTable]);
 
   return (
     <div>
@@ -531,7 +620,7 @@ export default function SummaryPage() {
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
           <div className="md:col-span-2 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -571,7 +660,7 @@ export default function SummaryPage() {
 
           {/* Month Selector */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -615,7 +704,7 @@ export default function SummaryPage() {
 
           {/* Warehouse Filter */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -641,7 +730,7 @@ export default function SummaryPage() {
 
           {/* Product Category */}
           <div className="space-y-2 relative" ref={categoryDropdownRef}>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
@@ -675,7 +764,7 @@ export default function SummaryPage() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -683,7 +772,7 @@ export default function SummaryPage() {
                   <button
                     type="button"
                     onClick={clearAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                   >
                     Clear
                   </button>
@@ -758,7 +847,7 @@ export default function SummaryPage() {
         {availableDates && (
           <div className="flex justify-end mt-3">
             <p className="text-xs text-gray-500 dark:text-slate-500">
-              Data available: {availableDates.minDate} to {availableDates.maxDate}
+              Data available: {formatToDDMMYYYY(availableDates.minDate)} to {formatToDDMMYYYY(availableDates.maxDate)}
             </p>
           </div>
         )}
@@ -821,7 +910,7 @@ export default function SummaryPage() {
                     <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received SKU</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs received</p>
                   </div>
                 </div>
@@ -837,7 +926,7 @@ export default function SummaryPage() {
                     <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received Qty</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total quantity received</p>
                   </div>
                 </div>
@@ -853,7 +942,7 @@ export default function SummaryPage() {
                     <Box className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received CBM</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Volume received</p>
                   </div>
                 </div>
@@ -893,7 +982,7 @@ export default function SummaryPage() {
                     <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inventory SKU</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs in stock</p>
                   </div>
                 </div>
@@ -909,7 +998,7 @@ export default function SummaryPage() {
                     <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inventory Qty</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total stock quantity</p>
                   </div>
                 </div>
@@ -925,7 +1014,7 @@ export default function SummaryPage() {
                     <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inventory CBM</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total volume in stock</p>
                   </div>
                 </div>
@@ -965,7 +1054,7 @@ export default function SummaryPage() {
                     <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN SKU</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique delivery SKUs</p>
                   </div>
                 </div>
@@ -981,7 +1070,7 @@ export default function SummaryPage() {
                     <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN Qty</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total delivery quantity</p>
                   </div>
                 </div>
@@ -997,7 +1086,7 @@ export default function SummaryPage() {
                     <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">DN Total CBM</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Total CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Delivery volume</p>
                   </div>
                 </div>
@@ -1031,11 +1120,7 @@ export default function SummaryPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Fulfillment</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Average across all dates</p>
                   </div>
-                </div>
-                <div className="px-3 py-1.5 bg-emerald-50/80 dark:bg-emerald-900/30 backdrop-blur-sm rounded-lg border border-emerald-200/50 dark:border-emerald-700/40 text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  {data.fulfillmentTable.length} Dates
                 </div>
               </div>
 
@@ -1092,7 +1177,7 @@ export default function SummaryPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-amber-500" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Gap to 100%</span>
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
             </div>
@@ -1108,12 +1193,8 @@ export default function SummaryPage() {
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Monthly Trend</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Fulfillment rate over time</p>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fullfillment Rate ( all month)</h3>
                   </div>
-                </div>
-                <div className="px-3 py-1.5 bg-indigo-50/80 dark:bg-indigo-900/30 backdrop-blur-sm rounded-lg border border-indigo-200/50 dark:border-indigo-700/40 text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                  {monthlyFulfillmentData.length} Months
                 </div>
               </div>
 
@@ -1187,6 +1268,7 @@ export default function SummaryPage() {
                           r: 8,
                         }}
                         name="Fulfillment Rate"
+                        label={(props) => <text x={props.x} y={props.y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">{props.value.toFixed(2)}%</text>}
                       />
                     </LineChart>
                   </ResponsiveContainer>
@@ -1228,14 +1310,9 @@ export default function SummaryPage() {
 
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
-                </div>
-                <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
-                  {data.fulfillmentTable.length} Dates
-                </div>
+              <div className="flex items-center gap-3">
+                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
               </div>
               <motion.button
                 onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
@@ -1252,12 +1329,12 @@ export default function SummaryPage() {
             <div className="relative">
               {/* Headers - Sticky at top */}
               <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pb-2">
-                <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-gradient-to-r from-gray-50/80 to-transparent dark:from-slate-800/50 dark:to-transparent backdrop-blur-sm rounded-lg border border-gray-200/30 dark:border-slate-700/30 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider">
+                <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-gray-200/50 dark:border-slate-700/50 text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-white">
                   <div className="text-center">Date</div>
                   <div className="text-center">SO Qty</div>
                   <div className="text-center">DN Qty</div>
-                  <div className="text-center">Pending</div>
-                  <div className="text-center">%</div>
+                  <div className="text-center">Pending Qty</div>
+                  <div className="text-center">Percentage</div>
                 </div>
               </div>
 
@@ -1333,7 +1410,7 @@ export default function SummaryPage() {
                             <Calendar className="w-4 h-4 text-white" />
                           </div>
                           <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
-                            {row.date}
+                            {formatToDDMMYYYY(row.date)}
                           </span>
                         </div>
 

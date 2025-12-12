@@ -15,12 +15,12 @@ export default function Table({ columns, data, emptyMessage = 'No data available
     <div className="bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm dark:shadow-none">
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700">
+              <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg">
             <tr>
               {columns.map((column, index) => (
                 <th
                   key={index}
-                  className={`px-6 py-4 text-left text-xs font-semibold text-gray-700 dark:text-slate-300 uppercase tracking-wider ${column.className || ''}`}
+                  className={`px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider ${column.className || ''}`}
                 >
                   {column.header}
                 </th>

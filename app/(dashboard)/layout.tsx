@@ -4,13 +4,15 @@ import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { DateFilterProvider } from '@/lib/date-filter-context';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <ProtectedRoute>
-      <div className="relative flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-900">
+      <DateFilterProvider>
+        <div className="relative flex h-screen overflow-hidden bg-zinc-50 dark:bg-zinc-900">
         {/* Aurora Background Effect - larger visible gradient */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {/* Primary gradient blob - top right */}
@@ -36,6 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </div>
+      </DateFilterProvider>
     </ProtectedRoute>
   );
 }

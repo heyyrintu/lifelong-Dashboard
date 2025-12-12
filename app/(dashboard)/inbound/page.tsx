@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
+import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MetricCard } from '@/components/ui/metric-card';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
@@ -94,6 +95,51 @@ export default function InboundPage() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
+  const { setLabel: setDateFilterLabel } = useDateFilter();
+
+  const formatToDDMMYYYY = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
+    // Parse as UTC to avoid timezone issues
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const selectedDateRangeLabel = useMemo(() => {
+    if (selectedMonth && selectedMonth !== 'ALL') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      if (year && month) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 0));
+        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+      }
+      return selectedMonth;
+    }
+    if (fromDate && toDate) {
+      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
+      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+    }
+    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
+    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    if (summaryData?.availableDates) return `${formatToDDMMYYYY(summaryData.availableDates.minDate)} to ${formatToDDMMYYYY(summaryData.availableDates.maxDate)}`;
+    return 'All Dates';
+  }, [fromDate, toDate, selectedMonth, summaryData?.availableDates]);
+
+  useEffect(() => {
+    setDateFilterLabel(selectedDateRangeLabel);
+  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   // Helper function to check if date range matches a specific month
   const getMonthFromDateRange = (from: string, to: string): string | null => {
@@ -465,7 +511,7 @@ export default function InboundPage() {
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
           <div className="md:col-span-2 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -531,7 +577,7 @@ export default function InboundPage() {
 
           {/* Month Selector */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -591,7 +637,7 @@ export default function InboundPage() {
 
           {/* Product Category */}
           <div className="space-y-2 relative" ref={categoryDropdownRef}>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
@@ -625,7 +671,7 @@ export default function InboundPage() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -633,7 +679,7 @@ export default function InboundPage() {
                   <button
                     type="button"
                     onClick={clearAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                   >
                     Clear
                   </button>
@@ -783,12 +829,12 @@ export default function InboundPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <ArrowDownToLine className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invoice SKU</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique Invoice Items</p>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Invoice</h3>
+                    <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
                   </div>
                 </div>
                 <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
@@ -874,7 +920,7 @@ export default function InboundPage() {
                     <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received Qty</span>
+                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity (in Lakhs)</p>
                   </div>
                 </div>
@@ -956,7 +1002,7 @@ export default function InboundPage() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Product Category</h3>
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Category Wise CBM</h3>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-slate-400">
                   {summaryData.categoryTable.length} Categories
@@ -1197,7 +1243,7 @@ export default function InboundPage() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">EDEL vs Received Qty</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison over time (in Lakhs)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison (in Lakhs)</p>
                 </div>
               </div>
               {chartLoading ? (
@@ -1320,7 +1366,7 @@ export default function InboundPage() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">EDEL vs Total CBM</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison over time</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison</p>
                 </div>
               </div>
               {chartLoading ? (
@@ -1441,7 +1487,7 @@ export default function InboundPage() {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Summary Totals</h3>
+                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Daily Receiving Summary</h3>
                 </div>
                 <div className="text-sm text-gray-500 dark:text-slate-400">
                   {summaryData.summaryTotals?.dayData?.length || 0} Records
@@ -1452,7 +1498,7 @@ export default function InboundPage() {
             {summaryData.summaryTotals ? (
               <div>
                 {/* Headers */}
-                <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+                <div className="grid grid-cols-12 gap-4 px-4 py-3 text-sm font-bold uppercase tracking-wider bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-white rounded-t-2xl">
                   <div className="col-span-1">No</div>
                   <div className="col-span-3">Date</div>
                   <div className="col-span-2">Received Qty (L)</div>
@@ -1628,12 +1674,17 @@ export default function InboundPage() {
                         </div>
 
                         {/* Total Received Qty */}
-                        <div className="col-span-2 flex justify-center">
-                          <div
-                            className="px-4 py-2 rounded-lg bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center cursor-help"
-                            title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
-                          >
-                            <span className="text-green-700 dark:text-green-300 text-base font-bold">
+                        <div className="col-span-2">
+                          <div className="flex items-center gap-3 justify-center">
+                            <div className="flex gap-1">
+                              {Array.from({ length: 10 }).map((_, i) => (
+                                <div key={i} className="w-1.5 h-5 rounded-full bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30" />
+                              ))}
+                            </div>
+                            <span
+                              className="text-green-700 dark:text-green-300 text-base font-bold min-w-[4rem] cursor-help"
+                              title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
+                            >
                               {formatQuantityInLakhs(summaryData.summaryTotals.totalReceivedQty, 2)}
                             </span>
                           </div>
@@ -1641,8 +1692,8 @@ export default function InboundPage() {
 
                         {/* Total CBM */}
                         <div className="col-span-2 flex justify-center">
-                          <div className="px-4 py-2 rounded-lg bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center">
-                            <span className="text-green-700 dark:text-green-300 text-base font-bold">
+                          <div className="px-3 py-1.5 rounded-lg bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
+                            <span className="text-green-700 dark:text-green-300 text-sm font-bold">
                               {formatNumber(summaryData.summaryTotals.totalCbm, 2)} CBM
                             </span>
                           </div>
@@ -1651,10 +1702,10 @@ export default function InboundPage() {
                         {/* Total EDEL Received Qty */}
                         <div className="col-span-2 flex justify-center">
                           <div
-                            className="px-4 py-2 rounded-lg bg-purple-500/20 border-2 border-purple-500/50 inline-flex items-center justify-center cursor-help"
+                            className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center cursor-help"
                             title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalEdelReceivedQty, 0)}`}
                           >
-                            <span className="text-purple-700 dark:text-purple-300 text-base font-bold">
+                            <span className="text-purple-700 dark:text-purple-300 text-sm font-bold">
                               {formatQuantityInLakhs(summaryData.summaryTotals.totalEdelReceivedQty, 2)}
                             </span>
                           </div>
@@ -1662,8 +1713,8 @@ export default function InboundPage() {
 
                         {/* Total EDEL CBM */}
                         <div className="col-span-2 flex justify-center">
-                          <div className="px-4 py-2 rounded-lg bg-purple-500/20 border-2 border-purple-500/50 inline-flex items-center justify-center">
-                            <span className="text-purple-700 dark:text-purple-300 text-base font-bold">
+                          <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                            <span className="text-purple-700 dark:text-purple-300 text-sm font-bold">
                               {formatNumber(summaryData.summaryTotals.totalEdelTotalCbm, 2)} CBM
                             </span>
                           </div>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef } from 'react';
+import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
+import { useDateFilter } from '@/lib/date-filter-context';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -137,13 +138,13 @@ function InventoryPageContent() {
   const [fastMovingError, setFastMovingError] = useState<string | null>(null);
   const [fastMovingWarehouse, setFastMovingWarehouse] = useState('ALL');
   const [fastMovingCategory, setFastMovingCategory] = useState('ALL');
-  const [minAvgQty, setMinAvgQty] = useState(50);
+  
   const [fastMovingLimit, setFastMovingLimit] = useState(10);
   const [showFastMovingSection, setShowFastMovingSection] = useState(true);
   const [fastMovingPage, setFastMovingPage] = useState(0);
   const ITEMS_PER_PAGE = 20;
 
-  // Zero-order products state
+  // Slow-moving SKUs state
   const [zeroOrderData, setZeroOrderData] = useState<ZeroOrderProductsResponse | null>(null);
   const [zeroOrderLoading, setZeroOrderLoading] = useState(false);
   const [zeroOrderError, setZeroOrderError] = useState<string | null>(null);
@@ -169,6 +170,51 @@ function InventoryPageContent() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [filtersDirty, setFiltersDirty] = useState(false);
+  const { setLabel: setDateFilterLabel } = useDateFilter();
+
+  const formatToDDMMYYYY = (dateStr?: string | null): string => {
+    if (!dateStr) return '';
+    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
+    // Parse as UTC to avoid timezone issues
+    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
+    const d = new Date(isoStr);
+    if (Number.isNaN(d.getTime())) return dateStr;
+    const day = String(d.getUTCDate()).padStart(2, '0');
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+    const year = d.getUTCFullYear();
+    return `${day}-${month}-${year}`;
+  };
+
+  const formatDateUTC = (date: Date): string => {
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
+  const selectedDateRangeLabel = useMemo(() => {
+    if (selectedMonth && selectedMonth !== 'ALL') {
+      const [year, month] = selectedMonth.split('-').map(Number);
+      if (year && month) {
+        const start = new Date(Date.UTC(year, month - 1, 1));
+        const end = new Date(Date.UTC(year, month, 0));
+        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+      }
+      return selectedMonth;
+    }
+    if (fromDate && toDate) {
+      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
+      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+    }
+    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
+    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    if (data?.filters?.availableDateRange) return `${formatToDDMMYYYY(data.filters.availableDateRange.minDate)} to ${formatToDDMMYYYY(data.filters.availableDateRange.maxDate)}`;
+    return 'All Dates';
+  }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
+
+  useEffect(() => {
+    setDateFilterLabel(selectedDateRangeLabel);
+  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   useEffect(() => {
     fetchSummary();
@@ -203,10 +249,10 @@ function InventoryPageContent() {
           // Parse month and set date range
           const [year, month] = selectedMonth.split('-').map(Number);
           if (year && month) {
-            const startDate = new Date(year, month - 1, 1);
-            const endDate = new Date(year, month, 0, 23, 59, 59);
-            params.append('fromDate', startDate.toISOString().split('T')[0]);
-            params.append('toDate', endDate.toISOString().split('T')[0]);
+            const startDate = new Date(Date.UTC(year, month - 1, 1));
+            const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+            params.append('fromDate', formatDateUTC(startDate));
+            params.append('toDate', formatDateUTC(endDate));
           }
         } else {
           if (fromDate) params.append('fromDate', fromDate);
@@ -336,7 +382,7 @@ function InventoryPageContent() {
       if (fastMovingCategory && fastMovingCategory !== 'ALL') {
         params.append('productCategory', fastMovingCategory);
       }
-      params.append('minAvgQty', minAvgQty.toString());
+
       params.append('limit', fastMovingLimit.toString());
 
       const response = await authenticatedFetch(`/inventory/fast-moving-skus?${params.toString()}`);
@@ -385,7 +431,7 @@ function InventoryPageContent() {
     }
   };
 
-  // Fetch zero-order products
+  // Fetch slow-moving SKUs
   const fetchZeroOrderProducts = async () => {
     try {
       setZeroOrderLoading(true);
@@ -428,7 +474,7 @@ function InventoryPageContent() {
         if (response.status === 404) {
           throw new Error('No inventory data available');
         }
-        throw new Error('Failed to fetch zero-order products');
+        throw new Error('Failed to fetch slow-moving SKUs');
       }
 
       const result: ZeroOrderProductsResponse = await response.json();
@@ -441,7 +487,7 @@ function InventoryPageContent() {
     }
   };
 
-  // Fetch zero-order products on mount only
+  // Fetch slow-moving SKUs on mount only
   useEffect(() => {
     if (data) {
       fetchZeroOrderProducts();
@@ -773,7 +819,7 @@ function InventoryPageContent() {
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
           <div className="md:col-span-2 space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
             <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -815,7 +861,7 @@ function InventoryPageContent() {
 
           {/* Month Selector */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -864,7 +910,7 @@ function InventoryPageContent() {
 
           {/* Warehouse Filter */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
@@ -890,7 +936,7 @@ function InventoryPageContent() {
 
           {/* Product Category */}
           <div className="space-y-2 relative" ref={categoryDropdownRef}>
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
@@ -924,7 +970,7 @@ function InventoryPageContent() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -932,7 +978,7 @@ function InventoryPageContent() {
                   <button
                     type="button"
                     onClick={clearAllCategories}
-                    className="flex-1 px-2 py-1.5 text-xs font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
                   >
                     Clear
                   </button>
@@ -1067,7 +1113,7 @@ function InventoryPageContent() {
                   <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Inbound SKU</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inbound SKU</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs with CBM &gt; 0</p>
                 </div>
               </div>
@@ -1083,7 +1129,7 @@ function InventoryPageContent() {
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total Inventory QTY</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Total Inventory QTY</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Sum of per-row AVERAGE</p>
                 </div>
               </div>
@@ -1099,7 +1145,7 @@ function InventoryPageContent() {
                   <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Total CBM</span>
+                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Total CBM</span>
                   <p className="text-xs text-gray-400 dark:text-slate-500">Sum of (AVG QTY × CBM/unit)</p>
                 </div>
               </div>
@@ -1158,7 +1204,7 @@ function InventoryPageContent() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Inventory Qty vs EDEL Qty</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison over time (in Lakhs)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison (in Lakhs)</p>
                 </div>
               </div>
               <div className="relative z-10">
@@ -1267,7 +1313,7 @@ function InventoryPageContent() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Total CBM vs EDEL CBM</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison over time</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison</p>
                 </div>
               </div>
               <div className="relative z-10">
@@ -1405,17 +1451,7 @@ function InventoryPageContent() {
                     </select>
                   </div>
                   <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Min Avg Qty:</label>
-                    <input
-                      type="number"
-                      value={minAvgQty}
-                      onChange={(e) => setMinAvgQty(parseInt(e.target.value) || 0)}
-                      className="w-20 px-3 py-1.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-lg text-xs font-medium text-gray-900 dark:text-white"
-                      min={0}
-                    />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Limit:</label>
+                    <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Top SKUs:</label>
                     <select
                       value={fastMovingLimit}
                       onChange={(e) => setFastMovingLimit(parseInt(e.target.value))}
@@ -1499,14 +1535,13 @@ function InventoryPageContent() {
                     {/* Scrollable Table Container */}
                     <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10">
+                        <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Item</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Min/Max</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Average Daily Sales (units/day) from Outbound${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Avg Qty</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Current Qty</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Average Daily Sales (units/day) from Outbound${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
                               Sales/Day
                               {fastMovingData?.salesDateRange && (
                                 <div className="text-[9px] font-normal normal-case text-blue-500 dark:text-blue-300 mt-0.5">
@@ -1514,9 +1549,9 @@ function InventoryPageContent() {
                                 </div>
                               )}
                             </th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty">DN Qty</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM">DN CBM</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty">DN Qty</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM">DN CBM</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">CBM</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -1533,9 +1568,6 @@ function InventoryPageContent() {
                                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{sku.warehouse}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgDailyQty)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.latestQty)}</td>
-                                <td className="px-4 py-3 text-right text-xs text-gray-500 dark:text-slate-400">
-                                  {formatNumber(sku.minQty)} / {formatNumber(sku.maxQty)}
-                                </td>
                                 {/* Sales columns from outbound data */}
                                 <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                   {formatNumber(sku.avgDailySales, 2)}
@@ -1606,7 +1638,7 @@ function InventoryPageContent() {
         </motion.div>
       )}
 
-      {/* Zero-Order Products Section */}
+      {/* Slow Moving SKUs Section */}
       {data && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1621,7 +1653,7 @@ function InventoryPageContent() {
                 <Package className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Products With Zero Orders</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Slow Moving SKUs</h2>
                 <p className="text-sm text-gray-500 dark:text-slate-400">Identify dead stock and slow-moving inventory</p>
               </div>
             </div>
@@ -1716,7 +1748,7 @@ function InventoryPageContent() {
                         className="absolute z-[100] bottom-10 right-0 w-96 bg-white dark:bg-slate-800 border-2 border-purple-500 dark:border-purple-400 rounded-xl shadow-2xl p-4"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Zero-Order Products</h4>
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Slow Moving SKUs</h4>
                           <button
                             onClick={() => setShowZeroOrderInfo(false)}
                             className="w-6 h-6 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
@@ -1756,14 +1788,14 @@ function InventoryPageContent() {
                     {/* Scrollable Table Container */}
                     <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
                       <table className="w-full text-sm">
-                        <thead className="bg-gray-50 dark:bg-slate-900/50 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10">
+                        <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Item</th>
-                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Avg Stock</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">Latest Stock</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">CBM Blocked</th>
-                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider bg-gray-50 dark:bg-slate-900/50">DN Count</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
+                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Avg Stock</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">CBM Blocked</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">DN Count</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -1831,7 +1863,7 @@ function InventoryPageContent() {
                 ) : (
                   <div className="p-8 text-center text-gray-500 dark:text-slate-400">
                     <Package className="w-12 h-12 mx-auto mb-3 opacity-30" />
-                    <p>No zero-order products found with the current filters.</p>
+                    <p>No slow-moving SKUs found with the current filters.</p>
                     <p className="text-xs mt-1">All inventory items have matching outbound orders.</p>
                   </div>
                 )}
