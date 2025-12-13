@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
+import { formatHeaderDateShort } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -198,17 +199,17 @@ function InventoryPageContent() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+                    return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
-      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+                if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+                return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
-    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
-    if (data?.filters?.availableDateRange) return `${formatToDDMMYYYY(data.filters.availableDateRange.minDate)} to ${formatToDDMMYYYY(data.filters.availableDateRange.maxDate)}`;
+            if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+            if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+    if (data?.filters?.availableDateRange) return `${formatHeaderDateShort(data.filters.availableDateRange.minDate)} - ${formatHeaderDateShort(data.filters.availableDateRange.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
 
@@ -281,6 +282,23 @@ function InventoryPageContent() {
       const result: InventorySummaryResponse = await response.json();
       setData(result);
       setChartData(result.timeSeries);
+
+      // Fetch unfiltered data for charts (always show all months)
+      if (!useFilters) {
+        // On initial load, also set fullChartData
+        setFullChartData(result.timeSeries);
+      } else {
+        // When filters are applied, fetch unfiltered data separately for charts
+        try {
+          const unfilteredResponse = await authenticatedFetch('/inventory/summary');
+          if (unfilteredResponse.ok) {
+            const unfilteredResult: InventorySummaryResponse = await unfilteredResponse.json();
+            setFullChartData(unfilteredResult.timeSeries);
+          }
+        } catch (err) {
+          console.error('Failed to fetch unfiltered chart data:', err);
+        }
+      }
 
       // Set initial date range from available dates if not already set
       if (!useFilters && result.filters.availableDateRange) {
@@ -585,6 +603,7 @@ function InventoryPageContent() {
   };
 
   const [chartData, setChartData] = useState<InventoryTimeSeriesData | null>(null);
+  const [fullChartData, setFullChartData] = useState<InventoryTimeSeriesData | null>(null);
 
   // Helper function to format numbers
   const formatNumber = (num: number | undefined | null, decimals?: number): string => {
@@ -657,8 +676,9 @@ function InventoryPageContent() {
   };
 
   const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
-    if (!chartData || !chartData.points) return [];
-    const points = chartData.points;
+    // Use fullChartData so charts always show all months regardless of filter
+    if (!fullChartData || !fullChartData.points) return [];
+    const points = fullChartData.points;
 
     if (timeGranularity === 'day') {
       return points;
@@ -1763,7 +1783,7 @@ function InventoryPageContent() {
                             <li>Gets all items from inventory with their stock quantities</li>
                             <li>Checks which items have NO matching delivery notes in outbound data</li>
                             <li>Filters items with days in stock &gt;= Min Days threshold</li>
-                            <li>Shows: Avg Stock, Latest Stock, Days in Stock, Total CBM</li>
+                            <li>Shows: Latest Stock, Days in Stock, Total CBM</li>
                           </ul>
                           <p><strong>Use Case:</strong> Identify items to clear, discount, or stop ordering to free up warehouse space.</p>
                         </div>
@@ -1792,7 +1812,6 @@ function InventoryPageContent() {
                           <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Avg Stock</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">CBM Blocked</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">DN Count</th>
@@ -1810,7 +1829,6 @@ function InventoryPageContent() {
                                   <div className="text-xs text-gray-500 dark:text-slate-400">{product.itemGroup}</div>
                                 </td>
                                 <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.avgStockQty)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
                                 <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">{product.dnCount}</td>

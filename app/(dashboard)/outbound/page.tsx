@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useDateFilter } from '@/lib/date-filter-context';
+import { formatHeaderDateShort } from '@/lib/utils';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -191,17 +192,17 @@ export default function OutboundPage() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
-      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
-    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
-    if (data?.availableDateRange) return `${formatToDDMMYYYY(data.availableDateRange.minDate)} to ${formatToDDMMYYYY(data.availableDateRange.maxDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+    if (data?.availableDateRange) return `${formatHeaderDateShort(data.availableDateRange.minDate)} - ${formatHeaderDateShort(data.availableDateRange.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, data?.availableDateRange]);
 

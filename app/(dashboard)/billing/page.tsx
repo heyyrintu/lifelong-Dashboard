@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
+import { formatHeaderDateShort } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -145,14 +146,14 @@ function BillingPageContent() {
     if (selectedYear && selectedMonth) {
       const start = new Date(Date.UTC(selectedYear, selectedMonth - 1, 1));
       const end = new Date(Date.UTC(selectedYear, selectedMonth, 0));
-      return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+      return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
     }
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
-      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
-    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedYear, selectedMonth]);
 

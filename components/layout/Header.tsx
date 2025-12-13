@@ -53,9 +53,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
       return lbl;
     }
 
-    // Handle date ranges with " to "
-    if (/\s+to\s+/i.test(lbl)) {
-      const parts = lbl.split(/\s+to\s+/i);
+    // Handle date ranges with " to " or " - "
+    const rangeSplitRegex = /\s+to\s+|\s*-\s*/i;
+    if (rangeSplitRegex.test(lbl)) {
+      const parts = lbl.split(rangeSplitRegex);
       if (parts.length === 2) {
         return `${formatSingleDate(parts[0])} to ${formatSingleDate(parts[1])}`;
       }

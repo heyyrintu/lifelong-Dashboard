@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MetricCard } from '@/components/ui/metric-card';
+import { formatHeaderDateShort } from '@/lib/utils';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
 import {
   BarChart,
@@ -123,17 +123,17 @@ export default function InboundPage() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
-      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
-    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
-    if (summaryData?.availableDates) return `${formatToDDMMYYYY(summaryData.availableDates.minDate)} to ${formatToDDMMYYYY(summaryData.availableDates.maxDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+    if (summaryData?.availableDates) return `${formatHeaderDateShort(summaryData.availableDates.minDate)} - ${formatHeaderDateShort(summaryData.availableDates.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, summaryData?.availableDates]);
 
@@ -829,12 +829,12 @@ export default function InboundPage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                    <ArrowDownToLine className="w-6 h-6 text-white" />
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Invoice</h3>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Invoice SKU</span>
+                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique Invoice Items</p>
                   </div>
                 </div>
                 <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
@@ -920,7 +920,7 @@ export default function InboundPage() {
                     <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received Qty</span>
+                    <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Received Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total Received Quantity (in Lakhs)</p>
                   </div>
                 </div>

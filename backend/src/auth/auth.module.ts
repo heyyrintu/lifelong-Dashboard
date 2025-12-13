@@ -6,7 +6,6 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { AppwriteStrategy } from './strategies/appwrite.strategy';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
-import { APP_GUARD } from '@nestjs/core';
 
 @Module({
   imports: [
@@ -27,16 +26,8 @@ import { APP_GUARD } from '@nestjs/core';
     AppwriteStrategy,
     JwtAuthGuard,
     RolesGuard,
-    // Apply JWT guard globally - all routes protected by default
-    // Use @Public() decorator to make routes public
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    // Global guards removed - all API routes are now public
+    // Login/auth functionality still available for frontend session management
   ],
   exports: [JwtModule, PassportModule, JwtAuthGuard, RolesGuard],
 })

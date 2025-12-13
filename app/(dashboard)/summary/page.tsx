@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useDateFilter } from '@/lib/date-filter-context';
+import { formatHeaderDateShort } from '@/lib/utils';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import {
@@ -253,21 +254,21 @@ export default function SummaryPage() {
         // Show the full date range for the selected month in DD-MM-YYYY format using UTC to avoid tz shifts
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-        return `${formatToDDMMYYYY(formatDateUTC(start))} to ${formatToDDMMYYYY(formatDateUTC(end))}`;
+            return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
 
     // If custom date range is selected
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatToDDMMYYYY(fromDate);
-      return `${formatToDDMMYYYY(fromDate)} to ${formatToDDMMYYYY(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatToDDMMYYYY(fromDate)}`;
-    if (toDate) return `Up to ${formatToDDMMYYYY(toDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
 
     // Fallback to the available data range when no explicit selection
-    if (availableDates) return `${formatToDDMMYYYY(availableDates.minDate)} to ${formatToDDMMYYYY(availableDates.maxDate)}`;
+    if (availableDates) return `${formatHeaderDateShort(availableDates.minDate)} - ${formatHeaderDateShort(availableDates.maxDate)}`;
 
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, availableDates]);
@@ -529,9 +530,26 @@ export default function SummaryPage() {
     return total / rows.length;
   }, [data?.fulfillmentTable]);
 
-  // Calculate monthly fulfillment rates for line chart
-  const monthlyFulfillmentData = useMemo((): { month: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
+  // Calculate last day fulfillment data
+  const lastDayFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
+    if (!rows.length) return { percentage: 0, date: '', soQty: 0, dnQty: 0, pending: 0 };
+    
+    // Get the last row (most recent date)
+    const lastRow = rows[rows.length - 1];
+    return {
+      percentage: lastRow.percentage || 0,
+      date: lastRow.date || '',
+      soQty: lastRow.soQty || 0,
+      dnQty: lastRow.dnQty || 0,
+      pending: lastRow.pending || 0,
+    };
+  }, [data?.fulfillmentTable]);
+
+  // Calculate monthly fulfillment rates for line chart
+  // Use fullFulfillmentTable so the Monthly Fulfillment chart always shows all months (unfiltered)
+  const monthlyFulfillmentData = useMemo((): { month: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
+    const rows = fullFulfillmentTable || [];
     if (!rows.length) return [];
 
     // Group data by month (YYYY-MM)
@@ -594,7 +612,7 @@ export default function SummaryPage() {
       .sort((a, b) => a.month.localeCompare(b.month));
 
     return monthlyData;
-  }, [fullFulfillmentTable, data?.fulfillmentTable]);
+  }, [fullFulfillmentTable]);
 
   return (
     <div>
@@ -1095,14 +1113,15 @@ export default function SummaryPage() {
         </div>
       )}
 
-      {/* Fulfillment Rate Section - Half Donut + Line Chart */}
+      {/* Fulfillment Rate Section - Half Donuts + Line Chart */}
       {!loading && data?.fulfillmentTable && data.fulfillmentTable.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
-          className="w-full mb-8"
+          className="w-full mb-8 space-y-6"
         >
+          {/* Half Donuts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Half Donut Chart - Average Fulfillment */}
             <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
@@ -1116,6 +1135,7 @@ export default function SummaryPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Fulfillment</h3>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Average across selected period</p>
                   </div>
                 </div>
               </div>
@@ -1178,8 +1198,86 @@ export default function SummaryPage() {
               </div>
             </div>
 
-            {/* Line Chart - Month over Month Fulfillment Rates */}
+            {/* Last Day Fulfillment - Half Donut */}
             <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <Clock className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Last Day Fulfillment</h3>
+                  </div>
+                </div>
+                <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                  {lastDayFulfillment.date}
+                </div>
+              </div>
+
+              <div className="h-52 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, lastDayFulfillment.percentage)), fill: '#3b82f6' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, lastDayFulfillment.percentage)), fill: '#f59e0b' },
+                      ]}
+                      cx="50%"
+                      cy="80%"
+                      startAngle={180}
+                      endAngle={0}
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      <Cell fill="#3b82f6" />
+                      <Cell fill="#f59e0b" />
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload as { name: string; value: number };
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.name}</p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
+                                {item.value.toFixed(2)}%
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+                  <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                    {lastDayFulfillment.percentage.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Latest Day</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Line Chart - Month over Month Fulfillment Rates (Full Width) */}
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
               <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
               <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
@@ -1189,7 +1287,7 @@ export default function SummaryPage() {
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fullfillment Rate ( all month)</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
                   </div>
                 </div>
               </div>
@@ -1299,7 +1397,6 @@ export default function SummaryPage() {
                 </div>
               )}
             </div>
-          </div>
         </motion.div>
       )}
 
