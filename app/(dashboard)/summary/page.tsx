@@ -52,10 +52,6 @@ interface QuickSummaryData {
   fulfillmentTable?: FulfillmentRow[];
 }
 
-type FulfillmentRow = QuickSummaryData['fulfillmentTable'][number];
-
-
-
 const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
   // Create workbook and worksheet
   const wb = XLSX.utils.book_new();
@@ -1268,7 +1264,19 @@ export default function SummaryPage() {
                           r: 8,
                         }}
                         name="Fulfillment Rate"
-                        label={(props) => <text x={props.x} y={props.y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">{props.value.toFixed(2)}%</text>}
+                        label={(props) => {
+                          const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
+                          const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
+                          const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
+
+                          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
+
+                          return (
+                            <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
+                              {value.toFixed(2)}%
+                            </text>
+                          );
+                        }}
                       />
                     </LineChart>
                   </ResponsiveContainer>
