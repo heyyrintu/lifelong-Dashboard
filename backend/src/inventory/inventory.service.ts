@@ -261,6 +261,7 @@ export class InventoryService {
         const batch = parsedRows.slice(batchStart, batchEnd);
 
         // Use transaction to ensure atomicity and consistency
+        // Increased timeout from default 5000ms to 30000ms (30 seconds) for large files
         await this.prisma.$transaction(async (tx) => {
           // Step 1: Bulk create all InventoryRow records for this batch
           // Generate UUIDs client-side to avoid round-trip for IDs
@@ -306,6 +307,9 @@ export class InventoryService {
             });
             totalDailyStocksInserted += allDailyStocks.length;
           }
+        }, {
+          maxWait: 10000, // Maximum time to wait for a connection (10 seconds)
+          timeout: 30000, // Maximum time transaction can run (30 seconds)
         });
       }
 
