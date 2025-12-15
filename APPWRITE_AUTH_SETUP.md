@@ -41,6 +41,14 @@ Before you can use authentication, you need to configure it in your Appwrite con
    - `http://localhost:3000`
 3. For production, add your production domain later
 
+### Step 5: Optional — Server API Key (Admin Operations)
+
+If you need to perform admin tasks from your backend during development (for example, user management, database table administration, or file management), you can use a server API key. This is optional and should be added only to your backend environment variables — never to the frontend.
+
+1. In the Appwrite Console, go to **API Keys** and create a key with the required scopes.
+2. Add the key to your backend `.env` or the server's environment variables as `APPWRITE_API_KEY`.
+3. Do not commit this value to your repository; store it in a secrets manager if possible.
+
 ## 🚀 How to Use
 
 ### First Time Setup

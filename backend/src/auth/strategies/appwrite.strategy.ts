@@ -19,6 +19,15 @@ export class AppwriteStrategy extends PassportStrategy(Strategy, 'appwrite') {
             .setEndpoint(endpoint)
             .setProject(projectId);
 
+        // Optionally set a server API key for admin operations if present in env
+        const apiKey = this.configService.get<string>('APPWRITE_API_KEY');
+        if (apiKey) {
+            // The setKey method is available on the Appwrite client in the server SDK
+            // It gives the backend elevated privileges using the API key.
+            // Use with caution and do not expose this key to browsers.
+            this.client.setKey(apiKey);
+        }
+
         this.account = new Account(this.client);
     }
 

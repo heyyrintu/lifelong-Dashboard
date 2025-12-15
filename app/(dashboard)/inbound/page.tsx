@@ -439,6 +439,23 @@ export default function InboundPage() {
     return `${lakhs.toFixed(decimals)}L`;
   };
 
+  // Format quantity smartly: if < 1L show in K (thousands), if >= 1L show in L (lakhs)
+  const formatQuantitySmartKL = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0K';
+    const value = Number(num);
+    if (isNaN(value)) return '0K';
+    const lakhs = value / 100000;
+    
+    if (lakhs < 1) {
+      // Show in thousands (K)
+      const thousands = value / 1000;
+      return `${thousands.toFixed(decimals)}K`;
+    } else {
+      // Show in lakhs (L)
+      return `${lakhs.toFixed(decimals)}L`;
+    }
+  };
+
   const formatAxisLabel = (label: string) => {
     // Convert labels like "Aug 2025" -> "Aug'25"
     const match = label.match(/^([A-Za-z]{3}) (\d{4})$/);
@@ -1585,24 +1602,13 @@ export default function InboundPage() {
                             </div>
 
                             {/* Received Qty */}
-                            <div className="col-span-2">
-                              <div className="flex items-center gap-3">
-                                <div className="flex gap-1">
-                                  {Array.from({ length: 10 }).map((_, i) => (
-                                    <div
-                                      key={i}
-                                      className={`w-1.5 h-5 rounded-full transition-all duration-500 ${i < Math.round((day.receivedQty / Math.max(...summaryData.summaryTotals!.dayData!.map(d => d.receivedQty))) * 10)
-                                        ? 'bg-gray-600 dark:bg-slate-300/60'
-                                        : 'bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30'
-                                        }`}
-                                    />
-                                  ))}
-                                </div>
-                                <span
-                                  className="text-sm font-mono text-gray-900 dark:text-slate-200 font-medium min-w-[4rem] cursor-help"
-                                  title={`Full Value: ${formatNumber(day.receivedQty, 0)}`}
-                                >
-                                  {formatQuantityInLakhs(day.receivedQty, 2)}
+                            <div className="col-span-2 flex justify-center">
+                              <div
+                                className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center cursor-help"
+                                title={`Full Value: ${formatNumber(day.receivedQty, 0)}`}
+                              >
+                                <span className="text-blue-600 dark:text-blue-400 text-sm font-medium">
+                                  {formatQuantitySmartKL(day.receivedQty, 2)}
                                 </span>
                               </div>
                             </div>
@@ -1674,18 +1680,13 @@ export default function InboundPage() {
                         </div>
 
                         {/* Total Received Qty */}
-                        <div className="col-span-2">
-                          <div className="flex items-center gap-3 justify-center">
-                            <div className="flex gap-1">
-                              {Array.from({ length: 10 }).map((_, i) => (
-                                <div key={i} className="w-1.5 h-5 rounded-full bg-gray-200 dark:bg-slate-600/40 border border-gray-300 dark:border-slate-500/30" />
-                              ))}
-                            </div>
-                            <span
-                              className="text-green-700 dark:text-green-300 text-base font-bold min-w-[4rem] cursor-help"
-                              title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
-                            >
-                              {formatQuantityInLakhs(summaryData.summaryTotals.totalReceivedQty, 2)}
+                        <div className="col-span-2 flex justify-center">
+                          <div
+                            className="px-4 py-2 rounded-lg bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center cursor-help"
+                            title={`Full Value: ${formatNumber(summaryData.summaryTotals.totalReceivedQty, 0)}`}
+                          >
+                            <span className="text-blue-700 dark:text-blue-300 text-base font-bold">
+                              {formatQuantitySmartKL(summaryData.summaryTotals.totalReceivedQty, 2)}
                             </span>
                           </div>
                         </div>
