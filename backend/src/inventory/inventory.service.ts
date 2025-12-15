@@ -154,6 +154,14 @@ export class InventoryService {
     let upload: any = null;
 
     try {
+      // Clean up any failed uploads for this filename to avoid conflicts
+      await this.prisma.inventoryUpload.deleteMany({
+        where: {
+          fileName,
+          status: 'failed',
+        },
+      });
+
       // Create upload record with status "processing"
       upload = await this.prisma.inventoryUpload.create({
         data: {
@@ -161,6 +169,17 @@ export class InventoryService {
           status: 'processing',
         },
       });
+
+      console.log(`Created inventory upload record: ${upload.id}`);
+
+      // Verify the upload was created successfully
+      const verifyUpload = await this.prisma.inventoryUpload.findUnique({
+        where: { id: upload.id },
+      });
+
+      if (!verifyUpload) {
+        throw new Error(`Failed to create upload record for ${fileName}`);
+      }
 
       // Read Excel file
       const workbook = XLSX.readFile(filePath);
@@ -256,9 +275,13 @@ export class InventoryService {
       // Process in batches to avoid memory issues with very large files
       const BATCH_SIZE = 500;
 
+      console.log(`Processing ${parsedRows.length} rows in batches of ${BATCH_SIZE}...`);
+
       for (let batchStart = 0; batchStart < parsedRows.length; batchStart += BATCH_SIZE) {
         const batchEnd = Math.min(batchStart + BATCH_SIZE, parsedRows.length);
         const batch = parsedRows.slice(batchStart, batchEnd);
+
+        console.log(`Processing batch ${Math.floor(batchStart / BATCH_SIZE) + 1} (rows ${batchStart + 1}-${batchEnd})`);
 
         // Use transaction to ensure atomicity and consistency
         // Increased timeout from default 5000ms to 30000ms (30 seconds) for large files
@@ -334,14 +357,22 @@ export class InventoryService {
         dateRange,
       };
     } catch (error) {
-      console.error('Error processing Inventory Excel file:', error);
-
-      // Update upload status to "failed" if upload was created
-      if (upload) {
-        await this.prisma.inventoryUpload.update({
+      try {
+        // Check if upload record still exists before updating
+        const existingUpload = await this.prisma.inventoryUpload.findUnique({
           where: { id: upload.id },
-          data: { status: 'failed' },
         });
+        
+        if (existingUpload) {
+          await this.prisma.inventoryUpload.update({
+            where: { id: upload.id },
+            data: { status: 'failed' },
+          });
+        } else {
+          console.error(`Upload record ${upload.id} not found in database during error handling`);
+        }
+      } catch (updateError) {
+        console.error('Error updating upload status to failed:', updateError);
       }
 
       // Clean up file if it exists

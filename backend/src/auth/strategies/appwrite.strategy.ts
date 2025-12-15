@@ -6,38 +6,41 @@ import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AppwriteStrategy extends PassportStrategy(Strategy, 'appwrite') {
-    private client: Client;
-    private account: Account;
+    private endpoint: string;
+    private projectId: string;
+    private apiKey: string | undefined;
 
     constructor(private configService: ConfigService) {
         super();
 
-        const endpoint = this.configService.get<string>('APPWRITE_ENDPOINT') || 'https://fra.cloud.appwrite.io/v1';
-        const projectId = this.configService.get<string>('APPWRITE_PROJECT_ID') || '692932d700154b91c6cb';
+        this.endpoint = this.configService.get<string>('APPWRITE_ENDPOINT') 
+            || this.configService.get<string>('NEXT_PUBLIC_APPWRITE_ENDPOINT') 
+            || 'https://fra.cloud.appwrite.io/v1';
+        this.projectId = this.configService.get<string>('APPWRITE_PROJECT_ID') 
+            || this.configService.get<string>('NEXT_PUBLIC_APPWRITE_PROJECT_ID') 
+            || '692932d700154b91c6cb';
 
-        this.client = new Client()
-            .setEndpoint(endpoint)
-            .setProject(projectId);
-
-        // Optionally set a server API key for admin operations if present in env
-        const apiKey = this.configService.get<string>('APPWRITE_API_KEY');
-        if (apiKey) {
-            // The setKey method is available on the Appwrite client in the server SDK
-            // It gives the backend elevated privileges using the API key.
-            // Use with caution and do not expose this key to browsers.
-            this.client.setKey(apiKey);
-        }
-
-        this.account = new Account(this.client);
+        // Server API key for bypassing rate limits in dev/production
+        this.apiKey = this.configService.get<string>('APPWRITE_API_KEY');
     }
 
     async validate(token: string): Promise<any> {
         try {
-            // Set the JWT for this request
-            this.client.setJWT(token);
+            // Create a fresh client per request to avoid state conflicts
+            const client = new Client()
+                .setEndpoint(this.endpoint)
+                .setProject(this.projectId);
 
-            // Verify the token by fetching the user
-            const user = await this.account.get();
+            // Use API key if available (bypasses rate limits)
+            if (this.apiKey) {
+                client.setKey(this.apiKey);
+            }
+
+            // Set the JWT for this specific request
+            client.setJWT(token);
+
+            const account = new Account(client);
+            const user = await account.get();
 
             return {
                 id: user.$id,

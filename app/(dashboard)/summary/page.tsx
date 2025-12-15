@@ -526,8 +526,10 @@ export default function SummaryPage() {
   const averageFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return 0;
-    const total = rows.reduce((sum, row) => sum + (row.percentage || 0), 0);
-    return total / rows.length;
+    // Calculate overall fulfillment from total quantities (not average of percentages)
+    const totalSoQty = rows.reduce((sum, row) => sum + (row.soQty || 0), 0);
+    const totalDnQty = rows.reduce((sum, row) => sum + (row.dnQty || 0), 0);
+    return totalSoQty > 0 ? (totalDnQty / totalSoQty) * 100 : 0;
   }, [data?.fulfillmentTable]);
 
   // Calculate last day fulfillment data
@@ -1135,7 +1137,7 @@ export default function SummaryPage() {
                   </div>
                   <div>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Fulfillment</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Average across selected period</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">Total DN Qty / Total SO Qty</p>
                   </div>
                 </div>
               </div>
@@ -1182,7 +1184,7 @@ export default function SummaryPage() {
                   <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
                     {averageFulfillment.toFixed(1)}%
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Avg Fulfillment</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Overall Rate</span>
                 </div>
               </div>
 
@@ -1595,44 +1597,44 @@ export default function SummaryPage() {
 
                   {/* Grid Content */}
                   <div className="relative grid grid-cols-5 gap-4 items-center text-center">
-                    {/* Average Label */}
+                    {/* Overall/Total Label */}
                     <div className="flex items-center justify-center gap-2">
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
                         <TrendingUp className="w-4 h-4 text-white" />
                       </div>
                       <span className="text-lg font-bold text-gray-900 dark:text-slate-100">
-                        Average
+                        Overall
                       </span>
                     </div>
 
-                    {/* Average SO Qty */}
+                    {/* Total SO Qty */}
                     <div className="flex justify-center">
                       <div className="px-4 py-2 rounded-lg bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center min-w-[5rem]">
                         <span className="text-indigo-700 dark:text-indigo-300 text-base font-bold font-mono">
-                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0) / data.fulfillmentTable.length)}
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0))}
                         </span>
                       </div>
                     </div>
 
-                    {/* Average DN Qty */}
+                    {/* Total DN Qty */}
                     <div className="flex justify-center">
                       <div className="px-4 py-2 rounded-lg bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center min-w-[5rem]">
                         <span className="text-blue-700 dark:text-blue-300 text-base font-bold font-mono">
-                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0) / data.fulfillmentTable.length)}
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0))}
                         </span>
                       </div>
                     </div>
 
-                    {/* Average Pending */}
+                    {/* Total Pending */}
                     <div className="flex justify-center">
                       <div className="px-4 py-2 rounded-lg bg-red-500/20 border-2 border-red-500/50 inline-flex items-center justify-center min-w-[5rem]">
                         <span className="text-red-700 dark:text-red-300 text-base font-bold font-mono">
-                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.pending, 0) / data.fulfillmentTable.length)}
+                          {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.pending, 0))}
                         </span>
                       </div>
                     </div>
 
-                    {/* Average Percentage */}
+                    {/* Overall Percentage */}
                     <div className="flex justify-center">
                       <div className="px-4 py-2 rounded-lg bg-green-500/20 border-2 border-green-500/50 inline-flex items-center justify-center min-w-[5rem]">
                         <span className="text-green-700 dark:text-green-300 text-base font-bold font-mono">
