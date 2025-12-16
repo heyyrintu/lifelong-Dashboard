@@ -136,6 +136,7 @@ export default function OutboundPage() {
   const availableDateRange = data?.availableDateRange ?? (data as any)?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
+  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // Top Products state
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -573,7 +574,10 @@ export default function OutboundPage() {
   };
 
   const handleDownloadSummary = async () => {
+    if (downloadLoading) return; // Prevent double-click
+
     try {
+      setDownloadLoading(true);
       // Build query params for current filters
       const params = new URLSearchParams();
       if (selectedMonth && selectedMonth !== 'ALL') {
@@ -609,6 +613,8 @@ export default function OutboundPage() {
     } catch (error) {
       console.error('Download failed:', error);
       alert('Failed to download summary. Please try again.');
+    } finally {
+      setDownloadLoading(false);
     }
   };
 
@@ -966,13 +972,18 @@ export default function OutboundPage() {
           {/* Apply & Reset Buttons */}
           <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.05, translateY: -1 }}
-              whileTap={{ scale: 0.95, translateY: 0 }}
+              whileHover={{ scale: downloadLoading ? 1 : 1.05, translateY: downloadLoading ? 0 : -1 }}
+              whileTap={{ scale: downloadLoading ? 1 : 0.95, translateY: 0 }}
               onClick={handleDownloadSummary}
-              title="Download Summary Excel"
-              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
+              disabled={downloadLoading}
+              title={downloadLoading ? 'Downloading...' : 'Download Summary Excel'}
+              className={`h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm transition-colors ${downloadLoading ? 'opacity-70 cursor-not-allowed' : 'hover:border-brandRed/60 hover:text-brandRed'}`}
             >
-              <Download className="w-4 h-4" />
+              {downloadLoading ? (
+                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05, translateY: -2 }}
