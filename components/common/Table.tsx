@@ -6,7 +6,7 @@ interface TableColumn {
 
 interface TableProps {
   columns: TableColumn[];
-  data: Record<string, any>[];
+  data: Record<string, unknown>[];
   emptyMessage?: string;
 }
 

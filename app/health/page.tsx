@@ -64,7 +64,7 @@ export default function HealthCheckPage() {
     // Auto-refresh every 30 seconds
     const interval = setInterval(checkBackendHealth, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [checkBackendHealth]);
 
   const getStatusIcon = (status: string) => {
     switch (status) {

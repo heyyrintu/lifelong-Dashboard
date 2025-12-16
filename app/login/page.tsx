@@ -61,7 +61,7 @@ export default function LoginPage() {
         setPhone('+91');
       }
     }
-  }, [user, authMethod, otpSent]);
+  }, [user, authMethod, otpSent, phone]);
 
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

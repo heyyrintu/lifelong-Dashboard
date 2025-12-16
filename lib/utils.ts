@@ -62,7 +62,7 @@ export function formatHeaderDateShort(dateStr?: string | null): string {
         monthIndex = d.getUTCMonth();
         year = d.getUTCFullYear();
       }
-    } catch (e) {
+    } catch {
       // ignore
     }
   }
