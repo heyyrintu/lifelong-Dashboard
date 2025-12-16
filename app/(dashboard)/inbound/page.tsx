@@ -5,7 +5,17 @@ import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatHeaderDateShort } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/formatters';
+import {
+  formatNumber,
+  formatInLakhs,
+  formatQuantityInLakhs,
+  formatQuantitySmartKL,
+  formatAxisLabel,
+  formatMonthLabel,
+  formatProductCategory,
+  getErrorMessage,
+  MONTH_LABELS,
+} from '@/lib/formatters';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
 import {
   BarChart,
@@ -449,77 +459,11 @@ export default function InboundPage() {
     }
   };
 
-  const formatNumber = (num: number, decimals: number = 0) => {
-    return new Intl.NumberFormat('en-US', {
-      minimumFractionDigits: decimals,
-      maximumFractionDigits: decimals,
-    }).format(num);
-  };
+  // All formatting utilities are now imported from lib/formatters.ts:
+  // formatNumber, formatInLakhs, formatQuantityInLakhs, formatQuantitySmartKL,
+  // formatAxisLabel, formatMonthLabel, formatProductCategory, MONTH_LABELS
 
-  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0';
-    const value = Number(num);
-    if (isNaN(value)) return '0';
-    const lakhs = value / 100000;
-    return lakhs.toFixed(decimals);
-  };
-
-  // Format quantity in lakhs with 'L' suffix for display
-  const formatQuantityInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0L';
-    const value = Number(num);
-    if (isNaN(value)) return '0L';
-    const lakhs = value / 100000;
-    return `${lakhs.toFixed(decimals)}L`;
-  };
-
-  // Format quantity smartly: if < 1L show in K (thousands), if >= 1L show in L (lakhs)
-  const formatQuantitySmartKL = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0K';
-    const value = Number(num);
-    if (isNaN(value)) return '0K';
-    const lakhs = value / 100000;
-
-    if (lakhs < 1) {
-      // Show in thousands (K)
-      const thousands = value / 1000;
-      return `${thousands.toFixed(decimals)}K`;
-    } else {
-      // Show in lakhs (L)
-      return `${lakhs.toFixed(decimals)}L`;
-    }
-  };
-
-  const formatAxisLabel = (label: string) => {
-    // Convert labels like "Aug 2025" -> "Aug'25"
-    const match = label.match(/^([A-Za-z]{3}) (\d{4})$/);
-    if (match) {
-      const [, month, year] = match;
-      return `${month}'${year.slice(2)}`;
-    }
-    return label;
-  };
-
-  // Format backend month value (e.g. 2025-11) to display label like Nov'25
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-  const formatMonthLabel = (month: string): string => {
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
-  };
-
-  // QtyLegend and CbmLegend are now defined outside with React.memo
+  // QtyLegend and CbmLegend are defined outside with React.memo
 
   return (
     <div>

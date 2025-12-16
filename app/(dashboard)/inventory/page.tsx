@@ -4,7 +4,16 @@ import { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'rea
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/formatters';
+import {
+  formatNumber,
+  formatInLakhs,
+  formatProductCategory,
+  formatMonthLabel,
+  getErrorMessage,
+  getISOWeek,
+  getWeekStart,
+  MONTH_LABELS,
+} from '@/lib/formatters';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -622,35 +631,7 @@ function InventoryPageContent() {
   const [chartData, setChartData] = useState<InventoryTimeSeriesData | null>(null);
   const [fullChartData, setFullChartData] = useState<InventoryTimeSeriesData | null>(null);
 
-  // Helper function to format numbers
-  const formatNumber = (num: number | undefined | null, decimals?: number): string => {
-    if (num === undefined || num === null) return '0';
-
-    const value = Number(num);
-    if (isNaN(value)) return '0';
-
-    if (decimals !== undefined) {
-      return value.toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      });
-    }
-
-    // For large numbers, use thousand separators
-    if (Number.isInteger(value)) {
-      return value.toLocaleString();
-    } else {
-      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-  };
-
-  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0';
-    const value = Number(num);
-    if (isNaN(value)) return '0';
-    const lakhs = value / 100000;
-    return lakhs.toFixed(decimals);
-  };
+  // formatNumber, formatInLakhs, getISOWeek, getWeekStart are now imported from lib/formatters.ts
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
@@ -677,20 +658,6 @@ function InventoryPageContent() {
       </div>
     </div>
   );
-
-  const getISOWeek = (date: Date): number => {
-    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-    const dayNum = d.getUTCDay() || 7;
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
-  };
-
-  const getWeekStart = (year: number, week: number): Date => {
-    const firstDayOfYear = new Date(year, 0, 1);
-    const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
-    return new Date(year, 0, 1 + daysOffset);
-  };
 
   // Memoized chart display points - expensive calculation only runs when dependencies change
   const displayPoints = useMemo((): InventoryTimeSeriesPoint[] => {

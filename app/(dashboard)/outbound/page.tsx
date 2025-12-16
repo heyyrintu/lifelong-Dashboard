@@ -4,7 +4,17 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/formatters';
+import {
+  formatNumber,
+  formatInLakhs,
+  formatInThousands,
+  formatCbmForChart,
+  formatProductCategory,
+  formatMonthLabel,
+  getErrorMessage,
+  MONTH_LABELS,
+  CATEGORY_LABELS,
+} from '@/lib/formatters';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -645,75 +655,11 @@ export default function OutboundPage() {
     }
   };
 
-  // Memoized helper functions to avoid recreation on every render
-  const formatNumber = useCallback((num: number | string | undefined | null, decimals?: number): string => {
-    if (num === undefined || num === null || num === '') return '0';
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(value)) return '0';
-    if (decimals !== undefined) return value.toFixed(decimals);
-    return Number.isInteger(value) ? value.toString() : value.toFixed(1);
-  }, []);
+  // All formatting utilities are now imported from lib/formatters.ts:
+  // formatNumber, formatInLakhs, formatInThousands, formatCbmForChart,
+  // formatProductCategory, formatMonthLabel, MONTH_LABELS, CATEGORY_LABELS
 
-  const formatInLakhs = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null || num === '') return '0 L';
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(value)) return '0 L';
-    return `${(value / 100000).toFixed(decimals)} L`;
-  }, []);
-
-  const formatInThousands = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null || num === '') return '0 K';
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(value)) return '0 K';
-    return `${(value / 1000).toFixed(decimals)} K`;
-  }, []);
-
-  const formatCbmForChart = useCallback((num: number | string | undefined | null): string => {
-    if (num === undefined || num === null || num === '') return '0k';
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (isNaN(value)) return '0k';
-    const thousands = value / 1000;
-    const formatted = thousands.toFixed(1);
-    return `${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}k`;
-  }, []);
-
-  // Static label map - defined outside component would be even better
-  const CATEGORY_LABELS: Record<string, string> = useMemo(() => ({
-    'ALL': 'All Categories',
-    'EDEL': 'EDEL',
-    'HOME_AND_KITCHEN': 'Home & Kitchen',
-    'ELECTRONICS': 'Electronics',
-    'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
-    'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
-    'TOYS_AND_GAMES': 'Toys & Games',
-    'BRAND_PRIVATE_LABEL': 'Brand Private Label',
-    'OTHERS': 'Others',
-  }), []);
-
-  const formatProductCategory = useCallback((category: string): string => {
-    return CATEGORY_LABELS[category] || category;
-  }, [CATEGORY_LABELS]);
-
-  // Format backend month value (e.g. 2025-11) to display label like Nov'25
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-  const formatMonthLabel = useCallback((month: string): string => {
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
-  }, []);
-
-  // QtyLegend and CbmLegend are now defined outside with React.memo
+  // QtyLegend and CbmLegend are defined outside with React.memo
 
   const columns = [
     { header: 'Category', accessor: 'categoryLabel' },
