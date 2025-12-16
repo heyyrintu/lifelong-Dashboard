@@ -691,16 +691,24 @@ export default function OutboundPage() {
     );
   }
 
-  const handleChartClick = (data: any) => {
-    if (!data || !data.activePayload || !data.activePayload[0]) return;
+  // Chart click handler - uses runtime type guards for safety
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleChartClick = (data: Record<string, unknown> | null) => {
+    if (!data) return;
+
+    const activePayload = data.activePayload as Array<{ payload: Record<string, unknown> }> | undefined;
+    if (!activePayload || !activePayload[0]) return;
 
     // Per user request: exclude month granularity clicking
     if (timeGranularity === 'month') return;
 
-    const payload = data.activePayload[0].payload;
-    if (payload.startDate && payload.endDate) {
-      setFromDate(payload.startDate);
-      setToDate(payload.endDate);
+    const payload = activePayload[0].payload;
+    const startDate = payload.startDate as string | undefined;
+    const endDate = payload.endDate as string | undefined;
+
+    if (startDate && endDate) {
+      setFromDate(startDate);
+      setToDate(endDate);
       setSelectedMonth('ALL');
       setFiltersDirty(true);
       setTimeout(() => fetchSummary(true), 0);

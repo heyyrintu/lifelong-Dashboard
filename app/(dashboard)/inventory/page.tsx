@@ -757,13 +757,18 @@ function InventoryPageContent() {
     );
   }
 
-  const handleChartClick = (data: any) => {
-    if (!data || !data.activePayload || !data.activePayload[0]) return;
+  // Chart click handler - uses runtime type guards for safety
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const handleChartClick = (data: Record<string, unknown> | null) => {
+    if (!data) return;
+
+    const activePayload = data.activePayload as Array<{ payload: Record<string, unknown> }> | undefined;
+    if (!activePayload || !activePayload[0]) return;
 
     if (timeGranularity === 'month') return;
 
-    const payload = data.activePayload[0].payload;
-    const dateKey = payload.date; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
+    const payload = activePayload[0].payload;
+    const dateKey = payload.date as string; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
 
     if (timeGranularity === 'week') {
       const match = dateKey.match(/^(\d{4})-W(\d{1,2})$/);
