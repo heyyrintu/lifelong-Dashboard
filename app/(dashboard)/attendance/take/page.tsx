@@ -19,7 +19,6 @@ import {
   Coffee,
   Sun,
   AlertCircle,
-  ChevronDown,
   RefreshCw,
 } from 'lucide-react';
 
@@ -80,10 +79,6 @@ function TakeAttendancePageContent() {
     location: 'Farukh Nagar',
   });
 
-  useEffect(() => {
-    fetchEmployees();
-  }, [employeeTypeFilter]);
-
   const fetchEmployees = async () => {
     try {
       setLoading(true);
@@ -118,6 +113,10 @@ function TakeAttendancePageContent() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [employeeTypeFilter, fetchEmployees]);
 
   const handleAddEmployee = async () => {
     try {

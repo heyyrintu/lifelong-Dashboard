@@ -123,19 +123,6 @@ function BillingPageContent() {
   const [toDate, setToDate] = useState('');
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
-  const formatToDDMMYYYY = (dateStr?: string | null): string => {
-    if (!dateStr) return '';
-    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
-    // Parse as UTC to avoid timezone issues
-    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
-    const d = new Date(isoStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const year = d.getUTCFullYear();
-    return `${day}-${month}-${year}`;
-  };
-
   const formatDateUTC = (date: Date): string => {
     const yyyy = date.getUTCFullYear();
     const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
@@ -260,7 +247,7 @@ function BillingPageContent() {
 
   useEffect(() => {
     loadExistingBilling();
-  }, [selectedYear, selectedMonth, customerName, location]);
+  }, [selectedYear, selectedMonth, customerName, location, loadExistingBilling]);
 
   // Add new extra line item
   const handleAddExtraItem = () => {

@@ -30,8 +30,6 @@ import {
   formatInThousands,
   formatProductCategory,
   formatMonthLabel,
-  getErrorMessage,
-  MONTH_LABELS,
 } from '@/lib/formatters';
 
 interface FulfillmentRow {
@@ -262,7 +260,7 @@ export default function SummaryPage() {
 
   useEffect(() => {
     fetchSummary();
-  }, []);
+  }, [fetchSummary]);
 
   const { setLabel: setDateFilterLabel } = useDateFilter();
 

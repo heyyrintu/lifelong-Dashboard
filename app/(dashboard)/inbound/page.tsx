@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { formatHeaderDateShort } from '@/lib/utils';
 import {
   formatNumber,
@@ -12,9 +12,7 @@ import {
   formatQuantitySmartKL,
   formatAxisLabel,
   formatMonthLabel,
-  formatProductCategory,
   getErrorMessage,
-  MONTH_LABELS,
 } from '@/lib/formatters';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
 import {
@@ -135,19 +133,6 @@ export default function InboundPage() {
   const [chartLoading, setChartLoading] = useState(true);
   const [downloadLoading, setDownloadLoading] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
-
-  const formatToDDMMYYYY = (dateStr?: string | null): string => {
-    if (!dateStr) return '';
-    if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
-    // Parse as UTC to avoid timezone issues
-    const isoStr = dateStr.includes('T') ? dateStr : dateStr + 'T00:00:00Z';
-    const d = new Date(isoStr);
-    if (Number.isNaN(d.getTime())) return dateStr;
-    const day = String(d.getUTCDate()).padStart(2, '0');
-    const month = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const year = d.getUTCFullYear();
-    return `${day}-${month}-${year}`;
-  };
 
   const formatDateUTC = (date: Date): string => {
     const yyyy = date.getUTCFullYear();

@@ -10,15 +10,11 @@ import {
   Users,
   Clock,
   Search,
-  Download,
-  Filter,
   CheckCircle,
   XCircle,
   Coffee,
   Sun,
   AlertCircle,
-  ChevronDown,
-  RefreshCw,
   FileSpreadsheet,
   TrendingUp,
   Timer,
@@ -99,15 +95,11 @@ function ViewAttendancePageContent() {
   });
   const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'ALL' | 'ON_ROLL' | 'OFF_ROLL'>('ALL');
-  const [vendorFilter, setVendorFilter] = useState('');
+  const [vendorFilter, _setVendorFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'records' | 'summary'>('records');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    fetchData();
-  }, [fromDate, toDate, employeeTypeFilter, vendorFilter]);
 
   const fetchData = async () => {
     try {
@@ -174,6 +166,10 @@ function ViewAttendancePageContent() {
       }
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [fromDate, toDate, employeeTypeFilter, vendorFilter, fetchData]);
 
   const formatTime = (dateStr?: string): string => {
     if (!dateStr) return '-';
