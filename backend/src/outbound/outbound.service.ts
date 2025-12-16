@@ -74,6 +74,7 @@ export interface SummaryResponse {
   categoryTable: CategoryRow[];
   productCategoryTable: CategoryRow[];
   availableMonths: string[];
+  availableDateRange: { minDate: string | null; maxDate: string | null };
   productCategories: string[];
   availableWarehouses: string[];
   timeSeries: TimeSeriesData;
@@ -369,11 +370,12 @@ export class OutboundService {
     const warehouseFilter = warehouse && warehouse !== 'ALL' ? warehouse : undefined;
 
     // Run parallel queries for all data (aggregating across all uploads if multiple)
-    const [cards, categoryTable, productCategoryTable, availableMonths, productCategoriesList, availableWarehouses, timeSeries, summaryTotals, fulfillmentTable] = await Promise.all([
+    const [cards, categoryTable, productCategoryTable, availableMonths, availableDateRange, productCategoriesList, availableWarehouses, timeSeries, summaryTotals, fulfillmentTable] = await Promise.all([
       this.calculateCardMetricsOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
       this.calculateCategoryTableOptimized(targetUploadIds, dateFilter, productCategoryFilter, warehouseFilter),
       this.calculateProductCategoryTable(targetUploadIds, dateFilter, warehouseFilter),
       this.getAvailableMonthsOptimized(targetUploadIds),
+      this.getAvailableDateRange(targetUploadIds),
       this.getProductCategories(),
       this.getAvailableWarehouses(targetUploadIds),
       this.calculateTimeSeries(targetUploadIds, timeGranularity, warehouseFilter),
@@ -386,6 +388,7 @@ export class OutboundService {
       categoryTable,
       productCategoryTable,
       availableMonths,
+      availableDateRange,
       productCategories: productCategoriesList,
       availableWarehouses,
       timeSeries,
@@ -419,6 +422,25 @@ export class OutboundService {
     } catch {
       return 'Unknown error';
     }
+  }
+
+  /**
+   * Get min/max delivery note dates across target uploads for header range
+   */
+  private async getAvailableDateRange(uploadIds: string[]): Promise<{ minDate: string | null; maxDate: string | null }> {
+    const result = await this.prisma.outboundRow.aggregate({
+      where: {
+        uploadId: { in: uploadIds },
+        deliveryNoteDate: { not: null },
+      },
+      _min: { deliveryNoteDate: true },
+      _max: { deliveryNoteDate: true },
+    });
+
+    return {
+      minDate: result._min.deliveryNoteDate ? formatDateAsISO(result._min.deliveryNoteDate) : null,
+      maxDate: result._max.deliveryNoteDate ? formatDateAsISO(result._max.deliveryNoteDate) : null,
+    };
   }
 
   /**
@@ -1053,17 +1075,19 @@ export class OutboundService {
       filterCondition += ` AND source_warehouse = $${params.length}`;
     }
 
-    // Apply date filter on dispatch_by_date (using IST timezone)
+    // Apply date filter on dispatch_by_date
+    // Add IST offset (+5:30) to convert UTC-stored dates back to IST before extracting date
+    // This fixes the off-by-one day issue when dates from Excel (IST) are stored as UTC
     let dispatchDateCondition = '';
     if (dateFilter.gte) {
       const gteDate = formatDateAsISO(dateFilter.gte);
       params.push(gteDate);
-      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') >= $${params.length}`;
+      dispatchDateCondition += ` AND DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes') >= $${params.length}::DATE`;
     }
     if (dateFilter.lte) {
       const lteDate = formatDateAsISO(dateFilter.lte);
       params.push(lteDate);
-      dispatchDateCondition += ` AND TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') <= $${params.length}`;
+      dispatchDateCondition += ` AND DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes') <= $${params.length}::DATE`;
     }
 
     // Single optimized query that calculates both SO Qty and DN Qty correctly
@@ -1071,19 +1095,19 @@ export class OutboundService {
     // 1. Filter by dispatch_by_date = specific date, sum all sales_order_qty -> SO Qty
     // 2. For DN Qty: additionally filter by delivery_note_date <= dispatch_by_date
     //    (only count deliveries that happened on or before the dispatch date)
-    // Using timezone 'Asia/Kolkata' to match IST dates from Excel
+    // Add IST offset to convert UTC timestamps to IST dates for correct grouping
     const fulfillmentData = await this.prisma.$queryRawUnsafe<Array<{
       dispatch_date: string;
       so_qty: number;
       dn_qty: number;
     }>>(`
       SELECT 
-        TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') as dispatch_date,
+        TO_CHAR(DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes'), 'YYYY-MM-DD') as dispatch_date,
         COALESCE(SUM(sales_order_qty), 0) as so_qty,
         COALESCE(SUM(
           CASE 
             WHEN delivery_note_date IS NOT NULL 
-              AND TO_CHAR(delivery_note_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') <= TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD') 
+              AND DATE(delivery_note_date + INTERVAL '5 hours 30 minutes') <= DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes')
             THEN delivery_note_qty 
             ELSE 0 
           END
@@ -1093,7 +1117,7 @@ export class OutboundService {
         AND dispatch_by_date IS NOT NULL
         ${filterCondition}
         ${dispatchDateCondition}
-      GROUP BY TO_CHAR(dispatch_by_date AT TIME ZONE 'Asia/Kolkata', 'YYYY-MM-DD')
+      GROUP BY DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes')
       ORDER BY dispatch_date ASC
     `, ...params);
 

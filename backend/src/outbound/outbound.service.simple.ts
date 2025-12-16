@@ -35,6 +35,7 @@ export interface SummaryResponse {
   cards: CardMetrics;
   categoryTable: CategoryRow[];
   availableMonths: string[];
+  availableDateRange: { minDate: string | null; maxDate: string | null };
 }
 
 @Injectable()
@@ -241,6 +242,19 @@ export class OutboundService {
 
     categoryTable.push(totalRow);
 
+    // Available date range (min/max delivery_note_date)
+    const rangeQuery = `
+      SELECT 
+        MIN(delivery_note_date) as min_date,
+        MAX(delivery_note_date) as max_date
+      FROM outbound_rows
+      ${whereClause}
+    `;
+    const rangeResult = await this.pool.query(rangeQuery, params);
+    const minDate = rangeResult.rows[0]?.min_date ? formatDateAsISO(new Date(rangeResult.rows[0].min_date)) : null;
+    const maxDate = rangeResult.rows[0]?.max_date ? formatDateAsISO(new Date(rangeResult.rows[0].max_date)) : null;
+    const availableDateRange = { minDate, maxDate };
+
     return {
       cards: {
         soSku: parseInt(cards.sosku),
@@ -253,6 +267,7 @@ export class OutboundService {
       },
       categoryTable,
       availableMonths,
+      availableDateRange,
     };
   }
 

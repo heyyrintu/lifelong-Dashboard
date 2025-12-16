@@ -372,20 +372,53 @@ export default function SummaryPage() {
         outboundData.availableMonths.forEach((m: string) => months.add(m));
       }
 
-      // Extract available dates from inbound or inventory data
-      let dates: { minDate: string; maxDate: string } | null = null;
-      if (inboundData?.availableDates) {
-        dates = inboundData.availableDates;
-      } else if (inventoryData?.filters?.availableDateRange) {
-        dates = inventoryData.filters.availableDateRange;
-      } else if (outboundData?.availableDateRange) {
-        dates = outboundData.availableDateRange;
-      }
+      // Extract available dates from any source and merge to avoid outdated headers when one module lags
+      const toUtcTimestamp = (dateStr: string): number | null => {
+        const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+        if (isoMatch) {
+          const [, y, m, d] = isoMatch;
+          return Date.UTC(Number(y), Number(m) - 1, Number(d));
+        }
+        const parsed = Date.parse(dateStr);
+        return Number.isNaN(parsed) ? null : parsed;
+      };
+
+      const mergedDates = [
+        inboundData?.availableDates,
+        inventoryData?.filters?.availableDateRange,
+        outboundData?.availableDateRange,
+      ]
+        .filter(Boolean)
+        .reduce<{ minDate: string | null; maxDate: string | null }>((acc, range) => {
+          const typedRange = range as { minDate?: string | null; maxDate?: string | null };
+
+          if (typedRange.minDate) {
+            const ts = toUtcTimestamp(typedRange.minDate);
+            const accMinTs = acc.minDate ? toUtcTimestamp(acc.minDate) : null;
+            if (ts !== null && (accMinTs === null || ts < accMinTs)) {
+              acc.minDate = typedRange.minDate;
+            }
+          }
+
+          if (typedRange.maxDate) {
+            const ts = toUtcTimestamp(typedRange.maxDate);
+            const accMaxTs = acc.maxDate ? toUtcTimestamp(acc.maxDate) : null;
+            if (ts !== null && (accMaxTs === null || ts > accMaxTs)) {
+              acc.maxDate = typedRange.maxDate;
+            }
+          }
+
+          return acc;
+        }, { minDate: null, maxDate: null });
+
+      const finalDates = mergedDates.minDate && mergedDates.maxDate
+        ? { minDate: mergedDates.minDate, maxDate: mergedDates.maxDate }
+        : null;
 
       setAvailableCategories(Array.from(categories).filter(c => c !== 'ALL'));
       setAvailableWarehouses(['ALL', ...Array.from(warehouses).filter(w => w !== 'ALL')]);
       setAvailableMonths(['ALL', ...Array.from(months).filter(m => m !== 'ALL').sort()]);
-      setAvailableDates(dates);
+      setAvailableDates(finalDates);
 
       // Combine data
       const summaryData: QuickSummaryData = {

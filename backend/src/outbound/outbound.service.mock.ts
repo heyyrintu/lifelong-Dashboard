@@ -72,6 +72,7 @@ export interface SummaryResponse {
   categoryTable: CategoryRow[];
   productCategoryTable: CategoryRow[];
   availableMonths: string[];
+  availableDateRange: { minDate: string | null; maxDate: string | null };
   productCategories: string[];
   timeSeries: TimeSeriesData;
   summaryTotals: SummaryTotals;
@@ -312,6 +313,18 @@ export class OutboundService {
     });
     const availableMonths = ['ALL', ...Array.from(months).sort().reverse()];
 
+    // Available date range for header
+    const dateValues = this.mockData
+      .filter(row => row.delivery_note_date)
+      .map(row => new Date(row.delivery_note_date))
+      .filter(d => !Number.isNaN(d.getTime()));
+    const minDate = dateValues.length ? new Date(Math.min(...dateValues.map(d => d.getTime()))) : null;
+    const maxDate = dateValues.length ? new Date(Math.max(...dateValues.map(d => d.getTime()))) : null;
+    const availableDateRange = {
+      minDate: minDate ? minDate.toISOString().split('T')[0] : null,
+      maxDate: maxDate ? maxDate.toISOString().split('T')[0] : null,
+    };
+
     // Product categories list
     const productCategories = ['ALL', ...PRODUCT_CATEGORY_ORDER.map(cat => PRODUCT_CATEGORY_LABELS[cat])];
 
@@ -378,6 +391,7 @@ export class OutboundService {
       categoryTable,
       productCategoryTable,
       availableMonths,
+      availableDateRange,
       productCategories,
       timeSeries,
       summaryTotals,
