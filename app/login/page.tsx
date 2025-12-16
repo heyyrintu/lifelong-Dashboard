@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
+import { getErrorMessage } from '@/lib/formatters';
 
 type AuthMethod = 'email-password' | 'email-otp' | 'phone-otp';
 
@@ -79,8 +80,8 @@ export default function LoginPage() {
         await register(email, password, name || undefined);
       }
       router.push('/summary');
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setIsSubmitting(false);
@@ -106,8 +107,8 @@ export default function LoginPage() {
         await verifyEmailOTP(userId, otp);
         router.push('/summary');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setIsSubmitting(false);
@@ -140,8 +141,8 @@ export default function LoginPage() {
         await verifyPhoneOTP(userId, otp);
         router.push('/summary');
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred. Please try again.');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
       setIsSubmitting(false);
@@ -579,8 +580,8 @@ export default function LoginPage() {
                                   const token = await sendPhoneOTP(phone);
                                   setUserId(token.userId);
                                   setError('');
-                                } catch (err: any) {
-                                  setError(err.message || 'Failed to resend OTP');
+                                } catch (err: unknown) {
+                                  setError(getErrorMessage(err));
                                 } finally {
                                   setLoading(false);
                                 }
@@ -627,8 +628,8 @@ export default function LoginPage() {
                             setError('');
                             setLoading(true);
                             await loginWithGoogle();
-                          } catch (err: any) {
-                            setError(err.message || 'Google login failed. Please try again.');
+                          } catch (err: unknown) {
+                            setError(getErrorMessage(err));
                             setLoading(false);
                           }
                         }}
@@ -663,8 +664,8 @@ export default function LoginPage() {
                             setError('');
                             setLoading(true);
                             await loginWithMicrosoft();
-                          } catch (err: any) {
-                            setError(err.message || 'Microsoft login failed. Please try again.');
+                          } catch (err: unknown) {
+                            setError(getErrorMessage(err));
                             setLoading(false);
                           }
                         }}
