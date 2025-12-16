@@ -44,7 +44,7 @@ export function HealthIndicator() {
 
   useEffect(() => {
     checkHealth();
-    const interval = setInterval(checkHealth, 60000); // Check every minute
+    const interval = setInterval(checkHealth, 300000); // Check every 5 minutes (was every 60 seconds)
     return () => clearInterval(interval);
   }, []);
 
