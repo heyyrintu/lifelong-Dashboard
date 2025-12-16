@@ -6,6 +6,7 @@ import PageHeader from '@/components/common/PageHeader';
 import { AdminRoute } from '@/components/auth/AdminRoute';
 import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/api';
+import { getErrorMessage } from '@/lib/formatters';
 
 interface UploadInfo {
   uploadId: string;
@@ -93,8 +94,8 @@ function UploadPageContent() {
       allUploads.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 
       setUploads(allUploads);
-    } catch (err: any) {
-      console.error('Failed to fetch uploads:', err.message);
+    } catch (err: unknown) {
+      console.error('Failed to fetch uploads:', getErrorMessage(err));
     } finally {
       setUploadsLoading(false);
     }
@@ -126,8 +127,8 @@ function UploadPageContent() {
       // Refresh uploads list
       await fetchUploads();
       alert('Upload deleted successfully');
-    } catch (err: any) {
-      alert(`Failed to delete upload: ${err.message}`);
+    } catch (err: unknown) {
+      alert(`Failed to delete upload: ${getErrorMessage(err)}`);
     }
   };
 
@@ -207,8 +208,8 @@ function UploadPageContent() {
       setSelectedFile(null);
       setFileType('');
       await fetchUploads();
-    } catch (error: any) {
-      alert(`Upload failed: ${error.message || 'Please check the file format and try again.'}`);
+    } catch (error: unknown) {
+      alert(`Upload failed: ${getErrorMessage(error)}`);
       console.error('Upload error:', error);
     }
   };
@@ -324,8 +325,8 @@ function UploadPageContent() {
                     key={type.value}
                     whileHover={{ scale: 1.01, x: 4 }}
                     className={`relative flex items-start p-4 border backdrop-blur-sm rounded-xl cursor-pointer transition-all duration-200 ${(type.value === 'item-master' || type.value === 'inbound' || type.value === 'outbound' || type.value === 'inventory')
-                        ? 'bg-green-50/80 dark:bg-green-500/10 border-green-200/50 dark:border-green-500/30 hover:bg-green-100/80 dark:hover:bg-green-500/15 hover:border-green-300 dark:hover:border-green-500/40 shadow-sm'
-                        : 'bg-white/40 dark:bg-slate-900/40 border-gray-200/50 dark:border-slate-700/50 hover:bg-white/60 dark:hover:bg-slate-900/60 hover:border-brandRed/30 dark:hover:border-slate-600'
+                      ? 'bg-green-50/80 dark:bg-green-500/10 border-green-200/50 dark:border-green-500/30 hover:bg-green-100/80 dark:hover:bg-green-500/15 hover:border-green-300 dark:hover:border-green-500/40 shadow-sm'
+                      : 'bg-white/40 dark:bg-slate-900/40 border-gray-200/50 dark:border-slate-700/50 hover:bg-white/60 dark:hover:bg-slate-900/60 hover:border-brandRed/30 dark:hover:border-slate-600'
                       }`}
                   >
                     <input
@@ -451,12 +452,12 @@ function UploadPageContent() {
                           </p>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
                             <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${upload.type === 'item-master'
-                                ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                                : upload.type === 'inbound'
-                                  ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                  : upload.type === 'inventory'
-                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                    : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
+                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
+                              : upload.type === 'inbound'
+                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                : upload.type === 'inventory'
+                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
                               }`}>
                               {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : upload.type === 'inventory' ? 'Inventory' : 'Outbound'}
                             </span>
