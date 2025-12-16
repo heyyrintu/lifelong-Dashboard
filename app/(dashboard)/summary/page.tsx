@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
 import { motion } from 'framer-motion';
@@ -24,6 +24,15 @@ import {
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
 import * as XLSX from 'xlsx';
 import { authenticatedFetch } from '@/lib/api';
+import {
+  formatNumber,
+  formatInLakhs,
+  formatInThousands,
+  formatProductCategory,
+  formatMonthLabel,
+  getErrorMessage,
+  MONTH_LABELS,
+} from '@/lib/formatters';
 
 interface FulfillmentRow {
   date: string;
@@ -191,6 +200,17 @@ export default function SummaryPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>(['ALL']);
   const [availableWarehouses, setAvailableWarehouses] = useState<string[]>(['ALL']);
   const [availableDates, setAvailableDates] = useState<{ minDate: string; maxDate: string } | null>(null);
+
+  // Performance optimization refs
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const cachedUnfilteredDataRef = useRef<{
+    fulfillmentTable: FulfillmentRow[];
+    categories: string[];
+    warehouses: string[];
+    months: string[];
+    dates: { minDate: string; maxDate: string } | null;
+  } | null>(null);
+  const initialFetchDoneRef = useRef(false);
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
 
@@ -254,7 +274,7 @@ export default function SummaryPage() {
         // Show the full date range for the selected month in DD-MM-YYYY format using UTC to avoid tz shifts
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-            return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
@@ -290,7 +310,14 @@ export default function SummaryPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchSummary = async (useFilters = false) => {
+  const fetchSummary = useCallback(async (useFilters = false) => {
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       setLoading(true);
 
@@ -325,99 +352,152 @@ export default function SummaryPage() {
       };
 
       const queryString = buildParams();
+      const isInitialFetch = !useFilters && !initialFetchDoneRef.current;
 
-      // Fetch endpoints in parallel (filtered + unfiltered outbound for full monthly trend)
-      const [inboundRes, inventoryRes, outboundRes, outboundFullRes] = await Promise.all([
-        authenticatedFetch(`/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        authenticatedFetch(`/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        authenticatedFetch(`/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
-        authenticatedFetch(`/outbound/summary`).catch(() => null),
-      ]);
+      // OPTIMIZATION: When filtering, skip fetching unfiltered outbound data - use cached version
+      // Only fetch unfiltered data on initial load
+      const fetchPromises: Promise<Response | null>[] = [
+        authenticatedFetch(`/inbound/summary${queryString ? '?' + queryString : ''}`)
+          .catch(() => null),
+        authenticatedFetch(`/inventory/summary${queryString ? '?' + queryString : ''}`)
+          .catch(() => null),
+        authenticatedFetch(`/outbound/summary${queryString ? '?' + queryString : ''}`)
+          .catch(() => null),
+      ];
+
+      // Only fetch unfiltered outbound data on initial load
+      if (isInitialFetch) {
+        fetchPromises.push(
+          authenticatedFetch(`/outbound/summary`).catch(() => null)
+        );
+      }
+
+      const responses = await Promise.all(fetchPromises);
+
+      // Check if request was aborted
+      if (signal.aborted) {
+        return;
+      }
+
+      const [inboundRes, inventoryRes, outboundRes, outboundFullRes] = responses;
 
       // Parse responses
       const inboundData = inboundRes?.ok ? await inboundRes.json() : null;
       const inventoryData = inventoryRes?.ok ? await inventoryRes.json() : null;
       const outboundData = outboundRes?.ok ? await outboundRes.json() : null;
-      const outboundFullData = outboundFullRes?.ok ? await outboundFullRes.json() : null;
-
-      // Collect product categories, warehouses, and months from all sources
-      const categories = new Set<string>();
-      const warehouses = new Set<string>();
-      const months = new Set<string>();
-
-      if (inboundData?.productCategories) {
-        inboundData.productCategories.forEach((c: string) => categories.add(c));
-      }
-      if (inventoryData?.filters?.availableProductCategories) {
-        inventoryData.filters.availableProductCategories.forEach((c: string) => categories.add(c));
-      }
-      if (outboundData?.productCategories) {
-        outboundData.productCategories.forEach((c: string) => categories.add(c));
-      }
-
-      if (inboundData?.availableWarehouses) {
-        inboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
-      }
-      if (inventoryData?.availableWarehouses) {
-        inventoryData.availableWarehouses.forEach((w: string) => warehouses.add(w));
-      }
-      if (outboundData?.availableWarehouses) {
-        outboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
-      }
-
-      if (inboundData?.availableMonths) {
-        inboundData.availableMonths.forEach((m: string) => months.add(m));
-      }
-      if (outboundData?.availableMonths) {
-        outboundData.availableMonths.forEach((m: string) => months.add(m));
-      }
-
-      // Extract available dates from any source and merge to avoid outdated headers when one module lags
-      const toUtcTimestamp = (dateStr: string): number | null => {
-        const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-        if (isoMatch) {
-          const [, y, m, d] = isoMatch;
-          return Date.UTC(Number(y), Number(m) - 1, Number(d));
-        }
-        const parsed = Date.parse(dateStr);
-        return Number.isNaN(parsed) ? null : parsed;
-      };
-
-      const mergedDates = [
-        inboundData?.availableDates,
-        inventoryData?.filters?.availableDateRange,
-        outboundData?.availableDateRange,
-      ]
-        .filter(Boolean)
-        .reduce<{ minDate: string | null; maxDate: string | null }>((acc, range) => {
-          const typedRange = range as { minDate?: string | null; maxDate?: string | null };
-
-          if (typedRange.minDate) {
-            const ts = toUtcTimestamp(typedRange.minDate);
-            const accMinTs = acc.minDate ? toUtcTimestamp(acc.minDate) : null;
-            if (ts !== null && (accMinTs === null || ts < accMinTs)) {
-              acc.minDate = typedRange.minDate;
-            }
-          }
-
-          if (typedRange.maxDate) {
-            const ts = toUtcTimestamp(typedRange.maxDate);
-            const accMaxTs = acc.maxDate ? toUtcTimestamp(acc.maxDate) : null;
-            if (ts !== null && (accMaxTs === null || ts > accMaxTs)) {
-              acc.maxDate = typedRange.maxDate;
-            }
-          }
-
-          return acc;
-        }, { minDate: null, maxDate: null });
-
-      const finalDates = mergedDates.minDate && mergedDates.maxDate
-        ? { minDate: mergedDates.minDate, maxDate: mergedDates.maxDate }
+      const outboundFullData = isInitialFetch && outboundFullRes?.ok
+        ? await outboundFullRes.json()
         : null;
 
-      setAvailableCategories(Array.from(categories).filter(c => c !== 'ALL'));
-      setAvailableWarehouses(['ALL', ...Array.from(warehouses).filter(w => w !== 'ALL')]);
-      setAvailableMonths(['ALL', ...Array.from(months).filter(m => m !== 'ALL').sort()]);
+      // Check again after parsing
+      if (signal.aborted) {
+        return;
+      }
+
+      // Collect product categories, warehouses, and months from all sources
+      // OPTIMIZATION: Only compute filter options on initial fetch, use cached values when filtering
+      let finalCategories: string[];
+      let finalWarehouses: string[];
+      let finalMonths: string[];
+      let finalDates: { minDate: string; maxDate: string } | null;
+
+      if (isInitialFetch || !cachedUnfilteredDataRef.current) {
+        const categories = new Set<string>();
+        const warehouses = new Set<string>();
+        const months = new Set<string>();
+
+        if (inboundData?.productCategories) {
+          inboundData.productCategories.forEach((c: string) => categories.add(c));
+        }
+        if (inventoryData?.filters?.availableProductCategories) {
+          inventoryData.filters.availableProductCategories.forEach((c: string) => categories.add(c));
+        }
+        if (outboundData?.productCategories) {
+          outboundData.productCategories.forEach((c: string) => categories.add(c));
+        }
+
+        if (inboundData?.availableWarehouses) {
+          inboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+        }
+        if (inventoryData?.availableWarehouses) {
+          inventoryData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+        }
+        if (outboundData?.availableWarehouses) {
+          outboundData.availableWarehouses.forEach((w: string) => warehouses.add(w));
+        }
+
+        if (inboundData?.availableMonths) {
+          inboundData.availableMonths.forEach((m: string) => months.add(m));
+        }
+        if (outboundData?.availableMonths) {
+          outboundData.availableMonths.forEach((m: string) => months.add(m));
+        }
+
+        // Extract available dates from any source and merge
+        const toUtcTimestamp = (dateStr: string): number | null => {
+          const isoMatch = dateStr.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+          if (isoMatch) {
+            const [, y, m, d] = isoMatch;
+            return Date.UTC(Number(y), Number(m) - 1, Number(d));
+          }
+          const parsed = Date.parse(dateStr);
+          return Number.isNaN(parsed) ? null : parsed;
+        };
+
+        const mergedDates = [
+          inboundData?.availableDates,
+          inventoryData?.filters?.availableDateRange,
+          outboundData?.availableDateRange,
+        ]
+          .filter(Boolean)
+          .reduce<{ minDate: string | null; maxDate: string | null }>((acc, range) => {
+            const typedRange = range as { minDate?: string | null; maxDate?: string | null };
+
+            if (typedRange.minDate) {
+              const ts = toUtcTimestamp(typedRange.minDate);
+              const accMinTs = acc.minDate ? toUtcTimestamp(acc.minDate) : null;
+              if (ts !== null && (accMinTs === null || ts < accMinTs)) {
+                acc.minDate = typedRange.minDate;
+              }
+            }
+
+            if (typedRange.maxDate) {
+              const ts = toUtcTimestamp(typedRange.maxDate);
+              const accMaxTs = acc.maxDate ? toUtcTimestamp(acc.maxDate) : null;
+              if (ts !== null && (accMaxTs === null || ts > accMaxTs)) {
+                acc.maxDate = typedRange.maxDate;
+              }
+            }
+
+            return acc;
+          }, { minDate: null, maxDate: null });
+
+        finalCategories = Array.from(categories).filter(c => c !== 'ALL');
+        finalWarehouses = ['ALL', ...Array.from(warehouses).filter(w => w !== 'ALL')];
+        finalMonths = ['ALL', ...Array.from(months).filter(m => m !== 'ALL').sort()];
+        finalDates = mergedDates.minDate && mergedDates.maxDate
+          ? { minDate: mergedDates.minDate, maxDate: mergedDates.maxDate }
+          : null;
+
+        // Cache for future use
+        cachedUnfilteredDataRef.current = {
+          fulfillmentTable: outboundFullData?.fulfillmentTable || outboundData?.fulfillmentTable || [],
+          categories: finalCategories,
+          warehouses: finalWarehouses,
+          months: finalMonths,
+          dates: finalDates,
+        };
+      } else {
+        // Use cached filter options when filtering
+        finalCategories = cachedUnfilteredDataRef.current.categories;
+        finalWarehouses = cachedUnfilteredDataRef.current.warehouses;
+        finalMonths = cachedUnfilteredDataRef.current.months;
+        finalDates = cachedUnfilteredDataRef.current.dates;
+      }
+
+      setAvailableCategories(finalCategories);
+      setAvailableWarehouses(finalWarehouses);
+      setAvailableMonths(finalMonths);
       setAvailableDates(finalDates);
 
       // Combine data
@@ -437,19 +517,34 @@ export default function SummaryPage() {
           dnQty: outboundData?.cards?.dnQty || 0,
           dnTotalCbm: outboundData?.cards?.dnTotalCbm || 0,
         },
-        productCategories: Array.from(categories),
+        productCategories: finalCategories,
         fulfillmentTable: outboundData?.fulfillmentTable || [],
       };
 
       setData(summaryData);
-      setFullFulfillmentTable(outboundFullData?.fulfillmentTable || outboundData?.fulfillmentTable || []);
+
+      // Use cached full fulfillment table for monthly trend chart (avoids extra API call when filtering)
+      if (isInitialFetch) {
+        setFullFulfillmentTable(outboundFullData?.fulfillmentTable || outboundData?.fulfillmentTable || []);
+        initialFetchDoneRef.current = true;
+      } else if (cachedUnfilteredDataRef.current) {
+        // Use cached version when filtering
+        setFullFulfillmentTable(cachedUnfilteredDataRef.current.fulfillmentTable);
+      }
     } catch (error) {
+      // Ignore abort errors
+      if (error instanceof Error && error.name === 'AbortError') {
+        return;
+      }
       console.error('Failed to fetch summary:', error);
       setData(null);
     } finally {
-      setLoading(false);
+      // Only clear loading if this request wasn't aborted
+      if (!signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [fromDate, toDate, selectedMonth, selectedWarehouse, selectedProductCategories]);
 
   const handleFilter = () => {
     fetchSummary(true);
@@ -488,73 +583,9 @@ export default function SummaryPage() {
     return `${selectedProductCategories.length} selected`;
   };
 
-  const formatProductCategory = (category: string): string => {
-    const labelMap: Record<string, string> = {
-      'ALL': 'All Categories',
-      'EDEL': 'EDEL',
-      'HOME_AND_KITCHEN': 'Home & Kitchen',
-      'ELECTRONICS': 'Electronics',
-      'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
-      'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
-      'TOYS_AND_GAMES': 'Toys & Games',
-      'BRAND_PRIVATE_LABEL': 'Brand Private Label',
-      'OTHERS': 'Others',
-    };
-    return labelMap[category] || category;
-  };
-
-  const formatNumber = (num: number | undefined | null, decimals?: number): string => {
-    if (num === undefined || num === null) return '0';
-    const value = Number(num);
-    if (isNaN(value)) return '0';
-
-    if (decimals !== undefined) {
-      return value.toLocaleString(undefined, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      });
-    }
-
-    if (Number.isInteger(value)) {
-      return value.toLocaleString();
-    } else {
-      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
-  };
-
-  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0 L';
-    const value = Number(num);
-    if (isNaN(value)) return '0 L';
-    const lakhs = value / 100000;
-    return `${lakhs.toFixed(decimals)} L`;
-  };
-
-  const formatInThousands = (num: number | undefined | null, decimals: number = 2): string => {
-    if (num === undefined || num === null) return '0 K';
-    const value = Number(num);
-    if (isNaN(value)) return '0 K';
-    const thousands = value / 1000;
-    return `${thousands.toFixed(decimals)} K`;
-  };
-
-  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
-
-  const formatMonthLabel = (month: string): string => {
-    if (month === 'ALL') return 'All Months';
-
-    const match = month.match(/^(\d{4})-(\d{1,2})$/);
-    if (match) {
-      const [, yearStr, monthStr] = match;
-      const monthIndex = parseInt(monthStr, 10) - 1;
-      if (monthIndex >= 0 && monthIndex < 12) {
-        const shortYear = yearStr.slice(2);
-        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
-      }
-    }
-
-    return month;
-  };
+  // All formatting utilities are now imported from lib/formatters.ts:
+  // formatNumber, formatInLakhs, formatInThousands, formatProductCategory,
+  // formatMonthLabel, MONTH_LABELS
 
   const averageFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
@@ -569,7 +600,7 @@ export default function SummaryPage() {
   const lastDayFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return { percentage: 0, date: '', soQty: 0, dnQty: 0, pending: 0 };
-    
+
     // Get the last row (most recent date)
     const lastRow = rows[rows.length - 1];
     return {
@@ -1313,125 +1344,125 @@ export default function SummaryPage() {
 
           {/* Line Chart - Month over Month Fulfillment Rates (Full Width) */}
           <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
-                  </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
                 </div>
               </div>
+            </div>
 
-              <div className="h-52 relative">
-                {monthlyFulfillmentData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={monthlyFulfillmentData}
-                      margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
-                    >
-                      <defs>
-                        <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
-                        </linearGradient>
-                        <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="currentColor"
-                        strokeOpacity={0.1}
-                        className="text-gray-300 dark:text-slate-700"
-                      />
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fontSize: 11, fill: 'currentColor' }}
-                        className="text-gray-600 dark:text-slate-400"
-                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                      />
-                      <YAxis
-                        domain={[0, 100]}
-                        tick={{ fontSize: 11, fill: 'currentColor' }}
-                        tickFormatter={(value: number) => `${value}%`}
-                        className="text-gray-600 dark:text-slate-400"
-                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(148, 163, 184, 0.2)',
-                          borderRadius: '12px',
-                          padding: '12px',
-                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                        }}
-                        labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
-                        itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
-                        formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
-                        cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="fulfillmentRate"
-                        stroke="url(#fulfillmentLineGradient)"
-                        strokeWidth={3}
-                        dot={{
-                          fill: '#6366f1',
-                          stroke: '#ffffff',
-                          strokeWidth: 2,
-                          r: 5,
-                        }}
-                        activeDot={{
-                          fill: '#6366f1',
-                          stroke: '#ffffff',
-                          strokeWidth: 3,
-                          r: 8,
-                        }}
-                        name="Fulfillment Rate"
-                        label={(props) => {
-                          const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
-                          const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
-                          const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
+            <div className="h-52 relative">
+              {monthlyFulfillmentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={monthlyFulfillmentData}
+                    margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
+                  >
+                    <defs>
+                      <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                      </linearGradient>
+                      <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.1}
+                      className="text-gray-300 dark:text-slate-700"
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      className="text-gray-600 dark:text-slate-400"
+                      axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      tickFormatter={(value: number) => `${value}%`}
+                      className="text-gray-600 dark:text-slate-400"
+                      axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                      }}
+                      labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
+                      itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
+                      formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
+                      cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="fulfillmentRate"
+                      stroke="url(#fulfillmentLineGradient)"
+                      strokeWidth={3}
+                      dot={{
+                        fill: '#6366f1',
+                        stroke: '#ffffff',
+                        strokeWidth: 2,
+                        r: 5,
+                      }}
+                      activeDot={{
+                        fill: '#6366f1',
+                        stroke: '#ffffff',
+                        strokeWidth: 3,
+                        r: 8,
+                      }}
+                      name="Fulfillment Rate"
+                      label={(props) => {
+                        const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
+                        const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
+                        const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
 
-                          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
+                        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
 
-                          return (
-                            <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
-                              {value.toFixed(2)}%
-                            </text>
-                          );
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
-                    <div className="text-center">
-                      <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Not enough data for monthly trend</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {monthlyFulfillmentData.length > 0 && (
-                <div className="flex justify-center gap-6 mt-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
-                    <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                        return (
+                          <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
+                            {value.toFixed(2)}%
+                          </text>
+                        );
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
+                  <div className="text-center">
+                    <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Not enough data for monthly trend</p>
                   </div>
                 </div>
               )}
             </div>
+
+            {monthlyFulfillmentData.length > 0 && (
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                </div>
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
 
