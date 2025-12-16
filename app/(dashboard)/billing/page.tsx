@@ -5,6 +5,7 @@ import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getErrorMessage } from '@/lib/formatters';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import { AdminRoute } from '@/components/auth/AdminRoute';
@@ -213,8 +214,8 @@ function BillingPageContent() {
 
       // Clear success message after 3 seconds
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setGenerating(false);
     }
@@ -245,9 +246,10 @@ function BillingPageContent() {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Failed to load billing');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Don't show error for 404
-      if (!err.message?.includes('404')) {
+      const message = getErrorMessage(err);
+      if (!message.includes('404')) {
         console.error('Error loading billing:', err);
       }
       setBillingPeriod(null);
@@ -343,8 +345,8 @@ function BillingPageContent() {
       setSuccess('Changes saved successfully!');
 
       setTimeout(() => setSuccess(null), 3000);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     } finally {
       setSaving(false);
     }
@@ -372,8 +374,8 @@ function BillingPageContent() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
-      setError(err.message || 'Failed to download invoice');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -401,8 +403,8 @@ function BillingPageContent() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-    } catch (err: any) {
-      setError(err.message || 'Failed to download Excel');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
     }
   };
 
