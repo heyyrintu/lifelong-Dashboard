@@ -5,6 +5,7 @@ import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatHeaderDateShort } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/formatters';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
 import {
   BarChart,
@@ -95,6 +96,7 @@ export default function InboundPage() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
+  const [downloadLoading, setDownloadLoading] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
@@ -146,23 +148,23 @@ export default function InboundPage() {
     if (!from || !to) return null;
 
     try {
-      const fromDate = new Date(from);
-      const toDate = new Date(to);
+      const startDate = new Date(from);
+      const endDate = new Date(to);
 
       // Check if both dates are in the same month and year
-      if (fromDate.getFullYear() === toDate.getFullYear() &&
-        fromDate.getMonth() === toDate.getMonth()) {
+      if (startDate.getFullYear() === endDate.getFullYear() &&
+        startDate.getMonth() === endDate.getMonth()) {
 
-        // Check if fromDate is the 1st of the month
-        const isFirstDay = fromDate.getDate() === 1;
+        // Check if startDate is the 1st of the month
+        const isFirstDay = startDate.getDate() === 1;
 
-        // Check if toDate is the last day of the month
-        const lastDay = new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0).getDate();
-        const isLastDay = toDate.getDate() === lastDay;
+        // Check if endDate is the last day of the month
+        const lastDay = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
+        const isLastDay = endDate.getDate() === lastDay;
 
         if (isFirstDay && isLastDay) {
-          const year = fromDate.getFullYear();
-          const month = String(fromDate.getMonth() + 1).padStart(2, '0');
+          const year = startDate.getFullYear();
+          const month = String(startDate.getMonth() + 1).padStart(2, '0');
           return `${year}-${month}`;
         }
       }
@@ -198,8 +200,8 @@ export default function InboundPage() {
         const result: InboundSummaryResponse = await response.json();
         setSummaryData(result);
         setChartData(result.timeSeries);
-      } catch (err: any) {
-        console.error('Initial data fetch error:', err.message);
+      } catch (err: unknown) {
+        console.error('Initial data fetch error:', getErrorMessage(err));
         setSummaryData(null);
         setChartData(null);
       } finally {
@@ -251,8 +253,8 @@ export default function InboundPage() {
 
       const result: InboundSummaryResponse = await response.json();
       setChartData(result.timeSeries);
-    } catch (err: any) {
-      console.error('Chart data fetch error:', err.message);
+    } catch (err: unknown) {
+      console.error('Chart data fetch error:', getErrorMessage(err));
       setChartData(null);
     } finally {
       setChartLoading(false);
@@ -380,7 +382,10 @@ export default function InboundPage() {
   };
 
   const handleDownloadSummary = async () => {
+    if (downloadLoading) return; // Prevent double-click
+
     try {
+      setDownloadLoading(true);
       const params = new URLSearchParams();
 
       if (selectedMonth && selectedMonth !== 'ALL') {
@@ -412,6 +417,8 @@ export default function InboundPage() {
     } catch (error) {
       console.error('Inbound summary download failed:', error);
       alert('Failed to download inbound summary. Please try again.');
+    } finally {
+      setDownloadLoading(false);
     }
   };
 
@@ -445,7 +452,7 @@ export default function InboundPage() {
     const value = Number(num);
     if (isNaN(value)) return '0K';
     const lakhs = value / 100000;
-    
+
     if (lakhs < 1) {
       // Show in thousands (K)
       const thousands = value / 1000;
@@ -738,14 +745,19 @@ export default function InboundPage() {
           {/* Apply & Reset Buttons */}
           <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: 1.05, translateY: -1 }}
-              whileTap={{ scale: 0.95, translateY: 0 }}
+              whileHover={{ scale: downloadLoading ? 1 : 1.05, translateY: downloadLoading ? 0 : -1 }}
+              whileTap={{ scale: downloadLoading ? 1 : 0.95, translateY: 0 }}
               onClick={handleDownloadSummary}
-              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
+              disabled={downloadLoading}
+              className={`h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm transition-colors ${downloadLoading ? 'opacity-70 cursor-not-allowed' : 'hover:border-brandRed/60 hover:text-brandRed'}`}
               aria-label="Download inbound Excel"
-              title="Download Excel"
+              title={downloadLoading ? 'Downloading...' : 'Download Excel'}
             >
-              <Download className="w-4 h-4" />
+              {downloadLoading ? (
+                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05, translateY: -2 }}

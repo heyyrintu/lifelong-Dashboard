@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
+import { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/formatters';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -139,7 +140,7 @@ function InventoryPageContent() {
   const [fastMovingError, setFastMovingError] = useState<string | null>(null);
   const [fastMovingWarehouse, setFastMovingWarehouse] = useState('ALL');
   const [fastMovingCategory, setFastMovingCategory] = useState('ALL');
-  
+
   const [fastMovingLimit, setFastMovingLimit] = useState(10);
   const [showFastMovingSection, setShowFastMovingSection] = useState(true);
   const [fastMovingPage, setFastMovingPage] = useState(0);
@@ -173,6 +174,10 @@ function InventoryPageContent() {
   const [filtersDirty, setFiltersDirty] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
+  // Performance optimization refs
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const cachedFullChartDataRef = useRef<InventoryTimeSeriesData | null>(null);
+
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
     if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
@@ -199,16 +204,16 @@ function InventoryPageContent() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-                    return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-                if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-                return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-            if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-            if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
     if (data?.filters?.availableDateRange) return `${formatHeaderDateShort(data.filters.availableDateRange.minDate)} - ${formatHeaderDateShort(data.filters.availableDateRange.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
@@ -233,7 +238,14 @@ function InventoryPageContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchSummary = async (useFilters = false) => {
+  const fetchSummary = useCallback(async (useFilters = false) => {
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       setLoading(true);
       setError(null);
@@ -272,6 +284,9 @@ function InventoryPageContent() {
 
       const response = await authenticatedFetch(`/inventory/summary?${params.toString()}`);
 
+      // Check if request was aborted
+      if (signal.aborted) return;
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('No inventory data available. Please upload a Daily Stock Analytics Excel file first.');
@@ -280,24 +295,21 @@ function InventoryPageContent() {
       }
 
       const result: InventorySummaryResponse = await response.json();
+
+      // Check again after parsing
+      if (signal.aborted) return;
+
       setData(result);
       setChartData(result.timeSeries);
 
-      // Fetch unfiltered data for charts (always show all months)
+      // OPTIMIZATION: Cache full chart data on initial load, reuse on subsequent filter calls
       if (!useFilters) {
-        // On initial load, also set fullChartData
+        // On initial load, cache and set fullChartData
         setFullChartData(result.timeSeries);
-      } else {
-        // When filters are applied, fetch unfiltered data separately for charts
-        try {
-          const unfilteredResponse = await authenticatedFetch('/inventory/summary');
-          if (unfilteredResponse.ok) {
-            const unfilteredResult: InventorySummaryResponse = await unfilteredResponse.json();
-            setFullChartData(unfilteredResult.timeSeries);
-          }
-        } catch (err) {
-          console.error('Failed to fetch unfiltered chart data:', err);
-        }
+        cachedFullChartDataRef.current = result.timeSeries;
+      } else if (cachedFullChartDataRef.current) {
+        // When filters are applied, use cached unfiltered data instead of making extra API call
+        setFullChartData(cachedFullChartDataRef.current);
       }
 
       // Set initial date range from available dates if not already set
@@ -309,13 +321,18 @@ function InventoryPageContent() {
           setToDate(result.filters.availableDateRange.maxDate);
         }
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching inventory data');
+    } catch (err: unknown) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(getErrorMessage(err));
       setData(null);
     } finally {
-      setLoading(false);
+      // Only clear loading if this request wasn't aborted
+      if (!signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [uploadIdParam, fromDate, toDate, selectedMonth, selectedItemGroup, selectedProductCategories, selectedWarehouse]);
 
   const handleDownloadSummary = async () => {
     try {
@@ -414,8 +431,8 @@ function InventoryPageContent() {
 
       const result: FastMovingSkusResponse = await response.json();
       setFastMovingData(result);
-    } catch (err: any) {
-      setFastMovingError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setFastMovingError(getErrorMessage(err));
       setFastMovingData(null);
     } finally {
       setFastMovingLoading(false);
@@ -497,8 +514,8 @@ function InventoryPageContent() {
 
       const result: ZeroOrderProductsResponse = await response.json();
       setZeroOrderData(result);
-    } catch (err: any) {
-      setZeroOrderError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      setZeroOrderError(getErrorMessage(err));
       setZeroOrderData(null);
     } finally {
       setZeroOrderLoading(false);

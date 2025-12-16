@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/formatters';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -166,6 +167,9 @@ export default function OutboundPage() {
   const [filtersDirty, setFiltersDirty] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
+  // Performance optimization: AbortController for cancelling in-flight requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
     if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
@@ -327,8 +331,8 @@ export default function OutboundPage() {
           const topProductsResult: TopProduct[] = await topProductsResponse.json();
           setTopProducts(topProductsResult);
         }
-      } catch (err: any) {
-        setError(err.message || 'An error occurred while fetching data');
+      } catch (err: unknown) {
+        setError(getErrorMessage(err));
         setData(null);
         setChartData(null);
       } finally {
@@ -356,15 +360,22 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setChartData(result.timeSeries);
-    } catch (err: any) {
-      console.error('Chart data fetch error:', err.message);
+    } catch (err: unknown) {
+      console.error('Chart data fetch error:', getErrorMessage(err));
       setChartData(null);
     } finally {
       setChartLoading(false);
     }
   };
 
-  const fetchSummary = async (useFilters = false) => {
+  const fetchSummary = useCallback(async (useFilters = false) => {
+    // Cancel any previous in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
     try {
       setLoading(true);
       setError(null);
@@ -389,6 +400,9 @@ export default function OutboundPage() {
 
       const response = await authenticatedFetch(`/outbound/summary?${params.toString()}`);
 
+      // Check if request was aborted
+      if (signal.aborted) return;
+
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('No data available. Please upload an Outbound Excel file first.');
@@ -397,14 +411,23 @@ export default function OutboundPage() {
       }
 
       const result: SummaryResponse = await response.json();
+
+      // Check again after parsing
+      if (signal.aborted) return;
+
       setData(result);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching data');
+    } catch (err: unknown) {
+      // Ignore abort errors
+      if (err instanceof Error && err.name === 'AbortError') return;
+      setError(getErrorMessage(err));
       setData(null);
     } finally {
-      setLoading(false);
+      // Only clear loading if this request wasn't aborted
+      if (!signal.aborted) {
+        setLoading(false);
+      }
     }
-  };
+  }, [fromDate, toDate, selectedMonth, selectedProductCategories, selectedWarehouse, timeGranularity]);
 
   const fetchSummaryWithGranularity = async (granularity: 'month' | 'week' | 'day') => {
     try {
@@ -439,8 +462,8 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setData(result);
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while fetching data');
+    } catch (err: unknown) {
+      setError(getErrorMessage(err));
       setData(null);
     } finally {
       setLoading(false);
@@ -493,8 +516,8 @@ export default function OutboundPage() {
 
       const result: TopProduct[] = await response.json();
       setTopProducts(result);
-    } catch (err: any) {
-      console.error('Top products fetch error:', err.message);
+    } catch (err: unknown) {
+      console.error('Top products fetch error:', getErrorMessage(err));
       setTopProducts([]);
     } finally {
       setTopProductsLoading(false);
@@ -1721,7 +1744,7 @@ export default function OutboundPage() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="w-full"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="relative h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1743,7 +1766,7 @@ export default function OutboundPage() {
 
             {/* Pie Chart */}
             {topProducts.length > 0 ? (
-              <div className="h-80">
+              <div className="flex-1 min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1796,7 +1819,7 @@ export default function OutboundPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
+              <div className="flex-1 min-h-[320px] flex items-center justify-center text-gray-500 dark:text-slate-400">
                 <div className="text-center">
                   <Box className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No product data available</p>
@@ -1837,7 +1860,7 @@ export default function OutboundPage() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="w-full"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="relative h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1859,7 +1882,7 @@ export default function OutboundPage() {
 
             {/* Pie Chart */}
             {productCategoryDonutData.some(item => item.value > 0) ? (
-              <div className="h-80">
+              <div className="flex-1 min-h-[320px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1906,7 +1929,7 @@ export default function OutboundPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
+              <div className="flex-1 min-h-[320px] flex items-center justify-center text-gray-500 dark:text-slate-400">
                 <div className="text-center">
                   <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No category data available</p>
