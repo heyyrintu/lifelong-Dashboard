@@ -117,6 +117,9 @@ interface SummaryResponse {
     minDate: string | null;
     maxDate: string | null;
   };
+  filters?: {
+    availableDateRange?: { minDate: string | null; maxDate: string | null };
+  };
 }
 
 interface UploadInfo {
@@ -170,7 +173,7 @@ export default function OutboundPage() {
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<SummaryResponse | null>(null);
   // Normalize available date range - some endpoints use different keys
-  const availableDateRange = data?.availableDateRange ?? (data as any)?.filters?.availableDateRange ?? null;
+  const availableDateRange = data?.availableDateRange ?? data?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
   const [downloadLoading, setDownloadLoading] = useState(false);
@@ -347,7 +350,8 @@ export default function OutboundPage() {
         setTopProductsLoading(true);
 
         const params = new URLSearchParams();
-        params.append('timeGranularity', timeGranularity);
+        // Use default granularity for initial fetch
+        params.append('timeGranularity', 'month');
 
         const [summaryResponse, topProductsResponse] = await Promise.all([
           authenticatedFetch(`/outbound/summary?${params.toString()}`),
@@ -356,6 +360,8 @@ export default function OutboundPage() {
 
         if (!summaryResponse.ok) {
           if (summaryResponse.status === 404) {
+            // We can optionally check for 404 here, but usually improved error handling is better.
+            // Keeping consistent with existing logic:
             throw new Error('No data available. Please upload an Outbound Excel file first.');
           }
           throw new Error('Failed to fetch data from backend');
@@ -381,7 +387,7 @@ export default function OutboundPage() {
     };
 
     fetchInitialData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchChartData = async (granularity: 'month' | 'week' | 'day') => {
     try {

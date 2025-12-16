@@ -280,13 +280,13 @@ function BillingPageContent() {
   };
 
   // Update extra line item
-  const handleUpdateExtraItem = (
+  const handleUpdateExtraItem = <K extends keyof BillingLineItem>(
     index: number,
-    field: keyof BillingLineItem,
-    value: string | number | null
+    field: K,
+    value: BillingLineItem[K]
   ) => {
     const updated = [...extraItems];
-    (updated[index] as any)[field] = value;
+    updated[index] = { ...updated[index], [field]: value };
 
     // Auto-calculate amount if qty and rate are set
     if (field === 'qty' || field === 'rate') {

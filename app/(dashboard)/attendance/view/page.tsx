@@ -238,8 +238,8 @@ function ViewAttendancePageContent() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-xl shadow-lg flex items-center gap-3 max-w-md ${message.type === 'success'
-                ? 'bg-green-500 text-white'
-                : 'bg-red-500 text-white'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
               }`}
           >
             {message.type === 'success' ? (
@@ -292,7 +292,7 @@ function ViewAttendancePageContent() {
             </label>
             <select
               value={employeeTypeFilter}
-              onChange={(e) => setEmployeeTypeFilter(e.target.value as any)}
+              onChange={(e) => setEmployeeTypeFilter(e.target.value as 'ALL' | 'ON_ROLL' | 'OFF_ROLL')}
               className="w-full px-4 py-2.5 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-brandRed/20 focus:border-brandRed outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="ALL">All</option>
@@ -327,8 +327,8 @@ function ViewAttendancePageContent() {
               <button
                 onClick={() => setViewMode('records')}
                 className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${viewMode === 'records'
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
               >
                 Records
@@ -336,8 +336,8 @@ function ViewAttendancePageContent() {
               <button
                 onClick={() => setViewMode('summary')}
                 className={`flex-1 px-3 py-2 text-xs font-semibold rounded-lg transition-all ${viewMode === 'summary'
-                    ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
-                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
+                  ? 'bg-white dark:bg-slate-700 text-gray-900 dark:text-white shadow-sm'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'
                   }`}
               >
                 Summary
@@ -500,8 +500,8 @@ function ViewAttendancePageContent() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-md text-xs font-semibold ${record.employee.employeeType === 'ON_ROLL'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-amber-100 text-amber-700'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-amber-100 text-amber-700'
                           }`}>
                           {record.employee.employeeType === 'ON_ROLL' ? 'On Roll' : 'Off Roll'}
                         </span>
@@ -534,8 +534,8 @@ function ViewAttendancePageContent() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`px-2 py-1 rounded-md text-xs font-medium ${record.source === 'manual'
-                            ? 'bg-gray-100 text-gray-600'
-                            : 'bg-indigo-100 text-indigo-600'
+                          ? 'bg-gray-100 text-gray-600'
+                          : 'bg-indigo-100 text-indigo-600'
                           }`}>
                           {record.source === 'manual' ? 'Manual' : 'Excel'}
                         </span>
@@ -586,8 +586,8 @@ function ViewAttendancePageContent() {
                         </td>
                         <td className="px-4 py-3">
                           <span className={`px-2 py-1 rounded-md text-xs font-semibold ${stat.employee.employeeType === 'ON_ROLL'
-                              ? 'bg-blue-100 text-blue-700'
-                              : 'bg-amber-100 text-amber-700'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-amber-100 text-amber-700'
                             }`}>
                             {stat.employee.employeeType === 'ON_ROLL' ? 'On Roll' : 'Off Roll'}
                           </span>
@@ -614,10 +614,10 @@ function ViewAttendancePageContent() {
                             <div className="w-16 h-2 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${parseFloat(attendancePercent) >= 90
-                                    ? 'bg-green-500'
-                                    : parseFloat(attendancePercent) >= 75
-                                      ? 'bg-amber-500'
-                                      : 'bg-red-500'
+                                  ? 'bg-green-500'
+                                  : parseFloat(attendancePercent) >= 75
+                                    ? 'bg-amber-500'
+                                    : 'bg-red-500'
                                   }`}
                                 style={{ width: `${attendancePercent}%` }}
                               />
