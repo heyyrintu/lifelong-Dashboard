@@ -132,7 +132,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } catch (error: unknown) {
             // If session already active error, just get the current user
             const errorMessage = error instanceof Error ? error.message : '';
-            const errorCode = (error as {code?: number}).code;
+            const errorCode = typeof error === 'object' && error !== null && 'code' in error 
+              ? (error as { code?: number }).code 
+              : undefined;
             if (errorMessage?.includes('session is active') || errorCode === 401) {
               const currentUser = await account.get();
               if (isMounted) {

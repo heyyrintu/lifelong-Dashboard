@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminRoute } from '@/components/auth/AdminRoute';
@@ -101,7 +101,7 @@ function ViewAttendancePageContent() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -130,7 +130,7 @@ function ViewAttendancePageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fromDate, toDate, employeeTypeFilter, vendorFilter]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -169,7 +169,7 @@ function ViewAttendancePageContent() {
 
   useEffect(() => {
     fetchData();
-  }, [fromDate, toDate, employeeTypeFilter, vendorFilter, fetchData]);
+  }, [fetchData]);
 
   const formatTime = (dateStr?: string): string => {
     if (!dateStr) return '-';
