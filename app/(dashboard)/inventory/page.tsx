@@ -1,19 +1,9 @@
 'use client';
 
-import { useState, useEffect, Suspense, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, Suspense, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
-import {
-  formatNumber,
-  formatInLakhs,
-  formatProductCategory,
-  formatMonthLabel,
-  getErrorMessage,
-  getISOWeek,
-  getWeekStart,
-  MONTH_LABELS,
-} from '@/lib/formatters';
 import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
@@ -149,7 +139,7 @@ function InventoryPageContent() {
   const [fastMovingError, setFastMovingError] = useState<string | null>(null);
   const [fastMovingWarehouse, setFastMovingWarehouse] = useState('ALL');
   const [fastMovingCategory, setFastMovingCategory] = useState('ALL');
-
+  
   const [fastMovingLimit, setFastMovingLimit] = useState(10);
   const [showFastMovingSection, setShowFastMovingSection] = useState(true);
   const [fastMovingPage, setFastMovingPage] = useState(0);
@@ -183,10 +173,6 @@ function InventoryPageContent() {
   const [filtersDirty, setFiltersDirty] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
-  // Performance optimization refs
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const cachedFullChartDataRef = useRef<InventoryTimeSeriesData | null>(null);
-
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
     if (dateStr.match(/^\d{2}-\d{2}-\d{4}$/)) return dateStr;
@@ -213,16 +199,16 @@ function InventoryPageContent() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
+                    return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
+                if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+                return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+            if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+            if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
     if (data?.filters?.availableDateRange) return `${formatHeaderDateShort(data.filters.availableDateRange.minDate)} - ${formatHeaderDateShort(data.filters.availableDateRange.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
@@ -247,14 +233,7 @@ function InventoryPageContent() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const fetchSummary = useCallback(async (useFilters = false) => {
-    // Cancel any previous in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
+  const fetchSummary = async (useFilters = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -293,9 +272,6 @@ function InventoryPageContent() {
 
       const response = await authenticatedFetch(`/inventory/summary?${params.toString()}`);
 
-      // Check if request was aborted
-      if (signal.aborted) return;
-
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('No inventory data available. Please upload a Daily Stock Analytics Excel file first.');
@@ -304,21 +280,24 @@ function InventoryPageContent() {
       }
 
       const result: InventorySummaryResponse = await response.json();
-
-      // Check again after parsing
-      if (signal.aborted) return;
-
       setData(result);
       setChartData(result.timeSeries);
 
-      // OPTIMIZATION: Cache full chart data on initial load, reuse on subsequent filter calls
+      // Fetch unfiltered data for charts (always show all months)
       if (!useFilters) {
-        // On initial load, cache and set fullChartData
+        // On initial load, also set fullChartData
         setFullChartData(result.timeSeries);
-        cachedFullChartDataRef.current = result.timeSeries;
-      } else if (cachedFullChartDataRef.current) {
-        // When filters are applied, use cached unfiltered data instead of making extra API call
-        setFullChartData(cachedFullChartDataRef.current);
+      } else {
+        // When filters are applied, fetch unfiltered data separately for charts
+        try {
+          const unfilteredResponse = await authenticatedFetch('/inventory/summary');
+          if (unfilteredResponse.ok) {
+            const unfilteredResult: InventorySummaryResponse = await unfilteredResponse.json();
+            setFullChartData(unfilteredResult.timeSeries);
+          }
+        } catch (err) {
+          console.error('Failed to fetch unfiltered chart data:', err);
+        }
       }
 
       // Set initial date range from available dates if not already set
@@ -330,18 +309,13 @@ function InventoryPageContent() {
           setToDate(result.filters.availableDateRange.maxDate);
         }
       }
-    } catch (err: unknown) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setError(getErrorMessage(err));
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching inventory data');
       setData(null);
     } finally {
-      // Only clear loading if this request wasn't aborted
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [uploadIdParam, fromDate, toDate, selectedMonth, selectedItemGroup, selectedProductCategories, selectedWarehouse]);
+  };
 
   const handleDownloadSummary = async () => {
     try {
@@ -440,8 +414,8 @@ function InventoryPageContent() {
 
       const result: FastMovingSkusResponse = await response.json();
       setFastMovingData(result);
-    } catch (err: unknown) {
-      setFastMovingError(getErrorMessage(err));
+    } catch (err: any) {
+      setFastMovingError(err.message || 'An error occurred');
       setFastMovingData(null);
     } finally {
       setFastMovingLoading(false);
@@ -523,8 +497,8 @@ function InventoryPageContent() {
 
       const result: ZeroOrderProductsResponse = await response.json();
       setZeroOrderData(result);
-    } catch (err: unknown) {
-      setZeroOrderError(getErrorMessage(err));
+    } catch (err: any) {
+      setZeroOrderError(err.message || 'An error occurred');
       setZeroOrderData(null);
     } finally {
       setZeroOrderLoading(false);
@@ -631,7 +605,35 @@ function InventoryPageContent() {
   const [chartData, setChartData] = useState<InventoryTimeSeriesData | null>(null);
   const [fullChartData, setFullChartData] = useState<InventoryTimeSeriesData | null>(null);
 
-  // formatNumber, formatInLakhs, getISOWeek, getWeekStart are now imported from lib/formatters.ts
+  // Helper function to format numbers
+  const formatNumber = (num: number | undefined | null, decimals?: number): string => {
+    if (num === undefined || num === null) return '0';
+
+    const value = Number(num);
+    if (isNaN(value)) return '0';
+
+    if (decimals !== undefined) {
+      return value.toLocaleString(undefined, {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+      });
+    }
+
+    // For large numbers, use thousand separators
+    if (Number.isInteger(value)) {
+      return value.toLocaleString();
+    } else {
+      return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  };
+
+  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0';
+    const value = Number(num);
+    if (isNaN(value)) return '0';
+    const lakhs = value / 100000;
+    return lakhs.toFixed(decimals);
+  };
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
@@ -659,8 +661,21 @@ function InventoryPageContent() {
     </div>
   );
 
-  // Memoized chart display points - expensive calculation only runs when dependencies change
-  const displayPoints = useMemo((): InventoryTimeSeriesPoint[] => {
+  const getISOWeek = (date: Date): number => {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayNum = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+  };
+
+  const getWeekStart = (year: number, week: number): Date => {
+    const firstDayOfYear = new Date(year, 0, 1);
+    const daysOffset = (week - 1) * 7 - firstDayOfYear.getDay();
+    return new Date(year, 0, 1 + daysOffset);
+  };
+
+  const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
     // Use fullChartData so charts always show all months regardless of filter
     if (!fullChartData || !fullChartData.points) return [];
     const points = fullChartData.points;
@@ -736,7 +751,7 @@ function InventoryPageContent() {
           edelTotalCbm: Math.round((group.data.edelTotalCbm / count) * 100) / 100,
         };
       });
-  }, [fullChartData, timeGranularity]);
+  };
 
   // Empty state / error state
   if (!loading && error) {
@@ -757,18 +772,15 @@ function InventoryPageContent() {
     );
   }
 
-  // Chart click handler - uses runtime type guards for safety
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = (data: Record<string, unknown> | null) => {
-    if (!data) return;
+  const displayPoints = getDisplayPoints();
 
-    const activePayload = data.activePayload as Array<{ payload: Record<string, unknown> }> | undefined;
-    if (!activePayload || !activePayload[0]) return;
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     if (timeGranularity === 'month') return;
 
-    const payload = activePayload[0].payload;
-    const dateKey = payload.date as string; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
+    const payload = data.activePayload[0].payload;
+    const dateKey = payload.date; // "YYYY-MM-DD" for day, "YYYY-WNN" for week
 
     if (timeGranularity === 'week') {
       const match = dateKey.match(/^(\d{4})-W(\d{1,2})$/);

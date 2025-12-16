@@ -1,21 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatHeaderDateShort } from '@/lib/utils';
-import {
-  formatNumber,
-  formatInLakhs,
-  formatQuantityInLakhs,
-  formatQuantitySmartKL,
-  formatAxisLabel,
-  formatMonthLabel,
-  formatProductCategory,
-  getErrorMessage,
-  MONTH_LABELS,
-} from '@/lib/formatters';
 import { ArrowDownToLine, Package, Clock, TrendingUp, CheckCircle, AlertCircle, Download, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, Box, Truck } from 'lucide-react';
 import {
   BarChart,
@@ -92,34 +81,7 @@ interface InboundSummaryResponse {
   categoryTable: ProductCategoryTableRow[];
 }
 
-// Memoized Legend components - moved outside to prevent re-renders
-const QtyLegend = React.memo(() => (
-  <div className="flex justify-end gap-4 text-xs font-semibold">
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">EDEL Received Qty</span>
-    </div>
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">Received Qty</span>
-    </div>
-  </div>
-));
-QtyLegend.displayName = 'QtyLegend';
 
-const CbmLegend = React.memo(() => (
-  <div className="flex justify-end gap-4 text-xs font-semibold">
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">EDEL CBM</span>
-    </div>
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">Total CBM</span>
-    </div>
-  </div>
-));
-CbmLegend.displayName = 'CbmLegend';
 
 export default function InboundPage() {
   const [summaryData, setSummaryData] = useState<InboundSummaryResponse | null>(null);
@@ -133,7 +95,6 @@ export default function InboundPage() {
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
-  const [downloadLoading, setDownloadLoading] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
@@ -185,23 +146,23 @@ export default function InboundPage() {
     if (!from || !to) return null;
 
     try {
-      const startDate = new Date(from);
-      const endDate = new Date(to);
+      const fromDate = new Date(from);
+      const toDate = new Date(to);
 
       // Check if both dates are in the same month and year
-      if (startDate.getFullYear() === endDate.getFullYear() &&
-        startDate.getMonth() === endDate.getMonth()) {
+      if (fromDate.getFullYear() === toDate.getFullYear() &&
+        fromDate.getMonth() === toDate.getMonth()) {
 
-        // Check if startDate is the 1st of the month
-        const isFirstDay = startDate.getDate() === 1;
+        // Check if fromDate is the 1st of the month
+        const isFirstDay = fromDate.getDate() === 1;
 
-        // Check if endDate is the last day of the month
-        const lastDay = new Date(endDate.getFullYear(), endDate.getMonth() + 1, 0).getDate();
-        const isLastDay = endDate.getDate() === lastDay;
+        // Check if toDate is the last day of the month
+        const lastDay = new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0).getDate();
+        const isLastDay = toDate.getDate() === lastDay;
 
         if (isFirstDay && isLastDay) {
-          const year = startDate.getFullYear();
-          const month = String(startDate.getMonth() + 1).padStart(2, '0');
+          const year = fromDate.getFullYear();
+          const month = String(fromDate.getMonth() + 1).padStart(2, '0');
           return `${year}-${month}`;
         }
       }
@@ -237,8 +198,8 @@ export default function InboundPage() {
         const result: InboundSummaryResponse = await response.json();
         setSummaryData(result);
         setChartData(result.timeSeries);
-      } catch (err: unknown) {
-        console.error('Initial data fetch error:', getErrorMessage(err));
+      } catch (err: any) {
+        console.error('Initial data fetch error:', err.message);
         setSummaryData(null);
         setChartData(null);
       } finally {
@@ -290,8 +251,8 @@ export default function InboundPage() {
 
       const result: InboundSummaryResponse = await response.json();
       setChartData(result.timeSeries);
-    } catch (err: unknown) {
-      console.error('Chart data fetch error:', getErrorMessage(err));
+    } catch (err: any) {
+      console.error('Chart data fetch error:', err.message);
       setChartData(null);
     } finally {
       setChartLoading(false);
@@ -400,24 +361,16 @@ export default function InboundPage() {
     setTimeout(() => fetchChartData(granularity), 10);
   };
 
-  // Chart click handler - uses runtime type guards for safety
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = (data: Record<string, unknown> | null) => {
-    if (!data) return;
-
-    const activePayload = data.activePayload as Array<{ payload: Record<string, unknown> }> | undefined;
-    if (!activePayload || !activePayload[0]) return;
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     // Per user request: exclude month granularity clicking
     if (timeGranularity === 'month') return;
 
-    const payload = activePayload[0].payload;
-    const startDate = payload.startDate as string | undefined;
-    const endDate = payload.endDate as string | undefined;
-
-    if (startDate && endDate) {
-      setFromDate(startDate);
-      setToDate(endDate);
+    const payload = data.activePayload[0].payload;
+    if (payload.startDate && payload.endDate) {
+      setFromDate(payload.startDate);
+      setToDate(payload.endDate);
       setSelectedMonth('ALL');
       setTimeout(() => {
         fetchSummary(true);
@@ -427,10 +380,7 @@ export default function InboundPage() {
   };
 
   const handleDownloadSummary = async () => {
-    if (downloadLoading) return; // Prevent double-click
-
     try {
-      setDownloadLoading(true);
       const params = new URLSearchParams();
 
       if (selectedMonth && selectedMonth !== 'ALL') {
@@ -462,16 +412,105 @@ export default function InboundPage() {
     } catch (error) {
       console.error('Inbound summary download failed:', error);
       alert('Failed to download inbound summary. Please try again.');
-    } finally {
-      setDownloadLoading(false);
     }
   };
 
-  // All formatting utilities are now imported from lib/formatters.ts:
-  // formatNumber, formatInLakhs, formatQuantityInLakhs, formatQuantitySmartKL,
-  // formatAxisLabel, formatMonthLabel, formatProductCategory, MONTH_LABELS
+  const formatNumber = (num: number, decimals: number = 0) => {
+    return new Intl.NumberFormat('en-US', {
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
+    }).format(num);
+  };
 
-  // QtyLegend and CbmLegend are defined outside with React.memo
+  const formatInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0';
+    const value = Number(num);
+    if (isNaN(value)) return '0';
+    const lakhs = value / 100000;
+    return lakhs.toFixed(decimals);
+  };
+
+  // Format quantity in lakhs with 'L' suffix for display
+  const formatQuantityInLakhs = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0L';
+    const value = Number(num);
+    if (isNaN(value)) return '0L';
+    const lakhs = value / 100000;
+    return `${lakhs.toFixed(decimals)}L`;
+  };
+
+  // Format quantity smartly: if < 1L show in K (thousands), if >= 1L show in L (lakhs)
+  const formatQuantitySmartKL = (num: number | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null) return '0K';
+    const value = Number(num);
+    if (isNaN(value)) return '0K';
+    const lakhs = value / 100000;
+    
+    if (lakhs < 1) {
+      // Show in thousands (K)
+      const thousands = value / 1000;
+      return `${thousands.toFixed(decimals)}K`;
+    } else {
+      // Show in lakhs (L)
+      return `${lakhs.toFixed(decimals)}L`;
+    }
+  };
+
+  const formatAxisLabel = (label: string) => {
+    // Convert labels like "Aug 2025" -> "Aug'25"
+    const match = label.match(/^([A-Za-z]{3}) (\d{4})$/);
+    if (match) {
+      const [, month, year] = match;
+      return `${month}'${year.slice(2)}`;
+    }
+    return label;
+  };
+
+  // Format backend month value (e.g. 2025-11) to display label like Nov'25
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+  const formatMonthLabel = (month: string): string => {
+    if (month === 'ALL') return 'All Months';
+
+    const match = month.match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const [, yearStr, monthStr] = match;
+      const monthIndex = parseInt(monthStr, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        const shortYear = yearStr.slice(2);
+        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
+      }
+    }
+
+    return month;
+  };
+
+
+  const QtyLegend = () => (
+    <div className="flex justify-end gap-4 text-xs font-semibold">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">EDEL Received Qty</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">Received Qty</span>
+      </div>
+    </div>
+  );
+
+  const CbmLegend = () => (
+    <div className="flex justify-end gap-4 text-xs font-semibold">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">EDEL CBM</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">Total CBM</span>
+      </div>
+    </div>
+  );
 
   return (
     <div>
@@ -699,19 +738,14 @@ export default function InboundPage() {
           {/* Apply & Reset Buttons */}
           <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: downloadLoading ? 1 : 1.05, translateY: downloadLoading ? 0 : -1 }}
-              whileTap={{ scale: downloadLoading ? 1 : 0.95, translateY: 0 }}
+              whileHover={{ scale: 1.05, translateY: -1 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleDownloadSummary}
-              disabled={downloadLoading}
-              className={`h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm transition-colors ${downloadLoading ? 'opacity-70 cursor-not-allowed' : 'hover:border-brandRed/60 hover:text-brandRed'}`}
+              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
               aria-label="Download inbound Excel"
-              title={downloadLoading ? 'Downloading...' : 'Download Excel'}
+              title="Download Excel"
             >
-              {downloadLoading ? (
-                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
+              <Download className="w-4 h-4" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05, translateY: -2 }}

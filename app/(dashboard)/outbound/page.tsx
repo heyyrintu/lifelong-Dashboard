@@ -1,20 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
-import {
-  formatNumber,
-  formatInLakhs,
-  formatInThousands,
-  formatCbmForChart,
-  formatProductCategory,
-  formatMonthLabel,
-  getErrorMessage,
-  MONTH_LABELS,
-  CATEGORY_LABELS,
-} from '@/lib/formatters';
 import PageHeader from '@/components/common/PageHeader';
 import { MetricCard } from '@/components/ui/metric-card';
 import Table from '@/components/common/Table';
@@ -136,34 +125,7 @@ interface TopProduct {
   percentageOfTotal: number;
 }
 
-// Memoized Legend components - moved outside to prevent re-renders
-const QtyLegend = React.memo(() => (
-  <div className="flex justify-end gap-4 text-xs font-semibold">
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">SO Qty</span>
-    </div>
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">DN Qty</span>
-    </div>
-  </div>
-));
-QtyLegend.displayName = 'QtyLegend';
 
-const CbmLegend = React.memo(() => (
-  <div className="flex justify-end gap-4 text-xs font-semibold">
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">SO Total CBM</span>
-    </div>
-    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-      <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-      <span className="text-gray-700 dark:text-slate-300">DN Total CBM</span>
-    </div>
-  </div>
-));
-CbmLegend.displayName = 'CbmLegend';
 
 export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
@@ -173,7 +135,6 @@ export default function OutboundPage() {
   const availableDateRange = data?.availableDateRange ?? (data as any)?.filters?.availableDateRange ?? null;
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
-  const [downloadLoading, setDownloadLoading] = useState(false);
 
   // Top Products state
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
@@ -204,9 +165,6 @@ export default function OutboundPage() {
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [filtersDirty, setFiltersDirty] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
-
-  // Performance optimization: AbortController for cancelling in-flight requests
-  const abortControllerRef = useRef<AbortController | null>(null);
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
@@ -369,8 +327,8 @@ export default function OutboundPage() {
           const topProductsResult: TopProduct[] = await topProductsResponse.json();
           setTopProducts(topProductsResult);
         }
-      } catch (err: unknown) {
-        setError(getErrorMessage(err));
+      } catch (err: any) {
+        setError(err.message || 'An error occurred while fetching data');
         setData(null);
         setChartData(null);
       } finally {
@@ -398,22 +356,15 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setChartData(result.timeSeries);
-    } catch (err: unknown) {
-      console.error('Chart data fetch error:', getErrorMessage(err));
+    } catch (err: any) {
+      console.error('Chart data fetch error:', err.message);
       setChartData(null);
     } finally {
       setChartLoading(false);
     }
   };
 
-  const fetchSummary = useCallback(async (useFilters = false) => {
-    // Cancel any previous in-flight request
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
+  const fetchSummary = async (useFilters = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -438,9 +389,6 @@ export default function OutboundPage() {
 
       const response = await authenticatedFetch(`/outbound/summary?${params.toString()}`);
 
-      // Check if request was aborted
-      if (signal.aborted) return;
-
       if (!response.ok) {
         if (response.status === 404) {
           throw new Error('No data available. Please upload an Outbound Excel file first.');
@@ -449,23 +397,14 @@ export default function OutboundPage() {
       }
 
       const result: SummaryResponse = await response.json();
-
-      // Check again after parsing
-      if (signal.aborted) return;
-
       setData(result);
-    } catch (err: unknown) {
-      // Ignore abort errors
-      if (err instanceof Error && err.name === 'AbortError') return;
-      setError(getErrorMessage(err));
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching data');
       setData(null);
     } finally {
-      // Only clear loading if this request wasn't aborted
-      if (!signal.aborted) {
-        setLoading(false);
-      }
+      setLoading(false);
     }
-  }, [fromDate, toDate, selectedMonth, selectedProductCategories, selectedWarehouse, timeGranularity]);
+  };
 
   const fetchSummaryWithGranularity = async (granularity: 'month' | 'week' | 'day') => {
     try {
@@ -500,8 +439,8 @@ export default function OutboundPage() {
 
       const result: SummaryResponse = await response.json();
       setData(result);
-    } catch (err: unknown) {
-      setError(getErrorMessage(err));
+    } catch (err: any) {
+      setError(err.message || 'An error occurred while fetching data');
       setData(null);
     } finally {
       setLoading(false);
@@ -554,8 +493,8 @@ export default function OutboundPage() {
 
       const result: TopProduct[] = await response.json();
       setTopProducts(result);
-    } catch (err: unknown) {
-      console.error('Top products fetch error:', getErrorMessage(err));
+    } catch (err: any) {
+      console.error('Top products fetch error:', err.message);
       setTopProducts([]);
     } finally {
       setTopProductsLoading(false);
@@ -611,10 +550,7 @@ export default function OutboundPage() {
   };
 
   const handleDownloadSummary = async () => {
-    if (downloadLoading) return; // Prevent double-click
-
     try {
-      setDownloadLoading(true);
       // Build query params for current filters
       const params = new URLSearchParams();
       if (selectedMonth && selectedMonth !== 'ALL') {
@@ -650,16 +586,131 @@ export default function OutboundPage() {
     } catch (error) {
       console.error('Download failed:', error);
       alert('Failed to download summary. Please try again.');
-    } finally {
-      setDownloadLoading(false);
     }
   };
 
-  // All formatting utilities are now imported from lib/formatters.ts:
-  // formatNumber, formatInLakhs, formatInThousands, formatCbmForChart,
-  // formatProductCategory, formatMonthLabel, MONTH_LABELS, CATEGORY_LABELS
+  // Memoized helper functions to avoid recreation on every render
+  const formatNumber = useCallback((num: number | string | undefined | null, decimals?: number): string => {
+    if (num === undefined || num === null || num === '') return '0';
+    const value = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(value)) return '0';
 
-  // QtyLegend and CbmLegend are defined outside with React.memo
+    // Format with decimals if specified
+    const numStr = decimals !== undefined ? value.toFixed(decimals) : (Number.isInteger(value) ? value.toString() : value.toFixed(1));
+
+    // Split into integer and decimal parts
+    const parts = numStr.split('.');
+    let integerPart = parts[0];
+    const decimalPart = parts[1];
+
+    // Indian numbering system: format as X,XX,XXX (lakhs)
+    // First, handle negative numbers
+    const isNegative = integerPart.startsWith('-');
+    if (isNegative) {
+      integerPart = integerPart.substring(1);
+    }
+
+    // Add commas in Indian format
+    if (integerPart.length > 3) {
+      const lastThree = integerPart.substring(integerPart.length - 3);
+      const otherNumbers = integerPart.substring(0, integerPart.length - 3);
+      const formattedOther = otherNumbers.replace(/\B(?=(\d{2})+(?!\d))/g, ',');
+      integerPart = formattedOther + ',' + lastThree;
+    }
+
+    // Reconstruct the number
+    let result = (isNegative ? '-' : '') + integerPart;
+    if (decimalPart) {
+      result += '.' + decimalPart;
+    }
+
+    return result;
+  }, []);
+
+  const formatInLakhs = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null || num === '') return '0 L';
+    const value = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(value)) return '0 L';
+    return `${(value / 100000).toFixed(decimals)} L`;
+  }, []);
+
+  const formatInThousands = useCallback((num: number | string | undefined | null, decimals: number = 2): string => {
+    if (num === undefined || num === null || num === '') return '0 K';
+    const value = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(value)) return '0 K';
+    return `${(value / 1000).toFixed(decimals)} K`;
+  }, []);
+
+  const formatCbmForChart = useCallback((num: number | string | undefined | null): string => {
+    if (num === undefined || num === null || num === '') return '0k';
+    const value = typeof num === 'string' ? parseFloat(num) : num;
+    if (isNaN(value)) return '0k';
+    const thousands = value / 1000;
+    const formatted = thousands.toFixed(1);
+    return `${formatted.endsWith('.0') ? formatted.slice(0, -2) : formatted}k`;
+  }, []);
+
+  // Static label map - defined outside component would be even better
+  const CATEGORY_LABELS: Record<string, string> = useMemo(() => ({
+    'ALL': 'All Categories',
+    'EDEL': 'EDEL',
+    'HOME_AND_KITCHEN': 'Home & Kitchen',
+    'ELECTRONICS': 'Electronics',
+    'HEALTH_AND_PERSONAL_CARE': 'Health & Personal Care',
+    'AUTOMOTIVE_AND_TOOLS': 'Automotive & Tools',
+    'TOYS_AND_GAMES': 'Toys & Games',
+    'BRAND_PRIVATE_LABEL': 'Brand Private Label',
+    'OTHERS': 'Others',
+  }), []);
+
+  const formatProductCategory = useCallback((category: string): string => {
+    return CATEGORY_LABELS[category] || category;
+  }, [CATEGORY_LABELS]);
+
+  // Format backend month value (e.g. 2025-11) to display label like Nov'25
+  const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
+
+  const formatMonthLabel = useCallback((month: string): string => {
+    if (month === 'ALL') return 'All Months';
+
+    const match = month.match(/^(\d{4})-(\d{1,2})$/);
+    if (match) {
+      const [, yearStr, monthStr] = match;
+      const monthIndex = parseInt(monthStr, 10) - 1;
+      if (monthIndex >= 0 && monthIndex < 12) {
+        const shortYear = yearStr.slice(2);
+        return `${MONTH_LABELS[monthIndex]}'${shortYear}`;
+      }
+    }
+
+    return month;
+  }, []);
+
+  const QtyLegend = () => (
+    <div className="flex justify-end gap-4 text-xs font-semibold">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">SO Qty</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">DN Qty</span>
+      </div>
+    </div>
+  );
+
+  const CbmLegend = () => (
+    <div className="flex justify-end gap-4 text-xs font-semibold">
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">SO Total CBM</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">DN Total CBM</span>
+      </div>
+    </div>
+  );
 
   const columns = [
     { header: 'Category', accessor: 'categoryLabel' },
@@ -691,24 +742,16 @@ export default function OutboundPage() {
     );
   }
 
-  // Chart click handler - uses runtime type guards for safety
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleChartClick = (data: Record<string, unknown> | null) => {
-    if (!data) return;
-
-    const activePayload = data.activePayload as Array<{ payload: Record<string, unknown> }> | undefined;
-    if (!activePayload || !activePayload[0]) return;
+  const handleChartClick = (data: any) => {
+    if (!data || !data.activePayload || !data.activePayload[0]) return;
 
     // Per user request: exclude month granularity clicking
     if (timeGranularity === 'month') return;
 
-    const payload = activePayload[0].payload;
-    const startDate = payload.startDate as string | undefined;
-    const endDate = payload.endDate as string | undefined;
-
-    if (startDate && endDate) {
-      setFromDate(startDate);
-      setToDate(endDate);
+    const payload = data.activePayload[0].payload;
+    if (payload.startDate && payload.endDate) {
+      setFromDate(payload.startDate);
+      setToDate(payload.endDate);
       setSelectedMonth('ALL');
       setFiltersDirty(true);
       setTimeout(() => fetchSummary(true), 0);
@@ -929,18 +972,13 @@ export default function OutboundPage() {
           {/* Apply & Reset Buttons */}
           <div className="flex gap-2 items-end">
             <motion.button
-              whileHover={{ scale: downloadLoading ? 1 : 1.05, translateY: downloadLoading ? 0 : -1 }}
-              whileTap={{ scale: downloadLoading ? 1 : 0.95, translateY: 0 }}
+              whileHover={{ scale: 1.05, translateY: -1 }}
+              whileTap={{ scale: 0.95, translateY: 0 }}
               onClick={handleDownloadSummary}
-              disabled={downloadLoading}
-              title={downloadLoading ? 'Downloading...' : 'Download Summary Excel'}
-              className={`h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm transition-colors ${downloadLoading ? 'opacity-70 cursor-not-allowed' : 'hover:border-brandRed/60 hover:text-brandRed'}`}
+              title="Download Summary Excel"
+              className="h-[36px] w-[36px] flex items-center justify-center rounded-xl border border-gray-200 dark:border-slate-700 bg-white/80 dark:bg-slate-800/80 text-gray-700 dark:text-slate-200 shadow-sm hover:border-brandRed/60 hover:text-brandRed transition-colors"
             >
-              {downloadLoading ? (
-                <div className="w-4 h-4 border-2 border-gray-400/30 border-t-gray-600 rounded-full animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
+              <Download className="w-4 h-4" />
             </motion.button>
             <motion.button
               whileHover={{ scale: 1.05, translateY: -2 }}
@@ -1271,7 +1309,7 @@ export default function OutboundPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">Qty Fulfillment</h3>
-              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Quantity Ratio</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Quantity Ratio (Sort by DN Date)</p>
             </div>
           </div>
 
@@ -1366,7 +1404,7 @@ export default function OutboundPage() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900 dark:text-white">CBM Fulfillment</h3>
-              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Volume Ratio</p>
+              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Volume Ratio (Sort by DN Date)</p>
             </div>
           </div>
 
@@ -1459,14 +1497,9 @@ export default function OutboundPage() {
 
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Product Catagory</h3>
-              </div>
-              <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
-                {categoryRows.length} Categories
-              </div>
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Category Wise OutBound</h3>
             </div>
           </div>
 
@@ -1712,7 +1745,7 @@ export default function OutboundPage() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="w-full"
         >
-          <div className="relative h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden min-h-[580px]">
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1724,17 +1757,17 @@ export default function OutboundPage() {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                  Products by CBM
+                  Top 10 Product CBM Wise Chart
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Top 10 products distribution
+                  Top 10 Products Contribution CBM Wise
                 </p>
               </div>
             </div>
 
             {/* Pie Chart */}
             {topProducts.length > 0 ? (
-              <div className="flex-1 min-h-[320px]">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1787,7 +1820,7 @@ export default function OutboundPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="flex-1 min-h-[320px] flex items-center justify-center text-gray-500 dark:text-slate-400">
+              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
                 <div className="text-center">
                   <Box className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No product data available</p>
@@ -1828,7 +1861,7 @@ export default function OutboundPage() {
           transition={{ duration: 0.6, delay: 0.15 }}
           className="w-full"
         >
-          <div className="relative h-full flex flex-col bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden min-h-[580px]">
             {/* Decorative gradient blobs */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
             <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1840,7 +1873,7 @@ export default function OutboundPage() {
               </div>
               <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                  Product Catagory
+                  Category Wise OutBound
                 </h3>
                 <p className="text-sm text-gray-500 dark:text-slate-400">
                   Category distribution by CBM
@@ -1850,7 +1883,7 @@ export default function OutboundPage() {
 
             {/* Pie Chart */}
             {productCategoryDonutData.some(item => item.value > 0) ? (
-              <div className="flex-1 min-h-[320px]">
+              <div className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1897,7 +1930,7 @@ export default function OutboundPage() {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="flex-1 min-h-[320px] flex items-center justify-center text-gray-500 dark:text-slate-400">
+              <div className="h-80 flex items-center justify-center text-gray-500 dark:text-slate-400">
                 <div className="text-center">
                   <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
                   <p>No category data available</p>
@@ -1907,7 +1940,7 @@ export default function OutboundPage() {
 
             {/* Legend */}
             {productCategoryDonutData.some(item => item.value > 0) && (
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-4 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
                 {productCategoryDonutData.map((category, index) => (
                   <div key={category.name} className="flex items-center gap-2 text-xs">
                     <div
@@ -1951,7 +1984,7 @@ export default function OutboundPage() {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                    Product Performances
+                    Top 10 Product CBM Wise
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-slate-400">
                     Ranked by {topProductsRankBy === 'cbm' ? 'CBM' : 'Quantity'}
@@ -2184,7 +2217,7 @@ export default function OutboundPage() {
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: 'currentColor' }}
-                      tickFormatter={(value: number) => `${formatInLakhs(value)} L`}
+                      tickFormatter={(value: number) => formatInLakhs(value)}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                     />
@@ -2222,7 +2255,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="soQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: any) => (value / 100000).toFixed(2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2237,7 +2270,7 @@ export default function OutboundPage() {
                       <LabelList
                         dataKey="dnQty"
                         position="top"
-                        formatter={(value: any) => formatInLakhs(value)}
+                        formatter={(value: any) => (value / 100000).toFixed(2)}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -2392,14 +2425,9 @@ export default function OutboundPage() {
 
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Summary Totals</h3>
-              </div>
-              <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
-                {data?.summaryTotals?.dayData?.length || 0} Records
-              </div>
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
+              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Daily OutBound Summary</h3>
             </div>
           </div>
 
@@ -2485,9 +2513,6 @@ export default function OutboundPage() {
                           <div className="relative grid grid-cols-8 gap-2 items-center">
                             {/* Date */}
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-bold text-gray-500 dark:text-slate-400">
-                                {String(index + 1).padStart(2, '0')}
-                              </span>
                               <span className="text-gray-900 dark:text-slate-200 text-xs font-medium truncate">
                                 {day.label}
                               </span>
@@ -2495,7 +2520,7 @@ export default function OutboundPage() {
 
                             {/* DN Qty */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-green-500/10 border border-green-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-green-500/10 border border-green-500/30 w-24 flex items-center justify-center">
                                 <span className="text-green-600 dark:text-green-400 text-xs font-medium font-mono">
                                   {formatNumber(day.dnQty)}
                                 </span>
@@ -2504,7 +2529,7 @@ export default function OutboundPage() {
 
                             {/* DN CBM */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
                                 <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
                                   {formatNumber(day.dnCbm, 2)}
                                 </span>
@@ -2513,7 +2538,7 @@ export default function OutboundPage() {
 
                             {/* EDEL DN Qty */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 w-24 flex items-center justify-center">
                                 <span className="text-purple-600 dark:text-purple-400 text-xs font-medium font-mono">
                                   {formatNumber(day.edelDnQty)}
                                 </span>
@@ -2522,7 +2547,7 @@ export default function OutboundPage() {
 
                             {/* EDEL DN CBM */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-orange-500/10 border border-orange-500/30 w-24 flex items-center justify-center">
                                 <span className="text-orange-600 dark:text-orange-400 text-xs font-medium font-mono">
                                   {formatNumber(day.edelDnCbm, 2)}
                                 </span>
@@ -2531,7 +2556,7 @@ export default function OutboundPage() {
 
                             {/* Pending Qty (SO - DN) */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 w-24 flex items-center justify-center">
                                 <span className="text-red-600 dark:text-red-400 text-xs font-medium font-mono">
                                   {formatNumber((day.soQty || 0) - (day.dnQty || 0))}
                                 </span>
@@ -2540,7 +2565,7 @@ export default function OutboundPage() {
 
                             {/* Pending CBM (SO - DN) */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 w-24 flex items-center justify-center">
                                 <span className="text-amber-600 dark:text-amber-400 text-xs font-medium font-mono">
                                   {formatNumber((day.soCbm || 0) - (day.dnCbm || 0), 2)}
                                 </span>
@@ -2549,7 +2574,7 @@ export default function OutboundPage() {
 
                             {/* SO Qty */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                              <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
                                 <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
                                   {formatNumber(day.soQty)}
                                 </span>
@@ -2575,49 +2600,49 @@ export default function OutboundPage() {
 
                   {/* DN Qty */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-2 py-1 rounded-md bg-green-500/20 border border-green-500/30 inline-flex items-center justify-center">
+                    <div className="px-2 py-1 rounded-md bg-green-500/20 border border-green-500/30 w-24 flex items-center justify-center">
                       <span className="text-green-700 dark:text-green-300 text-sm font-bold font-mono min-w-[4rem] text-center">{formatNumber(data.summaryTotals.totalDnQty)}</span>
                     </div>
                   </div>
 
                   {/* DN CBM */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
                       <span className="text-blue-700 dark:text-blue-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalDnCbm, 2)}</span>
                     </div>
                   </div>
 
                   {/* EDEL Qty */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 w-24 flex items-center justify-center">
                       <span className="text-purple-700 dark:text-purple-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnQty)}</span>
                     </div>
                   </div>
 
                   {/* EDEL CBM */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 w-24 flex items-center justify-center">
                       <span className="text-orange-700 dark:text-orange-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}</span>
                     </div>
                   </div>
 
                   {/* Pend Qty */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 w-24 flex items-center justify-center">
                       <span className="text-red-700 dark:text-red-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}</span>
                     </div>
                   </div>
 
                   {/* Pend CBM */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 w-24 flex items-center justify-center">
                       <span className="text-amber-700 dark:text-amber-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}</span>
                     </div>
                   </div>
 
                   {/* SO Qty */}
                   <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                    <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
                       <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalSoQty)}</span>
                     </div>
                   </div>
@@ -2649,13 +2674,11 @@ export default function OutboundPage() {
 
           {/* Header */}
           <div className="flex items-center justify-between mb-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+              <div>
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
-              </div>
-              <div className="px-3 py-1.5 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg border border-gray-200/50 dark:border-slate-600/50 text-sm font-semibold text-gray-700 dark:text-slate-300">
-                {data?.fulfillmentTable?.length || 0} Dates
+                <p className="text-sm text-gray-500 dark:text-slate-400">Daily Fulfillments Rates ( Sort by Dispatch by Date)</p>
               </div>
             </div>
           </div>
@@ -2752,7 +2775,7 @@ export default function OutboundPage() {
 
                           {/* SO Qty */}
                           <div className="flex justify-center">
-                            <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center">
+                            <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
                               <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
                                 {formatNumber(row.soQty)}
                               </span>
@@ -2761,7 +2784,7 @@ export default function OutboundPage() {
 
                           {/* DN Qty */}
                           <div className="flex justify-center">
-                            <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center">
+                            <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
                               <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
                                 {formatNumber(row.dnQty)}
                               </span>
@@ -2770,7 +2793,7 @@ export default function OutboundPage() {
 
                           {/* Pending */}
                           <div className="flex justify-center">
-                            <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${row.pending === 0
+                            <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${row.pending === 0
                               ? 'bg-green-500/10 border border-green-500/30'
                               : 'bg-red-500/10 border border-red-500/30'
                               }`}>
@@ -2785,7 +2808,7 @@ export default function OutboundPage() {
 
                           {/* Percentage */}
                           <div className="flex justify-center">
-                            <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${row.percentage >= 100
+                            <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${row.percentage >= 100
                               ? 'bg-green-500/20 border-2 border-green-500/50'
                               : row.percentage >= 90
                                 ? 'bg-blue-500/10 border border-blue-500/30'
@@ -2829,7 +2852,7 @@ export default function OutboundPage() {
 
                     {/* Avg SO Qty */}
                     <div className="flex justify-center">
-                      <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center">
+                      <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 w-24 flex items-center justify-center">
                         <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold font-mono">
                           {formatNumber(avgSoQty)}
                         </span>
@@ -2838,7 +2861,7 @@ export default function OutboundPage() {
 
                     {/* Avg DN Qty */}
                     <div className="flex justify-center">
-                      <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center">
+                      <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 w-24 flex items-center justify-center">
                         <span className="text-blue-700 dark:text-blue-300 text-sm font-bold font-mono">
                           {formatNumber(avgDnQty)}
                         </span>
@@ -2847,7 +2870,7 @@ export default function OutboundPage() {
 
                     {/* Avg Pending */}
                     <div className="flex justify-center">
-                      <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${avgPending === 0
+                      <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${avgPending === 0
                         ? 'bg-green-500/20 border-2 border-green-500/50'
                         : 'bg-red-500/20 border-2 border-red-500/50'
                         }`}>
@@ -2862,7 +2885,7 @@ export default function OutboundPage() {
 
                     {/* Avg Percentage */}
                     <div className="flex justify-center">
-                      <div className={`px-2 py-1 rounded-md inline-flex items-center justify-center ${avgPercentage >= 100
+                      <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${avgPercentage >= 100
                         ? 'bg-green-500/30 border-2 border-green-500/60'
                         : avgPercentage >= 90
                           ? 'bg-blue-500/20 border-2 border-blue-500/50'
