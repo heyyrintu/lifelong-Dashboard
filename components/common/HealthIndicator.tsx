@@ -32,7 +32,7 @@ export function HealthIndicator() {
         database: data.database === 'connected',
         lastCheck: new Date(),
       });
-    } catch (error) {
+    } catch {
       setHealth({
         frontend: true,
         backend: false,
@@ -46,7 +46,7 @@ export function HealthIndicator() {
     checkHealth();
     const interval = setInterval(checkHealth, 300000); // Check every 5 minutes (was every 60 seconds)
     return () => clearInterval(interval);
-  }, []);
+  }, [checkHealth]);
 
   const allHealthy = health.frontend && health.backend && health.database;
   const hasIssues = !health.backend || !health.database;

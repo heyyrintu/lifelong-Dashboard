@@ -25,8 +25,8 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function formatAuthError(error: any, fallbackMessage: string): string {
-  const message = typeof error?.message === 'string' ? error.message : '';
+function formatAuthError(error: unknown, fallbackMessage: string): string {
+  const message = typeof error?.message === 'string' ? (error as Error).message : '';
 
   // In browsers, CORS/mixed-content/DNS failures frequently surface as a generic TypeError: "Failed to fetch".
   if (
@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const memberships = await teams.listMemberships(ADMIN_TEAM_ID);
       // If user has any membership in admin team, they are admin
       setIsAdmin(memberships.total > 0);
-    } catch (error) {
+    } catch {
       // User is not in admin team or team doesn't exist
       setIsAdmin(false);
     }
@@ -75,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // If successful, get the user
       const currentUser = await account.get();
       return currentUser;
-    } catch (error) {
+    } catch {
       // No active session
       return null;
     }
@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await account.getSession('current');
       // Session exists, delete it
       await account.deleteSession('current');
-    } catch (error) {
+    } catch {
       // No session exists, nothing to delete
     }
   }, []);
@@ -129,9 +129,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               // Clean up URL
               window.history.replaceState({}, '', window.location.pathname);
             }
-          } catch (error: any) {
+          } catch (error: unknown) {
             // If session already active error, just get the current user
-            if (error.message?.includes('session is active') || error.code === 401) {
+            const errorMessage = error instanceof Error ? error.message : '';
+            const errorCode = typeof error === 'object' && error !== null && 'code' in error 
+              ? (error as { code?: number }).code 
+              : undefined;
+            if (errorMessage?.includes('session is active') || errorCode === 401) {
               const currentUser = await account.get();
               if (isMounted) {
                 setUser(currentUser);
@@ -200,16 +204,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await checkAdminStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle "session already active" error gracefully
-      if (error.message?.includes('session is active') || error.message?.includes('session is prohibited')) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage?.includes('session is active') || errorMessage?.includes('session is prohibited')) {
         // Try to get the existing user
         try {
           const currentUser = await account.get();
           setUser(currentUser);
           await checkAdminStatus();
           return;
-        } catch (getError) {
+        } catch {
           // If we can't get user, try to clear session and retry
           await deleteExistingSessionIfNeeded();
           throw new Error('Session error. Please try again.');
@@ -244,15 +249,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await checkAdminStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle "session already active" error gracefully
-      if (error.message?.includes('session is active') || error.message?.includes('session is prohibited')) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage?.includes('session is active') || errorMessage?.includes('session is prohibited')) {
         try {
           const currentUser = await account.get();
           setUser(currentUser);
           await checkAdminStatus();
           return;
-        } catch (getError) {
+        } catch {
           await deleteExistingSessionIfNeeded();
           throw new Error('Session error. Please try again.');
         }
@@ -267,7 +273,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const token = await account.createEmailToken('unique()', email);
       return token;
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(formatAuthError(error, 'Failed to send email OTP'));
     }
   }, []);
@@ -294,15 +300,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await checkAdminStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle "session already active" error gracefully
-      if (error.message?.includes('session is active') || error.message?.includes('session is prohibited')) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage?.includes('session is active') || errorMessage?.includes('session is prohibited')) {
         try {
           const currentUser = await account.get();
           setUser(currentUser);
           await checkAdminStatus();
           return;
-        } catch (getError) {
+        } catch {
           await deleteExistingSessionIfNeeded();
           throw new Error('Session error. Please try again.');
         }
@@ -333,7 +340,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const token = await account.createPhoneToken('unique()', formattedPhone);
       return token;
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(formatAuthError(error, 'Failed to send phone OTP'));
     }
   }, []);
@@ -360,15 +367,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await account.get();
       setUser(currentUser);
       await checkAdminStatus();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle "session already active" error gracefully
-      if (error.message?.includes('session is active') || error.message?.includes('session is prohibited')) {
+      const errorMessage = error instanceof Error ? error.message : '';
+      if (errorMessage?.includes('session is active') || errorMessage?.includes('session is prohibited')) {
         try {
           const currentUser = await account.get();
           setUser(currentUser);
           await checkAdminStatus();
           return;
-        } catch (getError) {
+        } catch {
           await deleteExistingSessionIfNeeded();
           throw new Error('Session error. Please try again.');
         }
@@ -394,7 +402,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const failureUrl = `${window.location.origin}/login`;
 
       account.createOAuth2Session(OAuthProvider.Google, successUrl, failureUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(formatAuthError(error, 'Google login failed'));
     }
   }, [checkExistingSession]);
@@ -414,7 +422,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const failureUrl = `${window.location.origin}/login`;
 
       account.createOAuth2Session(OAuthProvider.Microsoft, successUrl, failureUrl);
-    } catch (error: any) {
+    } catch (error: unknown) {
       throw new Error(formatAuthError(error, 'Microsoft login failed'));
     }
   }, [checkExistingSession]);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminRoute } from '@/components/auth/AdminRoute';
@@ -10,15 +10,11 @@ import {
   Users,
   Clock,
   Search,
-  Download,
-  Filter,
   CheckCircle,
   XCircle,
   Coffee,
   Sun,
   AlertCircle,
-  ChevronDown,
-  RefreshCw,
   FileSpreadsheet,
   TrendingUp,
   Timer,
@@ -99,17 +95,13 @@ function ViewAttendancePageContent() {
   });
   const [toDate, setToDate] = useState(() => new Date().toISOString().split('T')[0]);
   const [employeeTypeFilter, setEmployeeTypeFilter] = useState<'ALL' | 'ON_ROLL' | 'OFF_ROLL'>('ALL');
-  const [vendorFilter, setVendorFilter] = useState('');
+  const [vendorFilter, _setVendorFilter] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'records' | 'summary'>('records');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [fromDate, toDate, employeeTypeFilter, vendorFilter]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -138,7 +130,7 @@ function ViewAttendancePageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fromDate, toDate, employeeTypeFilter, vendorFilter]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -174,6 +166,10 @@ function ViewAttendancePageContent() {
       }
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const formatTime = (dateStr?: string): string => {
     if (!dateStr) return '-';

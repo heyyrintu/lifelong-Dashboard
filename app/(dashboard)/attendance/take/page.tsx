@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { authenticatedFetch } from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AdminRoute } from '@/components/auth/AdminRoute';
@@ -19,7 +19,6 @@ import {
   Coffee,
   Sun,
   AlertCircle,
-  ChevronDown,
   RefreshCw,
 } from 'lucide-react';
 
@@ -80,11 +79,7 @@ function TakeAttendancePageContent() {
     location: 'Farukh Nagar',
   });
 
-  useEffect(() => {
-    fetchEmployees();
-  }, [employeeTypeFilter]);
-
-  const fetchEmployees = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -117,7 +112,11 @@ function TakeAttendancePageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [employeeTypeFilter]);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
 
   const handleAddEmployee = async () => {
     try {
