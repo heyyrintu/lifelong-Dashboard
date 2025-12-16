@@ -692,7 +692,8 @@ function InventoryPageContent() {
     return new Date(year, 0, 1 + daysOffset);
   };
 
-  const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
+  // Memoized chart display points - expensive calculation only runs when dependencies change
+  const displayPoints = useMemo((): InventoryTimeSeriesPoint[] => {
     // Use fullChartData so charts always show all months regardless of filter
     if (!fullChartData || !fullChartData.points) return [];
     const points = fullChartData.points;
@@ -768,7 +769,7 @@ function InventoryPageContent() {
           edelTotalCbm: Math.round((group.data.edelTotalCbm / count) * 100) / 100,
         };
       });
-  };
+  }, [fullChartData, timeGranularity]);
 
   // Empty state / error state
   if (!loading && error) {
@@ -788,8 +789,6 @@ function InventoryPageContent() {
       </div>
     );
   }
-
-  const displayPoints = getDisplayPoints();
 
   const handleChartClick = (data: any) => {
     if (!data || !data.activePayload || !data.activePayload[0]) return;

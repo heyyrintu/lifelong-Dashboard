@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useDateFilter } from '@/lib/date-filter-context';
 import { formatHeaderDateShort } from '@/lib/utils';
@@ -126,7 +126,34 @@ interface TopProduct {
   percentageOfTotal: number;
 }
 
+// Memoized Legend components - moved outside to prevent re-renders
+const QtyLegend = React.memo(() => (
+  <div className="flex justify-end gap-4 text-xs font-semibold">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+      <span className="text-gray-700 dark:text-slate-300">SO Qty</span>
+    </div>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+      <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+      <span className="text-gray-700 dark:text-slate-300">DN Qty</span>
+    </div>
+  </div>
+));
+QtyLegend.displayName = 'QtyLegend';
 
+const CbmLegend = React.memo(() => (
+  <div className="flex justify-end gap-4 text-xs font-semibold">
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
+      <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
+      <span className="text-gray-700 dark:text-slate-300">SO Total CBM</span>
+    </div>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+      <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+      <span className="text-gray-700 dark:text-slate-300">DN Total CBM</span>
+    </div>
+  </div>
+));
+CbmLegend.displayName = 'CbmLegend';
 
 export default function OutboundPage() {
   const [loading, setLoading] = useState(true);
@@ -686,31 +713,7 @@ export default function OutboundPage() {
     return month;
   }, []);
 
-  const QtyLegend = () => (
-    <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">SO Qty</span>
-      </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">DN Qty</span>
-      </div>
-    </div>
-  );
-
-  const CbmLegend = () => (
-    <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">SO Total CBM</span>
-      </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">DN Total CBM</span>
-      </div>
-    </div>
-  );
+  // QtyLegend and CbmLegend are now defined outside with React.memo
 
   const columns = [
     { header: 'Category', accessor: 'categoryLabel' },
