@@ -657,22 +657,22 @@ export class InboundService implements OnModuleInit {
     };
   }
 
+  /**
+   * OPTIMIZATION: Get available months using SQL date extraction
+   * Previous: Fetch all distinct dates, process in JS
+   * After: Use SQL date_trunc/extract for direct month aggregation
+   */
   private async getAvailableMonths(uploadIds: string[]): Promise<string[]> {
-    const rows = await this.prisma.inboundRow.findMany({
-      where: { uploadId: { in: uploadIds }, dateOfUnload: { not: null } },
-      select: { dateOfUnload: true },
-      distinct: ['dateOfUnload'],
-    });
+    const result = await this.prisma.$queryRawUnsafe<Array<{ month_str: string }>>(`
+      SELECT DISTINCT 
+        TO_CHAR(date_of_unload, 'YYYY-MM') as month_str
+      FROM inbound_rows
+      WHERE upload_id = ANY($1)
+        AND date_of_unload IS NOT NULL
+      ORDER BY month_str
+    `, uploadIds);
 
-    const months = new Set<string>();
-    rows.forEach(row => {
-      if (row.dateOfUnload) {
-        const date = new Date(row.dateOfUnload);
-        months.add(`${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`);
-      }
-    });
-
-    return Array.from(months).sort();
+    return result.map(r => r.month_str).filter(Boolean);
   }
 
   private async getProductCategories(uploadIds: string[]): Promise<string[]> {
@@ -689,6 +689,12 @@ export class InboundService implements OnModuleInit {
       .sort();
   }
 
+  /**
+   * OPTIMIZATION: Generate time series using SQL aggregation
+   * Previous: Fetch ALL rows into memory, process in JavaScript
+   * After: Use SQL GROUP BY for direct aggregation in PostgreSQL
+   * This dramatically improves performance for large datasets
+   */
   private async generateTimeSeries(
     uploadIds: string[],
     fromDate?: string,
@@ -696,102 +702,113 @@ export class InboundService implements OnModuleInit {
     productCategories?: string[],
     granularity: 'month' | 'week' | 'day' = 'month',
   ): Promise<TimeSeriesData> {
-    // Build where clause
-    const where: any = { uploadId: { in: uploadIds } };
+    // Build parameterized query
+    const params: any[] = [uploadIds];
+    let dateCondition = '';
+    let categoryCondition = '';
+
     if (fromDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, gte: this.parseLocalDate(fromDate) };
+      params.push(this.parseLocalDate(fromDate));
+      dateCondition += ` AND date_of_unload >= $${params.length}`;
     }
     if (toDate) {
-      where.dateOfUnload = { ...where.dateOfUnload, lte: this.parseLocalDate(toDate, true) };
+      params.push(this.parseLocalDate(toDate, true));
+      dateCondition += ` AND date_of_unload <= $${params.length}`;
     }
     if (productCategories && productCategories.length > 0) {
-      where.productCategory = { in: productCategories as ProductCategory[] };
+      const placeholders = productCategories.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
+      params.push(...productCategories);
+      categoryCondition = ` AND product_category IN (${placeholders})`;
     }
 
-    const rows = await this.prisma.inboundRow.findMany({
-      where,
-      select: { dateOfUnload: true, productCategory: true, receivedQty: true, totalCbm: true },
-    });
+    // Dynamic SQL based on granularity
+    let groupByExpr: string;
+    let periodExpr: string;
 
-    const groupedData: { [key: string]: { edelReceivedQty: number; edelTotalCbm: number; receivedQty: number; totalCbm: number; dates: string[] } } = {};
+    switch (granularity) {
+      case 'day':
+        groupByExpr = `DATE(date_of_unload)`;
+        periodExpr = `TO_CHAR(DATE(date_of_unload), 'YYYY-MM-DD')`;
+        break;
+      case 'week':
+        groupByExpr = `DATE_TRUNC('week', date_of_unload)`;
+        periodExpr = `TO_CHAR(DATE_TRUNC('week', date_of_unload), 'IYYY-IW')`;
+        break;
+      case 'month':
+      default:
+        groupByExpr = `DATE_TRUNC('month', date_of_unload)`;
+        periodExpr = `TO_CHAR(DATE_TRUNC('month', date_of_unload), 'YYYY-MM')`;
+        break;
+    }
+
+    // Single optimized SQL query with all aggregations
+    const results = await this.prisma.$queryRawUnsafe<Array<{
+      period: Date;
+      period_label: string;
+      received_qty: number;
+      total_cbm: number;
+      edel_received_qty: number;
+      edel_total_cbm: number;
+    }>>(`
+      SELECT 
+        ${groupByExpr} as period,
+        ${periodExpr} as period_label,
+        COALESCE(SUM(received_qty), 0) as received_qty,
+        COALESCE(SUM(total_cbm), 0) as total_cbm,
+        COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN received_qty ELSE 0 END), 0) as edel_received_qty,
+        COALESCE(SUM(CASE WHEN product_category = 'EDEL' THEN total_cbm ELSE 0 END), 0) as edel_total_cbm
+      FROM inbound_rows
+      WHERE upload_id = ANY($1)
+        AND date_of_unload IS NOT NULL
+        ${dateCondition}
+        ${categoryCondition}
+      GROUP BY ${groupByExpr}
+      ORDER BY period
+    `, ...params);
+
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-    rows.forEach(row => {
-      if (!row.dateOfUnload) return;
-      const date = new Date(row.dateOfUnload);
-      let bucketKey: string;
-
-      switch (granularity) {
-        case 'month':
-          bucketKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-          break;
-        case 'week':
-          const weekNum = this.getISOWeek(date);
-          bucketKey = `${date.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
-          break;
-        case 'day':
-          bucketKey = formatDateAsISO(date);
-          break;
-      }
-
-      if (!groupedData[bucketKey]) {
-        groupedData[bucketKey] = { edelReceivedQty: 0, edelTotalCbm: 0, receivedQty: 0, totalCbm: 0, dates: [] };
-      }
-      const received = row.receivedQty || 0;
-      const cbm = row.totalCbm || 0;
-      groupedData[bucketKey].receivedQty += received;
-      groupedData[bucketKey].totalCbm += cbm;
-      if (row.productCategory === ProductCategory.EDEL) {
-        groupedData[bucketKey].edelReceivedQty += received;
-        groupedData[bucketKey].edelTotalCbm += cbm;
-      }
-      groupedData[bucketKey].dates.push(formatDateAsISO(date));
-    });
-
-    const points: TimeSeriesPoint[] = Object.keys(groupedData).sort().map(bucketKey => {
-      const data = groupedData[bucketKey];
+    const points: TimeSeriesPoint[] = results.map(row => {
+      const period = new Date(row.period);
       let label: string;
       let startDate: string;
       let endDate: string;
 
-      if (granularity === 'month') {
-        const [year, month] = bucketKey.split('-');
-        label = `${monthNames[parseInt(month) - 1]} ${year}`;
-        startDate = `${bucketKey}-01`;
-        const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-        endDate = `${bucketKey}-${String(lastDay).padStart(2, '0')}`;
-      } else if (granularity === 'week') {
-        // Parse week key (format: YYYY-WNN)
-        const [weekYear, weekNumStr] = bucketKey.split('-W');
-        const weekNum = parseInt(weekNumStr);
+      switch (granularity) {
+        case 'day':
+          startDate = formatDateAsISO(period);
+          endDate = startDate;
+          label = `${period.getDate()} ${monthNames[period.getMonth()]}`;
+          break;
+        case 'week':
+          startDate = formatDateAsISO(period);
+          const weekEnd = new Date(period);
+          weekEnd.setDate(weekEnd.getDate() + 6);
+          endDate = formatDateAsISO(weekEnd);
 
-        // Get week start date
-        const weekStart = this.getWeekStart(parseInt(weekYear), weekNum);
+          // Calculate week number within the month for label
+          const weekMonth = period.getMonth();
+          const firstDayOfMonth = new Date(period.getFullYear(), weekMonth, 1);
+          const weekOfMonth = Math.ceil((period.getDate() + firstDayOfMonth.getDay()) / 7);
 
-        // Calculate week number within the month
-        const weekMonth = weekStart.getMonth();
-        const firstDayOfMonth = new Date(weekStart.getFullYear(), weekMonth, 1);
-        const weekOfMonth = Math.ceil((weekStart.getDate() + firstDayOfMonth.getDay()) / 7);
-
-        label = `Week${weekOfMonth}'${monthNames[weekMonth]}`;
-
-        const sortedDates = data.dates.sort();
-        startDate = sortedDates[0] || bucketKey;
-        endDate = sortedDates[sortedDates.length - 1] || bucketKey;
-      } else {
-        const date = new Date(bucketKey);
-        label = `${date.getDate()} ${monthNames[date.getMonth()]}`;
-        startDate = bucketKey;
-        endDate = bucketKey;
+          label = `Week${weekOfMonth}'${monthNames[weekMonth]}`;
+          break;
+        case 'month':
+        default:
+          startDate = formatDateAsISO(period);
+          const monthEnd = new Date(period.getFullYear(), period.getMonth() + 1, 0);
+          endDate = formatDateAsISO(monthEnd);
+          label = `${monthNames[period.getMonth()]}'${period.getFullYear().toString().slice(-2)}`;
+          break;
       }
 
       return {
-        key: bucketKey,
+        key: row.period_label,
         label,
-        edelReceivedQty: Math.round(data.edelReceivedQty * 100) / 100,
-        receivedQty: Math.round(data.receivedQty * 100) / 100,
-        totalCbm: Math.round(data.totalCbm * 100) / 100,
-        edelTotalCbm: Math.round(data.edelTotalCbm * 100) / 100,
+        edelReceivedQty: Math.round(Number(row.edel_received_qty) * 100) / 100,
+        receivedQty: Math.round(Number(row.received_qty) * 100) / 100,
+        totalCbm: Math.round(Number(row.total_cbm) * 100) / 100,
+        edelTotalCbm: Math.round(Number(row.edel_total_cbm) * 100) / 100,
         startDate,
         endDate,
       };

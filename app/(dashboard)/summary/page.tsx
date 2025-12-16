@@ -596,19 +596,51 @@ export default function SummaryPage() {
     return totalSoQty > 0 ? (totalDnQty / totalSoQty) * 100 : 0;
   }, [data?.fulfillmentTable]);
 
-  // Calculate last day fulfillment data
+  // Calculate last day fulfillment data (yesterday = current date - 1 day)
   const lastDayFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return { percentage: 0, date: '', soQty: 0, dnQty: 0, pending: 0 };
 
-    // Get the last row (most recent date)
-    const lastRow = rows[rows.length - 1];
+    // Calculate yesterday's date (current date - 1 day)
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(today.getDate() - 1);
+
+    // Format yesterday as DD-MM-YYYY to match the fulfillment table date format
+    const yesterdayFormatted = `${String(yesterday.getDate()).padStart(2, '0')}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${yesterday.getFullYear()}`;
+
+    // Find the row that matches yesterday's date
+    const yesterdayRow = rows.find(row => {
+      // Normalize the row date to DD-MM-YYYY format for comparison
+      let rowDate = row.date || '';
+
+      // If date is in YYYY-MM-DD format, convert it
+      const isoMatch = rowDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (isoMatch) {
+        rowDate = `${String(isoMatch[3]).padStart(2, '0')}-${String(isoMatch[2]).padStart(2, '0')}-${isoMatch[1]}`;
+      }
+
+      return rowDate === yesterdayFormatted;
+    });
+
+    // If yesterday's data is found, return it; otherwise return default values
+    if (yesterdayRow) {
+      return {
+        percentage: yesterdayRow.percentage || 0,
+        date: yesterdayRow.date || '',
+        soQty: yesterdayRow.soQty || 0,
+        dnQty: yesterdayRow.dnQty || 0,
+        pending: yesterdayRow.pending || 0,
+      };
+    }
+
+    // Fallback: if yesterday's data is not available, show a message
     return {
-      percentage: lastRow.percentage || 0,
-      date: lastRow.date || '',
-      soQty: lastRow.soQty || 0,
-      dnQty: lastRow.dnQty || 0,
-      pending: lastRow.pending || 0,
+      percentage: 0,
+      date: yesterdayFormatted,
+      soQty: 0,
+      dnQty: 0,
+      pending: 0
     };
   }, [data?.fulfillmentTable]);
 

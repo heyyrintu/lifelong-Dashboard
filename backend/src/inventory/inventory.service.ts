@@ -135,6 +135,8 @@ interface DateColumn {
 @Injectable()
 export class InventoryService {
   private cache = new Map<string, InventorySummaryResponse>();
+  private fastMovingCache = new Map<string, FastMovingSkusResponse>();
+  private zeroOrderCache = new Map<string, ZeroOrderProductsResponse>();
   // Cache version - increment to invalidate all cached data after logic changes
   private readonly CACHE_VERSION = 'v15';
 
@@ -144,6 +146,8 @@ export class InventoryService {
   ) {
     // Clear cache on service initialization to ensure fresh data after deployments
     this.cache.clear();
+    this.fastMovingCache.clear();
+    this.zeroOrderCache.clear();
   }
 
   /**
@@ -347,6 +351,8 @@ export class InventoryService {
 
       // Clear cache
       this.cache.clear();
+      this.fastMovingCache.clear();
+      this.zeroOrderCache.clear();
 
       // Get date range for response
       const dateRange = await this.getAvailableDateRange([upload.id]);
@@ -362,7 +368,7 @@ export class InventoryService {
         const existingUpload = await this.prisma.inventoryUpload.findUnique({
           where: { id: upload.id },
         });
-        
+
         if (existingUpload) {
           await this.prisma.inventoryUpload.update({
             where: { id: upload.id },
@@ -659,6 +665,8 @@ export class InventoryService {
 
     // Clear cache
     this.cache.clear();
+    this.fastMovingCache.clear();
+    this.zeroOrderCache.clear();
   }
 
   /**
@@ -964,6 +972,18 @@ export class InventoryService {
   ): Promise<FastMovingSkusResponse> {
     const startTime = Date.now();
 
+    // Generate cache key
+    const cacheKey = `${this.CACHE_VERSION}-fast-${warehouse || 'ALL'}-${productCategory || 'ALL'}-${minAvgQty || 50}-${limit || 50}`;
+
+    // Check cache first
+    const cached = this.fastMovingCache.get(cacheKey);
+    if (cached) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`FastMovingSkus cache hit: ${Date.now() - startTime}ms`);
+      }
+      return cached;
+    }
+
     // Get all processed inventory uploads
     const allUploads = await this.prisma.inventoryUpload.findMany({
       where: { status: 'processed' },
@@ -1218,7 +1238,7 @@ export class InventoryService {
       }
     }
 
-    return {
+    const result: FastMovingSkusResponse = {
       skus,
       summary,
       filters: {
@@ -1227,6 +1247,15 @@ export class InventoryService {
       },
       salesDateRange,
     };
+
+    // Store in cache
+    this.fastMovingCache.set(cacheKey, result);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`FastMovingSkus computed: ${Date.now() - startTime}ms`);
+    }
+
+    return result;
   }
 
   /**
@@ -1248,6 +1277,18 @@ export class InventoryService {
     toDate?: string,
   ): Promise<ZeroOrderProductsResponse> {
     const startTime = Date.now();
+
+    // Generate cache key
+    const cacheKey = `${this.CACHE_VERSION}-zero-${warehouse || 'ALL'}-${productCategory || 'ALL'}-${minDaysInStock || 7}-${limit || 50}-${fromDate || ''}-${toDate || ''}`;
+
+    // Check cache first
+    const cached = this.zeroOrderCache.get(cacheKey);
+    if (cached) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`ZeroOrderProducts cache hit: ${Date.now() - startTime}ms`);
+      }
+      return cached;
+    }
 
     // Get all processed inventory uploads
     const inventoryUploads = await this.prisma.inventoryUpload.findMany({
@@ -1498,7 +1539,7 @@ export class InventoryService {
       this.getAvailableProductCategories(inventoryUploadIds),
     ]);
 
-    return {
+    const result: ZeroOrderProductsResponse = {
       products,
       summary,
       filters: {
@@ -1506,6 +1547,15 @@ export class InventoryService {
         availableProductCategories: ['ALL', ...availableProductCategories],
       },
     };
+
+    // Store in cache
+    this.zeroOrderCache.set(cacheKey, result);
+
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`ZeroOrderProducts computed: ${Date.now() - startTime}ms`);
+    }
+
+    return result;
   }
 
   // Helper methods
