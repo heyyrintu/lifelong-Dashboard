@@ -191,6 +191,7 @@ export default function SummaryPage() {
   const [availableMonths, setAvailableMonths] = useState<string[]>(['ALL']);
   const [availableWarehouses, setAvailableWarehouses] = useState<string[]>(['ALL']);
   const [availableDates, setAvailableDates] = useState<{ minDate: string; maxDate: string } | null>(null);
+  const [selectedFulfillmentDay, setSelectedFulfillmentDay] = useState<'today' | 'yesterday' | '7days'>('today');
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
 
@@ -254,7 +255,7 @@ export default function SummaryPage() {
         // Show the full date range for the selected month in DD-MM-YYYY format using UTC to avoid tz shifts
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-            return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
@@ -565,21 +566,102 @@ export default function SummaryPage() {
     return totalSoQty > 0 ? (totalDnQty / totalSoQty) * 100 : 0;
   }, [data?.fulfillmentTable]);
 
-  // Calculate last day fulfillment data
+  // Calculate last day fulfillment data based on selected day (today/yesterday/7days)
   const lastDayFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return { percentage: 0, date: '', soQty: 0, dnQty: 0, pending: 0 };
-    
-    // Get the last row (most recent date)
-    const lastRow = rows[rows.length - 1];
-    return {
-      percentage: lastRow.percentage || 0,
-      date: lastRow.date || '',
-      soQty: lastRow.soQty || 0,
-      dnQty: lastRow.dnQty || 0,
-      pending: lastRow.pending || 0,
+
+    const now = new Date();
+
+    // Helper function to format date as DD-MM-YYYY
+    const formatDate = (d: Date) => {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${dd}-${mm}-${yyyy}`;
     };
-  }, [data?.fulfillmentTable]);
+
+    // Helper function to format date as YYYY-MM-DD
+    const formatDateISO = (d: Date) => {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yyyy = d.getFullYear();
+      return `${yyyy}-${mm}-${dd}`;
+    };
+
+    // For 7 days, aggregate data from last 7 days
+    if (selectedFulfillmentDay === '7days') {
+      const dates: string[] = [];
+      const datesISO: string[] = [];
+
+      // Generate last 7 days dates
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+        dates.push(formatDate(d));
+        datesISO.push(formatDateISO(d));
+      }
+
+      // Filter rows for last 7 days
+      const matchingRows = rows.filter(row => {
+        return dates.includes(row.date) || datesISO.includes(row.date);
+      });
+
+      if (matchingRows.length > 0) {
+        const totalSoQty = matchingRows.reduce((sum, row) => sum + (row.soQty || 0), 0);
+        const totalDnQty = matchingRows.reduce((sum, row) => sum + (row.dnQty || 0), 0);
+        const totalPending = matchingRows.reduce((sum, row) => sum + (row.pending || 0), 0);
+        const percentage = totalSoQty > 0 ? (totalDnQty / totalSoQty) * 100 : 0;
+
+        const startDate = formatDate(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000));
+        const endDate = formatDate(now);
+
+        return {
+          percentage,
+          date: `${startDate} - ${endDate}`,
+          soQty: totalSoQty,
+          dnQty: totalDnQty,
+          pending: totalPending,
+        };
+      }
+
+      return {
+        percentage: 0,
+        date: 'Last 7 Days',
+        soQty: 0,
+        dnQty: 0,
+        pending: 0
+      };
+    }
+
+    // For today or yesterday, get single day data
+    const targetDate = selectedFulfillmentDay === 'today' ? now : new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const targetDateStr = formatDate(targetDate);
+    const targetDateStrISO = formatDateISO(targetDate);
+
+    // Find the matching row
+    const matchingRow = rows.find(row => {
+      return row.date === targetDateStr || row.date === targetDateStrISO;
+    });
+
+    if (matchingRow) {
+      return {
+        percentage: matchingRow.percentage || 0,
+        date: matchingRow.date || '',
+        soQty: matchingRow.soQty || 0,
+        dnQty: matchingRow.dnQty || 0,
+        pending: matchingRow.pending || 0,
+      };
+    }
+
+    // Fallback: if no match found, return empty data with the target date
+    return {
+      percentage: 0,
+      date: targetDateStr,
+      soQty: 0,
+      dnQty: 0,
+      pending: 0
+    };
+  }, [data?.fulfillmentTable, selectedFulfillmentDay]);
 
   // Calculate monthly fulfillment rates for line chart
   // Use fullFulfillmentTable so the Monthly Fulfillment chart always shows all months (unfiltered)
@@ -1244,11 +1326,43 @@ export default function SummaryPage() {
                     <Clock className="w-5 h-5 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Last Day Fulfillment</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Daily Fulfillment</h3>
                   </div>
                 </div>
-                <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
-                  {lastDayFulfillment.date}
+                <div className="flex items-center gap-2">
+                  {/* Today/Yesterday Toggle Buttons */}
+                  <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-lg p-1">
+                    <button
+                      onClick={() => setSelectedFulfillmentDay('today')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'today'
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => setSelectedFulfillmentDay('yesterday')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'yesterday'
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                    >
+                      Yesterday
+                    </button>
+                    <button
+                      onClick={() => setSelectedFulfillmentDay('7days')}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === '7days'
+                        ? 'bg-blue-500 text-white shadow-md'
+                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        }`}
+                    >
+                      7 Days
+                    </button>
+                  </div>
+                  <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                    {lastDayFulfillment.date}
+                  </div>
                 </div>
               </div>
 
@@ -1294,7 +1408,7 @@ export default function SummaryPage() {
                   <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
                     {lastDayFulfillment.percentage.toFixed(1)}%
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Latest Day</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{selectedFulfillmentDay === 'today' ? "Today's Rate" : selectedFulfillmentDay === 'yesterday' ? "Yesterday's Rate" : "7 Days Rate"}</span>
                 </div>
               </div>
 
@@ -1313,125 +1427,125 @@ export default function SummaryPage() {
 
           {/* Line Chart - Month over Month Fulfillment Rates (Full Width) */}
           <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
-                  </div>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                  <TrendingUp className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
                 </div>
               </div>
+            </div>
 
-              <div className="h-52 relative">
-                {monthlyFulfillmentData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart
-                      data={monthlyFulfillmentData}
-                      margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
-                    >
-                      <defs>
-                        <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
-                        </linearGradient>
-                        <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                          <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke="currentColor"
-                        strokeOpacity={0.1}
-                        className="text-gray-300 dark:text-slate-700"
-                      />
-                      <XAxis
-                        dataKey="label"
-                        tick={{ fontSize: 11, fill: 'currentColor' }}
-                        className="text-gray-600 dark:text-slate-400"
-                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                      />
-                      <YAxis
-                        domain={[0, 100]}
-                        tick={{ fontSize: 11, fill: 'currentColor' }}
-                        tickFormatter={(value: number) => `${value}%`}
-                        className="text-gray-600 dark:text-slate-400"
-                        axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                        tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
-                      />
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(148, 163, 184, 0.2)',
-                          borderRadius: '12px',
-                          padding: '12px',
-                          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
-                        }}
-                        labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
-                        itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
-                        formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
-                        cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="fulfillmentRate"
-                        stroke="url(#fulfillmentLineGradient)"
-                        strokeWidth={3}
-                        dot={{
-                          fill: '#6366f1',
-                          stroke: '#ffffff',
-                          strokeWidth: 2,
-                          r: 5,
-                        }}
-                        activeDot={{
-                          fill: '#6366f1',
-                          stroke: '#ffffff',
-                          strokeWidth: 3,
-                          r: 8,
-                        }}
-                        name="Fulfillment Rate"
-                        label={(props) => {
-                          const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
-                          const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
-                          const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
+            <div className="h-52 relative">
+              {monthlyFulfillmentData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart
+                    data={monthlyFulfillmentData}
+                    margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
+                  >
+                    <defs>
+                      <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                      </linearGradient>
+                      <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      stroke="currentColor"
+                      strokeOpacity={0.1}
+                      className="text-gray-300 dark:text-slate-700"
+                    />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      className="text-gray-600 dark:text-slate-400"
+                      axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                    />
+                    <YAxis
+                      domain={[0, 100]}
+                      tick={{ fontSize: 11, fill: 'currentColor' }}
+                      tickFormatter={(value: number) => `${value}%`}
+                      className="text-gray-600 dark:text-slate-400"
+                      axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                      tickLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
+                    />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        backdropFilter: 'blur(10px)',
+                        border: '1px solid rgba(148, 163, 184, 0.2)',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                      }}
+                      labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
+                      itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
+                      formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
+                      cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="fulfillmentRate"
+                      stroke="url(#fulfillmentLineGradient)"
+                      strokeWidth={3}
+                      dot={{
+                        fill: '#6366f1',
+                        stroke: '#ffffff',
+                        strokeWidth: 2,
+                        r: 5,
+                      }}
+                      activeDot={{
+                        fill: '#6366f1',
+                        stroke: '#ffffff',
+                        strokeWidth: 3,
+                        r: 8,
+                      }}
+                      name="Fulfillment Rate"
+                      label={(props) => {
+                        const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
+                        const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
+                        const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
 
-                          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
+                        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
 
-                          return (
-                            <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
-                              {value.toFixed(2)}%
-                            </text>
-                          );
-                        }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
-                    <div className="text-center">
-                      <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                      <p className="text-sm">Not enough data for monthly trend</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {monthlyFulfillmentData.length > 0 && (
-                <div className="flex justify-center gap-6 mt-2">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
-                    <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                        return (
+                          <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
+                            {value.toFixed(2)}%
+                          </text>
+                        );
+                      }}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
+                  <div className="text-center">
+                    <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Not enough data for monthly trend</p>
                   </div>
                 </div>
               )}
             </div>
+
+            {monthlyFulfillmentData.length > 0 && (
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                </div>
+              </div>
+            )}
+          </div>
         </motion.div>
       )}
 
