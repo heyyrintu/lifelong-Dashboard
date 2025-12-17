@@ -445,7 +445,7 @@ export default function InboundPage() {
     const value = Number(num);
     if (isNaN(value)) return '0K';
     const lakhs = value / 100000;
-    
+
     if (lakhs < 1) {
       // Show in thousands (K)
       const thousands = value / 1000;
@@ -1015,21 +1015,25 @@ export default function InboundPage() {
         <div className="w-full mb-8">
           <div className="relative border border-gray-200 dark:border-slate-700/30 rounded-2xl p-6 bg-white dark:bg-slate-800/50">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                  <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Category Wise CBM</h3>
+            <div className="flex items-center justify-between mb-6 relative z-10">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <Package className="w-5 h-5 text-white" />
                 </div>
-                <div className="text-sm text-gray-500 dark:text-slate-400">
-                  {summaryData.categoryTable.length} Categories
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Category Wise Inbound CBM</h3>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">Product category distribution by volume</p>
                 </div>
               </div>
             </div>
 
+            {/* Decorative gradient blobs */}
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
             <div>
-              {/* Headers */}
-              <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">
+              {/* Column Headers */}
+              <div className="grid grid-cols-12 gap-4 px-4 py-3 mb-2 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-gray-200/50 dark:border-slate-700/50 text-sm font-bold uppercase tracking-wider relative z-10 text-gray-700 dark:text-white">
                 <div className="col-span-1">No</div>
                 <div className="col-span-5">Category</div>
                 <div className="col-span-2 text-center">SKU</div>
@@ -1505,9 +1509,6 @@ export default function InboundPage() {
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                   <h3 className="text-xl font-medium text-gray-900 dark:text-slate-100">Daily Receiving Summary</h3>
-                </div>
-                <div className="text-sm text-gray-500 dark:text-slate-400">
-                  {summaryData.summaryTotals?.dayData?.length || 0} Records
                 </div>
               </div>
             </div>
