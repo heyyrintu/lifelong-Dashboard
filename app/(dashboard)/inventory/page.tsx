@@ -1666,7 +1666,7 @@ function InventoryPageContent() {
                 <Package className="w-5 h-5 text-white" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Slow Moving SKUs</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Non-Moving / Slow Moving SKUs</h2>
                 <p className="text-sm text-gray-500 dark:text-slate-400">Identify dead stock and slow-moving inventory</p>
               </div>
             </div>
@@ -1761,7 +1761,7 @@ function InventoryPageContent() {
                         className="absolute z-[100] bottom-10 right-0 w-96 bg-white dark:bg-slate-800 border-2 border-purple-500 dark:border-purple-400 rounded-xl shadow-2xl p-4"
                       >
                         <div className="flex items-start justify-between mb-3">
-                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Slow Moving SKUs</h4>
+                          <h4 className="text-sm font-bold text-gray-900 dark:text-white">Non-Moving / Slow Moving SKUs</h4>
                           <button
                             onClick={() => setShowZeroOrderInfo(false)}
                             className="w-6 h-6 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors"
