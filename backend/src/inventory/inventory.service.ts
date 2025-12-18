@@ -52,31 +52,23 @@ export interface InventorySummaryResponse {
 
 export interface FastMovingSku {
   item: string;
-  warehouse: string;
+  warehouse: string;     // Combined warehouses like "HR11 + HR12"
   itemGroup: string;
   productCategory: string;
-  avgDailyQty: number;
-  latestQty: number;
-  minQty: number;
-  maxQty: number;
-  daysOfStock: number; // Estimated days of stock remaining based on avg consumption
-  stockStatus: 'critical' | 'low' | 'adequate' | 'high';
-  cbmPerUnit: number;
-  totalCbm: number;
-  // Sales data from outbound (DN = Delivery Note)
-  avgDailySales: number; // Average daily sales (units/day) from outbound
-  totalSalesQty: number; // Total DN Qty for this SKU
-  totalSalesCbm: number; // Total DN CBM for this SKU
+  avgQty: number;        // AVG QTY of inventory for latest month
+  currentQty: number;    // Latest/Current inventory QTY (sum across warehouses)
+  dnQty: number;         // DN QTY for last 90 days
+  dnCbm: number;         // DN CBM for last 90 days
+  cbm: number;           // CBM (inventory) based on current qty
+  salesPerDay: number;   // Sales/Day = Total DN QTY / 90 days
 }
 
 export interface FastMovingSkusResponse {
   skus: FastMovingSku[];
   summary: {
-    totalFastMovingSkus: number;
-    criticalCount: number;
-    lowCount: number;
-    adequateCount: number;
-    highCount: number;
+    totalSkus: number;
+    totalDnQty: number;
+    totalDnCbm: number;
   };
   filters: {
     availableWarehouses: string[];
@@ -87,7 +79,9 @@ export interface FastMovingSkusResponse {
     maxDate: string | null;
     totalDays: number;
   };
+  latestInventoryMonth?: string;  // The month used for AVG QTY (YYYY-MM format)
 }
+
 
 export interface ZeroOrderProduct {
   item: string;
@@ -954,15 +948,9 @@ export class InventoryService {
   /**
      * Get fast-moving SKUs with availability analysis
      * 
-     * Fast-moving SKUs are identified by:
-     * 1. High average daily quantity (top percentile)
-     * 2. Significant stock movement over time
-     * 
-     * Stock status is determined by comparing latest stock to average consumption:
-     * - Critical: < 7 days of stock
-     * - Low: 7-14 days of stock
-     * - Adequate: 14-30 days of stock
-     * - High: > 30 days of stock
+     * Fast-moving SKUs are identified by Sales/Day calculated from DN data for last 3 months.
+     * Sorted by highest Sales/Day.
+     * AVG QTY is calculated from the latest month of inventory data.
      */
   async getFastMovingSkus(
     warehouse?: string,
@@ -973,7 +961,7 @@ export class InventoryService {
     const startTime = Date.now();
 
     // Generate cache key
-    const cacheKey = `${this.CACHE_VERSION}-fast-${warehouse || 'ALL'}-${productCategory || 'ALL'}-${minAvgQty || 50}-${limit || 50}`;
+    const cacheKey = `${this.CACHE_VERSION}-fast-v2-${warehouse || 'ALL'}-${productCategory || 'ALL'}-${limit || 50}`;
 
     // Check cache first
     const cached = this.fastMovingCache.get(cacheKey);
@@ -1003,6 +991,27 @@ export class InventoryService {
     });
     const outboundUploadIds = outboundUploads.map(u => u.id);
 
+    // Calculate date range for last 90 days of DN data (using UTC to avoid timezone issues)
+    const now = new Date();
+    const today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setUTCDate(ninetyDaysAgo.getUTCDate() - 89); // 90 days inclusive (today + 89 days back)
+    const dnFromDate = formatDateAsISO(ninetyDaysAgo);
+    const dnToDate = formatDateAsISO(today);
+
+    // Exactly 90 days
+    const totalDaysIn3Months = 90;
+
+    // Determine the latest month for AVG QTY calculation
+    const latestMonthResult = await this.prisma.$queryRawUnsafe<Array<{ latest_month: string }>>(`
+      SELECT TO_CHAR(MAX(ids.stock_date), 'YYYY-MM') as latest_month
+      FROM inventory_daily_stock ids
+      INNER JOIN inventory_rows ir ON ir.id = ids.inventory_row_id
+      WHERE ir.upload_id = ANY($1)
+    `, uploadIds);
+
+    const latestMonth = latestMonthResult[0]?.latest_month || null;
+
     // Build filters
     const params: any[] = [uploadIds];
     let paramIdx = 1;
@@ -1021,82 +1030,76 @@ export class InventoryService {
       categoryFilter = ` AND ir.product_category::text = $${paramIdx}`;
     }
 
-    // Minimum average quantity threshold (default: 50 units/day for fast-moving)
-    const minQtyThreshold = minAvgQty || 50;
-    paramIdx++;
-    params.push(minQtyThreshold);
-
     // Limit results (default: 50)
     const resultLimit = limit || 50;
     paramIdx++;
     params.push(resultLimit);
+    const limitParamIdx = paramIdx;
 
-    // Add outbound upload IDs to params if available
+    // Add outbound upload IDs and date range to params
     let outboundUploadIdsParamIdx = 0;
+    let dnFromDateParamIdx = 0;
+    let dnToDateParamIdx = 0;
     if (outboundUploadIds.length > 0) {
       paramIdx++;
       params.push(outboundUploadIds);
       outboundUploadIdsParamIdx = paramIdx;
+
+      paramIdx++;
+      params.push(dnFromDate);
+      dnFromDateParamIdx = paramIdx;
+
+      paramIdx++;
+      params.push(dnToDate);
+      dnToDateParamIdx = paramIdx;
     }
 
-    // Query to get fast-moving SKUs with their stock metrics and sales data from outbound
-    const salesJoin = outboundUploadIds.length > 0 ? `
-      ,
+    // Add latest month filter for AVG QTY
+    let latestMonthParamIdx = 0;
+    if (latestMonth) {
+      paramIdx++;
+      params.push(latestMonth);
+      latestMonthParamIdx = paramIdx;
+    }
+
+    // Build the sales data CTE for last 3 months
+    const salesDataCte = outboundUploadIds.length > 0 ? `
       sales_data AS (
         SELECT 
           delivery_note_item as item,
-          COALESCE(SUM(delivery_note_qty), 0) as total_sales_qty,
-          COALESCE(SUM(dn_total_cbm), 0) as total_sales_cbm,
-          COUNT(DISTINCT DATE(delivery_note_date)) as sales_days
+          COALESCE(SUM(delivery_note_qty), 0) as total_dn_qty,
+          COALESCE(SUM(dn_total_cbm), 0) as total_dn_cbm
         FROM outbound_rows
         WHERE upload_id = ANY($${outboundUploadIdsParamIdx})
           AND delivery_note_item IS NOT NULL
           AND delivery_note_qty > 0
+          AND delivery_note_date >= $${dnFromDateParamIdx}::date
+          AND delivery_note_date <= $${dnToDateParamIdx}::date
         GROUP BY delivery_note_item
-      )
+      ),
     ` : '';
 
-    const salesSelect = outboundUploadIds.length > 0 ? `
-        COALESCE(sd.total_sales_qty, 0) as total_sales_qty,
-        COALESCE(sd.total_sales_cbm, 0) as total_sales_cbm,
-        COALESCE(sd.sales_days, 0) as sales_days,
-    ` : `
-        0 as total_sales_qty,
-        0 as total_sales_cbm,
-        0 as sales_days,
-    `;
-
-    const salesLeftJoin = outboundUploadIds.length > 0
-      ? `LEFT JOIN sales_data sd ON LOWER(TRIM(ss.item)) = LOWER(TRIM(sd.item))`
-      : '';
-
-    const results = await this.prisma.$queryRawUnsafe<Array<{
-      item: string;
-      warehouse: string;
-      item_group: string;
-      product_category: string;
-      avg_qty: number;
-      latest_qty: number;
-      min_qty: number;
-      max_qty: number;
-      cbm_per_unit: number;
-      total_cbm: number;
-      latest_date: Date;
-      total_sales_qty: number;
-      total_sales_cbm: number;
-      sales_days: number;
-    }>>(`
-      WITH sku_stats AS (
+    // Build the AVG QTY CTE for latest month - aggregate across all warehouses
+    const avgQtyCte = latestMonth ? `
+      latest_month_avg AS (
         SELECT 
           ir.item,
-          ir.warehouse,
-          ir.item_group,
-          ir.product_category::text as product_category,
-          ir.cbm_per_unit,
-          AVG(ids.quantity) as avg_qty,
-          MIN(ids.quantity) as min_qty,
-          MAX(ids.quantity) as max_qty,
-          (AVG(ids.quantity) * ir.cbm_per_unit) as total_cbm
+          SUM(ids.quantity) / COUNT(DISTINCT ids.stock_date) as avg_qty
+        FROM inventory_rows ir
+        INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
+        WHERE ir.upload_id = ANY($1)
+          AND ir.is_total_row = false
+          AND LOWER(TRIM(ir.item)) != 'total'
+          AND TO_CHAR(ids.stock_date, 'YYYY-MM') = $${latestMonthParamIdx}
+          ${warehouseFilter}
+          ${categoryFilter}
+        GROUP BY ir.item
+      ),
+    ` : `
+      latest_month_avg AS (
+        SELECT 
+          ir.item,
+          SUM(ids.quantity) / COUNT(DISTINCT ids.stock_date) as avg_qty
         FROM inventory_rows ir
         INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
         WHERE ir.upload_id = ANY($1)
@@ -1104,107 +1107,118 @@ export class InventoryService {
           AND LOWER(TRIM(ir.item)) != 'total'
           ${warehouseFilter}
           ${categoryFilter}
-        GROUP BY ir.item, ir.warehouse, ir.item_group, ir.product_category, ir.cbm_per_unit
-        HAVING AVG(ids.quantity) > 0
+        GROUP BY ir.item
       ),
-      latest_stock AS (
+    `;
+
+    // Build the current QTY CTE (latest stock) - aggregate across all warehouses
+    const currentQtyCte = `
+      current_stock_per_warehouse AS (
         SELECT DISTINCT ON (ir.item, ir.warehouse)
           ir.item,
           ir.warehouse,
-          ids.quantity as latest_qty,
-          ids.stock_date as latest_date
+          ids.quantity as current_qty,
+          ir.cbm_per_unit
         FROM inventory_rows ir
         INNER JOIN inventory_daily_stock ids ON ids.inventory_row_id = ir.id
         WHERE ir.upload_id = ANY($1)
           AND ir.is_total_row = false
+          ${warehouseFilter}
+          ${categoryFilter}
         ORDER BY ir.item, ir.warehouse, ids.stock_date DESC
+      ),
+      current_stock AS (
+        SELECT 
+          item,
+          STRING_AGG(DISTINCT warehouse, ' + ' ORDER BY warehouse) as warehouses,
+          SUM(current_qty) as current_qty,
+          AVG(cbm_per_unit) as cbm_per_unit
+        FROM current_stock_per_warehouse
+        GROUP BY item
+      ),
+    `;
+
+    // Build the main query - no warehouse grouping
+    const salesJoin = outboundUploadIds.length > 0
+      ? `LEFT JOIN sales_data sd ON LOWER(TRIM(si.item)) = LOWER(TRIM(sd.item))`
+      : '';
+
+    const salesSelect = outboundUploadIds.length > 0
+      ? `COALESCE(sd.total_dn_qty, 0) as dn_qty, COALESCE(sd.total_dn_cbm, 0) as dn_cbm`
+      : `0 as dn_qty, 0 as dn_cbm`;
+
+    // Calculate sales_per_day in the query
+    const salesPerDayCalc = outboundUploadIds.length > 0
+      ? `(COALESCE(sd.total_dn_qty, 0)::float / ${totalDaysIn3Months})`
+      : `0`;
+
+    const query = `
+      WITH 
+      ${salesDataCte}
+      ${avgQtyCte}
+      ${currentQtyCte}
+      sku_info AS (
+        SELECT DISTINCT ON (ir.item)
+          ir.item,
+          ir.item_group,
+          ir.product_category::text as product_category
+        FROM inventory_rows ir
+        WHERE ir.upload_id = ANY($1)
+          AND ir.is_total_row = false
+          AND LOWER(TRIM(ir.item)) != 'total'
+          ${warehouseFilter}
+          ${categoryFilter}
       )
-      ${salesJoin}
       SELECT 
-        ss.item,
-        ss.warehouse,
-        ss.item_group,
-        ss.product_category,
-        ss.avg_qty,
-        COALESCE(ls.latest_qty, 0) as latest_qty,
-        ss.min_qty,
-        ss.max_qty,
-        ss.cbm_per_unit,
-        ss.total_cbm,
-        ls.latest_date,
-        ${salesSelect}
-        1 as dummy
-      FROM sku_stats ss
-      LEFT JOIN latest_stock ls ON ls.item = ss.item AND ls.warehouse = ss.warehouse
-      ${salesLeftJoin}
-      WHERE ss.avg_qty >= $${paramIdx - (outboundUploadIds.length > 0 ? 2 : 1)}
-      ORDER BY ss.avg_qty DESC
-      LIMIT $${paramIdx - (outboundUploadIds.length > 0 ? 1 : 0)}
-    `, ...params);
+        si.item,
+        COALESCE(cs.warehouses, '') as warehouse,
+        si.item_group,
+        si.product_category,
+        COALESCE(lma.avg_qty, 0) as avg_qty,
+        COALESCE(cs.current_qty, 0) as current_qty,
+        ${salesSelect},
+        (COALESCE(cs.current_qty, 0) * COALESCE(cs.cbm_per_unit, 0)) as cbm,
+        ${salesPerDayCalc} as sales_per_day
+      FROM sku_info si
+      LEFT JOIN latest_month_avg lma ON lma.item = si.item
+      LEFT JOIN current_stock cs ON cs.item = si.item
+      ${salesJoin}
+      ORDER BY ${salesPerDayCalc} DESC, si.item ASC
+      LIMIT $${limitParamIdx}
+    `;
 
-    // Process results and calculate stock status
-    const skus: FastMovingSku[] = results.map(row => {
-      const avgDailyQty = Number(row.avg_qty) || 0;
-      const latestQty = Number(row.latest_qty) || 0;
-      const totalSalesQty = Number(row.total_sales_qty) || 0;
-      const totalSalesCbm = Number(row.total_sales_cbm) || 0;
-      const salesDays = Number(row.sales_days) || 1; // Avoid division by zero
+    const results = await this.prisma.$queryRawUnsafe<Array<{
+      item: string;
+      warehouse: string;
+      item_group: string;
+      product_category: string;
+      avg_qty: number;
+      current_qty: number;
+      dn_qty: number;
+      dn_cbm: number;
+      cbm: number;
+      sales_per_day: number;
+    }>>(query, ...params);
 
-      // Calculate average daily sales (units/day)
-      const avgDailySales = salesDays > 0 ? totalSalesQty / salesDays : 0;
+    // Process results
+    const skus: FastMovingSku[] = results.map(row => ({
+      item: row.item,
+      warehouse: row.warehouse,
+      itemGroup: row.item_group,
+      productCategory: row.product_category,
+      avgQty: Math.round(Number(row.avg_qty) * 100) / 100,
+      currentQty: Math.round(Number(row.current_qty) * 100) / 100,
+      dnQty: Math.round(Number(row.dn_qty)),
+      dnCbm: Math.round(Number(row.dn_cbm) * 100) / 100,
+      cbm: Math.round(Number(row.cbm) * 100) / 100,
+      salesPerDay: Math.round(Number(row.sales_per_day) * 100) / 100,
+    }));
 
-      // Calculate days of stock based on actual sales data if available, otherwise use estimate
-      let daysOfStock: number;
-      if (avgDailySales > 0) {
-        // Use actual sales data for more accurate days of stock calculation
-        daysOfStock = Math.round(latestQty / avgDailySales);
-      } else {
-        // Fallback: estimate based on 10% daily turnover assumption
-        const estimatedDailyConsumption = avgDailyQty * 0.1;
-        daysOfStock = estimatedDailyConsumption > 0
-          ? Math.round(latestQty / estimatedDailyConsumption)
-          : 999;
-      }
-
-      // Determine stock status
-      let stockStatus: 'critical' | 'low' | 'adequate' | 'high';
-      if (daysOfStock < 7) {
-        stockStatus = 'critical';
-      } else if (daysOfStock < 14) {
-        stockStatus = 'low';
-      } else if (daysOfStock < 30) {
-        stockStatus = 'adequate';
-      } else {
-        stockStatus = 'high';
-      }
-
-      return {
-        item: row.item,
-        warehouse: row.warehouse,
-        itemGroup: row.item_group,
-        productCategory: row.product_category,
-        avgDailyQty: Math.round(avgDailyQty * 100) / 100,
-        latestQty: Math.round(latestQty * 100) / 100,
-        minQty: Math.round(Number(row.min_qty) * 100) / 100,
-        maxQty: Math.round(Number(row.max_qty) * 100) / 100,
-        daysOfStock,
-        stockStatus,
-        cbmPerUnit: Math.round(Number(row.cbm_per_unit) * 10000) / 10000,
-        totalCbm: Math.round(Number(row.total_cbm) * 100) / 100,
-        // Sales data from outbound
-        avgDailySales: Math.round(avgDailySales * 100) / 100,
-        totalSalesQty: Math.round(totalSalesQty),
-        totalSalesCbm: Math.round(totalSalesCbm * 100) / 100,
-      };
-    });
-
-    // Calculate summary counts
+    // Calculate summary
     const summary = {
-      totalFastMovingSkus: skus.length,
-      criticalCount: skus.filter(s => s.stockStatus === 'critical').length,
-      lowCount: skus.filter(s => s.stockStatus === 'low').length,
-      adequateCount: skus.filter(s => s.stockStatus === 'adequate').length,
-      highCount: skus.filter(s => s.stockStatus === 'high').length,
+      totalSkus: skus.length,
+      totalDnQty: skus.reduce((sum, s) => sum + s.dnQty, 0),
+      totalDnCbm: Math.round(skus.reduce((sum, s) => sum + s.dnCbm, 0) * 100) / 100,
     };
 
     // Get available filters
@@ -1213,30 +1227,12 @@ export class InventoryService {
       this.getAvailableProductCategories(uploadIds),
     ]);
 
-    // Get sales date range from outbound data
-    let salesDateRange: { minDate: string | null; maxDate: string | null; totalDays: number } | undefined;
-    if (outboundUploadIds.length > 0) {
-      const dateRangeResult = await this.prisma.outboundRow.aggregate({
-        where: {
-          uploadId: { in: outboundUploadIds },
-          deliveryNoteDate: { not: null },
-        },
-        _min: { deliveryNoteDate: true },
-        _max: { deliveryNoteDate: true },
-      });
-
-      if (dateRangeResult._min.deliveryNoteDate && dateRangeResult._max.deliveryNoteDate) {
-        const minDate = dateRangeResult._min.deliveryNoteDate;
-        const maxDate = dateRangeResult._max.deliveryNoteDate;
-        const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-
-        salesDateRange = {
-          minDate: formatDateAsISO(minDate),
-          maxDate: formatDateAsISO(maxDate),
-          totalDays,
-        };
-      }
-    }
+    // Build sales date range info
+    const salesDateRange = outboundUploadIds.length > 0 ? {
+      minDate: dnFromDate,
+      maxDate: dnToDate,
+      totalDays: totalDaysIn3Months,
+    } : undefined;
 
     const result: FastMovingSkusResponse = {
       skus,
@@ -1246,6 +1242,7 @@ export class InventoryService {
         availableProductCategories: ['ALL', ...availableProductCategories],
       },
       salesDateRange,
+      latestInventoryMonth: latestMonth || undefined,
     };
 
     // Store in cache
@@ -1257,6 +1254,7 @@ export class InventoryService {
 
     return result;
   }
+
 
   /**
      * Get products with zero orders (items in inventory but not in outbound)

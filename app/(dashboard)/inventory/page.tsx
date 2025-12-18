@@ -57,31 +57,23 @@ interface InventorySummaryResponse {
 
 interface FastMovingSku {
   item: string;
-  warehouse: string;
+  warehouse: string;     // Combined warehouses like "HR11 + HR12"
   itemGroup: string;
   productCategory: string;
-  avgDailyQty: number;
-  latestQty: number;
-  minQty: number;
-  maxQty: number;
-  daysOfStock: number;
-  stockStatus: 'critical' | 'low' | 'adequate' | 'high';
-  cbmPerUnit: number;
-  totalCbm: number;
-  // Sales data from outbound (DN = Delivery Note)
-  avgDailySales: number;
-  totalSalesQty: number;
-  totalSalesCbm: number;
+  avgQty: number;        // AVG QTY of inventory for latest month
+  currentQty: number;    // Latest/Current inventory QTY (sum across warehouses)
+  dnQty: number;         // DN QTY for last 90 days
+  dnCbm: number;         // DN CBM for last 90 days
+  cbm: number;           // CBM (inventory) based on current qty
+  salesPerDay: number;   // Sales/Day = Total DN QTY / 90 days
 }
 
 interface FastMovingSkusResponse {
   skus: FastMovingSku[];
   summary: {
-    totalFastMovingSkus: number;
-    criticalCount: number;
-    lowCount: number;
-    adequateCount: number;
-    highCount: number;
+    totalSkus: number;
+    totalDnQty: number;
+    totalDnCbm: number;
   };
   filters: {
     availableWarehouses: string[];
@@ -92,7 +84,9 @@ interface FastMovingSkusResponse {
     maxDate: string | null;
     totalDays: number;
   };
+  latestInventoryMonth?: string;
 }
+
 
 interface ZeroOrderProduct {
   item: string;
@@ -139,7 +133,7 @@ function InventoryPageContent() {
   const [fastMovingError, setFastMovingError] = useState<string | null>(null);
   const [fastMovingWarehouse, setFastMovingWarehouse] = useState('ALL');
   const [fastMovingCategory, setFastMovingCategory] = useState('ALL');
-  
+
   const [fastMovingLimit, setFastMovingLimit] = useState(10);
   const [showFastMovingSection, setShowFastMovingSection] = useState(true);
   const [fastMovingPage, setFastMovingPage] = useState(0);
@@ -199,16 +193,16 @@ function InventoryPageContent() {
       if (year && month) {
         const start = new Date(Date.UTC(year, month - 1, 1));
         const end = new Date(Date.UTC(year, month, 0));
-                    return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
+        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
       }
       return selectedMonth;
     }
     if (fromDate && toDate) {
-                if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-                return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
+      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
+      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
     }
-            if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-            if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
+    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
+    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
     if (data?.filters?.availableDateRange) return `${formatHeaderDateShort(data.filters.availableDateRange.minDate)} - ${formatHeaderDateShort(data.filters.availableDateRange.maxDate)}`;
     return 'All Dates';
   }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
@@ -1480,7 +1474,6 @@ function InventoryPageContent() {
                       <option value={10}>10</option>
                       <option value={25}>25</option>
                       <option value={50}>50</option>
-                      <option value={100}>100</option>
                     </select>
                   </div>
                   <button
@@ -1523,14 +1516,14 @@ function InventoryPageContent() {
                           </button>
                         </div>
                         <div className="text-xs text-gray-600 dark:text-slate-400 space-y-2">
-                          <p><strong>Purpose:</strong> Identify high-velocity items that need close stock monitoring.</p>
+                          <p><strong>Purpose:</strong> Identify high-velocity items sorted by Sales/Day.</p>
                           <p><strong>Calculation:</strong></p>
                           <ul className="list-disc list-inside space-y-1 ml-2">
-                            <li>Calculates average inventory quantity per item across all dates</li>
-                            <li>Matches with outbound delivery notes to get sales data</li>
-                            <li>Sales/Day = Total sales ÷ Number of distinct days with sales</li>
-                            <li>Filters items with avg quantity &gt; Min Avg Qty threshold</li>
-                            <li>Shows: Avg Qty, Latest Stock, Sales/Day, DN Qty, DN CBM</li>
+                            <li>Sales/Day = Total DN QTY ÷ days in last 3 months</li>
+                            <li>AVG QTY: Average inventory quantity for the latest month</li>
+                            <li>Current QTY: Latest inventory stock quantity</li>
+                            <li>DN QTY/CBM: Total from last 3 months</li>
+                            <li>Sorted by highest Sales/Day first</li>
                           </ul>
                           <p><strong>Use Case:</strong> Monitor stock levels for popular items to prevent stockouts.</p>
                         </div>
@@ -1557,11 +1550,11 @@ function InventoryPageContent() {
                       <table className="w-full text-sm">
                         <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
+                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Item (SKU)</th>
                             <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
                             <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Avg Qty</th>
                             <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Current Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Average Daily Sales (units/day) from Outbound${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Sales per Day (last 90 days)${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
                               Sales/Day
                               {fastMovingData?.salesDateRange && (
                                 <div className="text-[9px] font-normal normal-case text-blue-500 dark:text-blue-300 mt-0.5">
@@ -1569,8 +1562,8 @@ function InventoryPageContent() {
                                 </div>
                               )}
                             </th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty">DN Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM">DN CBM</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty (last 90 days)">DN Qty</th>
+                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM (last 90 days)">DN CBM</th>
                             <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">CBM</th>
                           </tr>
                         </thead>
@@ -1578,27 +1571,27 @@ function InventoryPageContent() {
                           {fastMovingData.skus
                             .slice(fastMovingPage * ITEMS_PER_PAGE, (fastMovingPage + 1) * ITEMS_PER_PAGE)
                             .map((sku, idx) => (
-                              <tr key={`${sku.item}-${sku.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                              <tr key={`${sku.item}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
                                 <td className="px-4 py-3">
                                   <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={sku.item}>
                                     {sku.item}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-slate-400">{sku.itemGroup}</div>
                                 </td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{sku.warehouse}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgDailyQty)}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.latestQty)}</td>
+                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs" title={sku.warehouse}>{sku.warehouse}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgQty)}</td>
+                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.currentQty)}</td>
                                 {/* Sales columns from outbound data */}
                                 <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                  {formatNumber(sku.avgDailySales, 2)}
+                                  {formatNumber(sku.salesPerDay, 2)}
                                 </td>
                                 <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                  {formatNumber(sku.totalSalesQty)}
+                                  {formatNumber(sku.dnQty)}
                                 </td>
                                 <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
-                                  {formatNumber(sku.totalSalesCbm, 2)}
+                                  {formatNumber(sku.dnCbm, 2)}
                                 </td>
-                                <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.totalCbm, 2)}</td>
+                                <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.cbm, 2)}</td>
                               </tr>
                             ))}
                         </tbody>
@@ -1783,7 +1776,7 @@ function InventoryPageContent() {
                             <li>Gets all items from inventory with their stock quantities</li>
                             <li>Checks which items have NO matching delivery notes in outbound data</li>
                             <li>Filters items with days in stock &gt;= Min Days threshold</li>
-                            <li>Shows: Latest Stock, Days in Stock, Total CBM</li>
+                            <li>Shows: Latest Stock Qty, Days in Stock, Total CBM</li>
                           </ul>
                           <p><strong>Use Case:</strong> Identify items to clear, discount, or stop ordering to free up warehouse space.</p>
                         </div>
@@ -1812,7 +1805,7 @@ function InventoryPageContent() {
                           <tr>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
                             <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock</th>
+                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock Qty</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">CBM Blocked</th>
                             <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">DN Count</th>
                           </tr>
