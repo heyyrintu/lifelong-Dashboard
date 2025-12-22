@@ -622,19 +622,19 @@ function BillingPageContent() {
           {/* Billing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <MetricCard
-              title="Inventory Costing"
+              title="Inventory Revenue"
               value={formatCurrency(billingPeriod.inventoryAmount)}
               subtitle={`${formatNumber(billingPeriod.inventoryCbm)} CBM × ${formatCurrency(billingPeriod.inventoryRate)}/CBM`}
               icon={DollarSign}
             />
             <MetricCard
-              title="Out Bound Costing"
+              title="Out Bound Revenue"
               value={formatCurrency(billingPeriod.outboundAmount)}
               subtitle={`${formatNumber(billingPeriod.outboundCbm)} CBM × ${formatCurrency(billingPeriod.outboundRate)}/CBM`}
               icon={DollarSign}
             />
             <MetricCard
-              title="Core Total Cost"
+              title="Core Total Revenue"
               value={formatCurrency(billingPeriod.inventoryAmount + billingPeriod.outboundAmount)}
               subtitle="Inventory + Outbound (excl. Other Expenses)"
               icon={Calculator}

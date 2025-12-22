@@ -94,62 +94,67 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 isolate overflow-hidden
-      bg-white/5 dark:bg-slate-800/50
-      bg-gradient-to-br from-black/5 to-black/[0.02] dark:from-white/[0.02] dark:to-transparent
-      backdrop-blur-xl backdrop-saturate-[180%]
-      border-b border-black/10 dark:border-slate-700/50
-      shadow-[0_8px_16px_rgb(0_0_0_/_0.15)] dark:shadow-[0_8px_16px_rgb(0_0_0_/_0.3)]
-      will-change-transform
-      transition-all duration-300">
-      <div className="flex items-center justify-between px-3 sm:px-6 py-4
-        bg-gradient-to-br from-black/[0.05] to-transparent dark:from-slate-700/30 dark:to-slate-800/10
-        backdrop-blur-md backdrop-saturate-150
-        relative">
-        <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
+    <header className="sticky top-0 z-10 w-full border-b border-amber-300/30 bg-gradient-to-r from-[#F59E0B] via-[#F59E0B]/90 to-[#FBBF24]/90 backdrop-blur-md transition-all duration-300" style={{ boxShadow: '0 4px 30px rgba(245, 158, 11, 0.5), 0 8px 60px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)' }}>
+      <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* Left: menu + logo */}
+        <div className="flex items-center gap-4">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-lg transition-colors flex-shrink-0"
+            className="lg:hidden p-2 hover:bg-white/20 rounded-lg transition-colors text-white"
             aria-label="Toggle menu"
           >
-            <Menu className="w-5 h-5 text-gray-700 dark:text-slate-300" />
+            <Menu className="w-5 h-5" />
           </button>
-          <div className="relative min-w-0">
-            <h1 className="flex items-baseline gap-1 font-bold text-gray-900 dark:text-slate-100">
-              <span className="text-lg sm:text-2xl whitespace-nowrap">Drona 🤝🏼 Lifelong /</span>
-              <span className="text-base sm:text-xl text-gray-600 truncate">{getPageName()}</span>
-            </h1>
-            <div className="absolute bottom-0 left-0 h-1 w-16 rounded-full bg-gradient-to-r from-amber-400 via-amber-300/80 to-transparent opacity-90"></div>
+          <div className="flex items-center">
+             <div className="bg-white/75 backdrop-blur-md rounded-[7px] px-4 py-2 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white/85">
+               <img 
+                src="https://12d9mn3oyd.ucarecd.net/d13ae91b-1651-44ce-8457-7c7d74f43847/Untitleddesign.png" 
+                alt="Drona Lifelong" 
+                className="h-10 w-auto object-contain drop-shadow-sm"
+                style={{ clipPath: 'inset(10px 0 10px 0)' }}
+              />
+             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+        {/* Center: page name (Hidden on mobile, visible on larger screens) */}
+        <div className="hidden md:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+          <h1 className="text-3xl font-bold text-white">
+            {getPageName()}
+          </h1>
+        </div>
+
+        {/* Right: controls */}
+        <div className="flex items-center gap-3">
           {/* Selected Date Display */}
-          <div className="flex items-center gap-2 px-3 py-2
-            bg-white/80 dark:bg-slate-800/80
-            backdrop-blur-md backdrop-saturate-150
-            border border-gray-200/50 dark:border-slate-700/50
-            rounded-xl shadow-sm hover:shadow-md
-            transition-all duration-200">
-            <Calendar className="w-4 h-4 text-gray-600 dark:text-slate-400" />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5
+            bg-white/10 hover:bg-white/20
+            border border-white/20
+            rounded-full transition-all duration-200">
+            <Calendar className="w-4 h-4 text-white/90" />
             <time
               dateTime={label}
-              className="text-sm font-medium text-gray-700 dark:text-slate-300 truncate max-w-[240px]"
+              className="text-sm font-medium text-white truncate max-w-[150px] lg:max-w-[240px]"
               title={label}
-              aria-label={`Selected date: ${label}`}>
+            >
               {displayedLabel}
             </time>
           </div>
 
           {/* Theme Toggle */}
-          <div className="bg-white/80 dark:bg-slate-800/80
-            backdrop-blur-md backdrop-saturate-150
-            border border-gray-200/50 dark:border-slate-700/50
-            rounded-xl shadow-sm hover:shadow-md
-            transition-all duration-200">
+          <div className="bg-white/10 hover:bg-white/20
+            border border-white/20
+            rounded-full p-1 transition-all duration-200">
             <ThemeToggle />
           </div>
         </div>
+      </div>
+      
+      {/* Mobile Page Name (Visible only on small screens) */}
+      <div className="md:hidden px-4 pb-3">
+         <h1 className="text-lg font-semibold text-white">
+            {getPageName()}
+          </h1>
       </div>
     </header>
   );

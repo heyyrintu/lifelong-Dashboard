@@ -1,14 +1,11 @@
 'use client';
 
-import { useState } from 'react';
 import Header from '@/components/layout/Header';
 import Sidebar from '@/components/layout/Sidebar';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { DateFilterProvider } from '@/lib/date-filter-context';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
   return (
     <ProtectedRoute>
       <DateFilterProvider>
@@ -27,10 +24,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main Content - positioned above aurora background */}
         <div className="relative z-10 flex h-screen w-full">
-          <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+          <Sidebar isOpen={false} onClose={() => {}} />
 
           <div className="flex-1 flex flex-col overflow-hidden">
-            <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
+            <Header onMenuClick={() => {}} />
 
             <main className="flex-1 overflow-y-auto overflow-x-hidden bg-transparent">
               <div className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl">{children}</div>

@@ -731,13 +731,65 @@ export default function SummaryPage() {
     return monthlyData;
   }, [fullFulfillmentTable]);
 
+  // Calculate current month fulfillment rate
+  const currentMonthFulfillment = useMemo(() => {
+    const rows = fullFulfillmentTable || [];
+    if (!rows.length) return { percentage: 0, month: '', soQty: 0, dnQty: 0 };
+
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = (now.getMonth() + 1).toString().padStart(2, '0');
+    const currentMonthKey = `${currentYear}-${currentMonth}`;
+
+    let totalSoQty = 0;
+    let totalDnQty = 0;
+
+    rows.forEach((row) => {
+      let monthKey = '';
+      const dateStr = row.date;
+
+      // Parse date formats
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const year = ddmmyyyyMatch[3];
+        const month = ddmmyyyyMatch[2].padStart(2, '0');
+        monthKey = `${year}-${month}`;
+      } else {
+        const monthMatch = dateStr.match(/(\d{1,2})\s+(\w{3})\s+(\d{4})/);
+        if (monthMatch) {
+          const monthNames: Record<string, string> = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+          };
+          const year = monthMatch[3];
+          const month = monthNames[monthMatch[2]] || '01';
+          monthKey = `${year}-${month}`;
+        } else {
+          const isoMatch = dateStr.match(/(\d{4})-(\d{2})/);
+          if (isoMatch) {
+            monthKey = `${isoMatch[1]}-${isoMatch[2]}`;
+          }
+        }
+      }
+
+      if (monthKey === currentMonthKey) {
+        totalSoQty += row.soQty || 0;
+        totalDnQty += row.dnQty || 0;
+      }
+    });
+
+    const percentage = totalSoQty > 0 ? Math.min(100, (totalDnQty / totalSoQty) * 100) : 0;
+    return {
+      percentage,
+      month: formatMonthLabel(currentMonthKey),
+      soQty: totalSoQty,
+      dnQty: totalDnQty
+    };
+  }, [fullFulfillmentTable]);
+
   return (
     <div>
-      <PageHeader
-        title="Quick Summary"
-        description="Overview of key metrics and performance indicators for logistics operations"
-      />
-
       {/* Filters Section - Premium Design */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -974,14 +1026,6 @@ export default function SummaryPage() {
           </div>
         </div>
 
-        {/* Date range info - Bottom Right */}
-        {availableDates && (
-          <div className="flex justify-end mt-3">
-            <p className="text-xs text-gray-500 dark:text-slate-500">
-              Data available: {formatToDDMMYYYY(availableDates.minDate)} to {formatToDDMMYYYY(availableDates.maxDate)}
-            </p>
-          </div>
-        )}
       </motion.div>
 
       {/* Loading State */}
@@ -1239,7 +1283,7 @@ export default function SummaryPage() {
           className="w-full mb-8 space-y-6"
         >
           {/* Half Donuts Row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Half Donut Chart - Average Fulfillment */}
             <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1315,12 +1359,86 @@ export default function SummaryPage() {
               </div>
             </div>
 
-            {/* Last Day Fulfillment - Half Donut */}
+            {/* Current Month Fulfillment - Half Donut */}
+            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <Calendar className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fulfillment of {currentMonthFulfillment.month}</h3>
+                  </div>
+                </div>
+              </div>
+
+              <div className="h-52 relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, currentMonthFulfillment.percentage)), fill: '#a855f7' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, currentMonthFulfillment.percentage)), fill: '#f59e0b' },
+                      ]}
+                      cx="50%"
+                      cy="80%"
+                      startAngle={180}
+                      endAngle={0}
+                      innerRadius={70}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      <Cell fill="#a855f7" />
+                      <Cell fill="#f59e0b" />
+                    </Pie>
+                    <Tooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          const item = payload[0].payload as { name: string; value: number };
+                          return (
+                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
+                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">{item.name}</p>
+                              <p className="text-sm text-gray-600 dark:text-slate-400">
+                                {item.value.toFixed(2)}%
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
+                  <span className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                    {currentMonthFulfillment.percentage.toFixed(1)}%
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Monthly Rate</span>
+                </div>
+              </div>
+
+              <div className="flex justify-center gap-6 mt-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Daily Fulfillment - Half Donut */}
             <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
               <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="mb-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
                     <Clock className="w-5 h-5 text-white" />
@@ -1329,7 +1447,7 @@ export default function SummaryPage() {
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Daily Fulfillment</h3>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
                   {/* Today/Yesterday Toggle Buttons */}
                   <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-lg p-1">
                     <button

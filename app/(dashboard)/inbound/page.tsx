@@ -777,14 +777,6 @@ export default function InboundPage() {
           </div>
         </div>
 
-        {/* Date range info - Bottom Right */}
-        {summaryData?.availableDates?.minDate && (
-          <div className="flex justify-end mt-3">
-            <p className="text-xs text-gray-500 dark:text-slate-500">
-              Data available: {summaryData.availableDates.minDate} to {summaryData.availableDates.maxDate}
-            </p>
-          </div>
-        )}
       </motion.div>
 
       {/* Loading State */}

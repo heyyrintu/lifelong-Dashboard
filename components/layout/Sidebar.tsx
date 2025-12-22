@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useCallback, useState } from 'react';
-import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import {
@@ -17,6 +16,9 @@ import {
   LogOut,
   User as UserIcon,
 } from 'lucide-react';
+import { Sidebar as SidebarContainer, SidebarBody, SidebarLink } from '@/components/ui/sidebar';
+import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -81,7 +83,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isAdmin, user, logout } = useAuth();
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [open, setOpen] = useState(false);
 
   // Memoize filtered menu items to prevent recalculation on every render
   const visibleMenuItems = useMemo(() => 
@@ -96,134 +98,100 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     }
   }, [onClose]);
 
-  const handleLogout = async () => {
-    setIsLoggingOut(true);
-    try {
-      await logout();
-      router.push('/login');
-    } catch (error) {
-      console.error('Logout error:', error);
-    } finally {
-      setIsLoggingOut(false);
-    }
+  const Logo = () => {
+    return (
+      <div className="flex items-center justify-start gap-2 font-normal text-sm text-white py-1 relative z-20">
+        <div className="h-6 w-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+             <span className="text-[#FEB343] font-bold text-xs">D</span>
+        </div>
+        <motion.span
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="font-bold text-lg text-white whitespace-pre drop-shadow-md tracking-tight"
+        >
+          Drona Dashboard
+        </motion.span>
+      </div>
+    );
+  };
+
+  const LogoIcon = () => {
+    return (
+      <div className="flex items-center justify-center w-full font-normal text-sm text-white py-1 relative z-20">
+        <div className="h-6 w-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
+             <span className="text-[#FEB343] font-bold text-xs">D</span>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-20 lg:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed lg:sticky top-0 left-0 z-30 h-screen
-          w-64
-          bg-gradient-to-br 
-          from-white via-rose-50/70 to-amber-50/50
-          dark:from-slate-900/70 dark:via-rose-900/35 dark:to-amber-900/25
-          border-r border-gray-200 dark:border-slate-700
-          shadow-sm dark:shadow-none
-          transform transition-all duration-300 ease-in-out
-          sidebar-noise
-          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
-        <div className="flex flex-col h-full relative z-10">
-          {/* Logo section */}
-          <div className="relative p-6 border-b border-gray-200/50 dark:border-white/10 flex items-center justify-center">
-            <img
-              src="https://cdn.dribbble.com/userupload/45188200/file/49510167ef68236a40dd16a5212e595e.png?resize=400x400&vertical=center"
-              alt="Drona MIS logo"
-              className="h-20 w-20 rounded-2xl object-cover"
-            />
-            <button
-              onClick={onClose}
-              className="lg:hidden absolute right-4 top-1/2 -translate-y-1/2 p-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded transition-colors"
-              aria-label="Close menu"
-            >
-              <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-            </button>
+    <SidebarContainer open={open} setOpen={setOpen}>
+      <SidebarBody className="justify-between gap-10">
+        <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+          {open ? <Logo /> : <LogoIcon />}
+          <div className="mt-8 flex flex-col gap-2">
+            {visibleMenuItems.map((item) => {
+              const isActive = pathname === item.path;
+              return (
+                <SidebarLink
+                  key={item.path}
+                  link={{
+                    label: item.name,
+                    href: item.path,
+                    icon: (
+                      <item.icon className={cn(
+                        "h-5 w-5 flex-shrink-0",
+                        isActive ? "text-white" : "text-white/80"
+                      )} />
+                    ),
+                  }}
+                  className={cn(
+                    "rounded-xl p-2 transition-all duration-300 hover:bg-white/15 hover:shadow-sm group border border-transparent",
+                    isActive && "bg-white/25 font-semibold shadow-inner border-white/20 backdrop-blur-sm",
+                    !open ? "justify-center" : ""
+                  )}
+                  onClick={(e: React.MouseEvent) => {
+                    e.preventDefault();
+                    router.push(item.path);
+                    handleLinkClick();
+                  }}
+                />
+              );
+            })}
           </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto p-4">
-            <ul className="space-y-1">
-              {visibleMenuItems.map((item) => {
-                const isActive = pathname === item.path;
-                const Icon = item.icon;
-
-                return (
-                  <li key={item.path}>
-                    <Link
-                      href={item.path}
-                      onClick={handleLinkClick}
-                      className={`
-                        flex items-center gap-3 px-4 py-3 rounded-lg
-                        transition-all duration-200 group
-                        ${isActive
-                          ? 'bg-brandRed/10 dark:bg-white/10 text-brandRed dark:text-white border-l-4 border-brandRed dark:border-indigo-400 pl-3 font-semibold'
-                          : 'text-gray-700 dark:text-gray-300 hover:bg-rose-100/70 dark:hover:bg-rose-500/20 hover:text-gray-900 dark:hover:text-white border-l-4 border-transparent'
-                        }
-                      `}
-                    >
-                      <Icon
-                        className={`w-5 h-5 ${isActive
-                          ? 'text-brandRed dark:text-indigo-400'
-                          : 'text-gray-400 dark:text-gray-400 group-hover:text-[#FEA418] dark:group-hover:text-[#FEA418]'
-                          }`}
-                      />
-                      <span className="font-medium">{item.name}</span>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </nav>
-
-          {/* User Info and Logout - Compact Design */}
-          {user && (
-            <div className="mt-auto p-3 border-t border-gray-200/50 dark:border-white/10">
-              <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-lg
-                bg-white/40 dark:bg-slate-800/40
-                border border-gray-200/30 dark:border-slate-700/30">
-                <div className="w-8 h-8 bg-gradient-to-br from-brandRed to-brandYellow rounded-full flex items-center justify-center flex-shrink-0">
-                  <UserIcon className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">
-                    {user.name || 'User'}
-                  </span>
-                  <span className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
-                    {user.email}
-                  </span>
-                </div>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="w-full flex items-center justify-center gap-2 px-3 py-2
-                  text-xs font-medium text-red-600 dark:text-red-400 
-                  bg-red-50/50 dark:bg-red-900/10
-                  hover:bg-red-100/70 dark:hover:bg-red-900/20 
-                  border border-red-200/50 dark:border-red-900/30
-                  rounded-lg
-                  transition-all duration-200 
-                  disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <LogOut className="w-3.5 h-3.5" />
-                <span>Logout</span>
-              </button>
-            </div>
-          )}
         </div>
-      </aside>
-    </>
+        
+        <div className="flex flex-col gap-2">
+          <div className="h-px bg-white/20 w-full my-2" />
+          <SidebarLink
+            link={{
+              label: user?.name || 'User',
+              href: '#',
+              icon: (
+                <div className="h-7 w-7 rounded-full bg-white/20 flex items-center justify-center text-white font-bold text-xs">
+                  {user?.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+              ),
+            }}
+            className="hover:bg-white/10 rounded-md"
+          />
+          <SidebarLink
+            link={{
+              label: 'Logout',
+              href: '#',
+              icon: <LogOut className="h-5 w-5 text-white/70" />,
+            }}
+            className="hover:bg-red-500/20 hover:text-red-100 rounded-md"
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault();
+              logout();
+            }}
+          />
+        </div>
+      </SidebarBody>
+    </SidebarContainer>
   );
 }
+
+

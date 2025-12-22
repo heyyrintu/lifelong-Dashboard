@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
 
   // Image optimization
   images: {
-    domains: ['fra.cloud.appwrite.io'],
+    domains: ['fra.cloud.appwrite.io', 'cdn.dribbble.com'],
     formats: ['image/webp', 'image/avif'],
     minimumCacheTTL: 60,
   },

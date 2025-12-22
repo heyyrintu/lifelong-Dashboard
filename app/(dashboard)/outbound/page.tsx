@@ -1010,14 +1010,6 @@ export default function OutboundPage() {
           </div>
         </div>
 
-        {/* Date range info - Bottom Right */}
-        {availableDateRange && (
-          <div className="flex justify-end mt-3">
-            <p className="text-xs text-gray-500 dark:text-slate-500">
-              Data available: {availableDateRange.minDate || 'N/A'} to {availableDateRange.maxDate || 'N/A'}
-            </p>
-          </div>
-        )}
       </motion.div >
 
       {/* Metrics Cards - Consolidated 3-Card Layout */}

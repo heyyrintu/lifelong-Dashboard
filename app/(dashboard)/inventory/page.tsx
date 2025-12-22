@@ -163,6 +163,7 @@ function InventoryPageContent() {
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
+  const [chartDisplayMode, setChartDisplayMode] = useState<'value' | 'percentage'>('value');
   const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [filtersDirty, setFiltersDirty] = useState(false);
   const { setLabel: setDateFilterLabel } = useDateFilter();
@@ -631,12 +632,12 @@ function InventoryPageContent() {
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">Inventory Qty</span>
-      </div>
       <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
         <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
+        <span className="text-gray-700 dark:text-slate-300">Inventory Qty</span>
+      </div>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200/50 dark:border-yellow-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-sm" />
         <span className="text-gray-700 dark:text-slate-300">EDEL Inventory Qty</span>
       </div>
     </div>
@@ -644,12 +645,12 @@ function InventoryPageContent() {
 
   const CbmLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200/50 dark:border-amber-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-amber-500 to-amber-600 shadow-sm" />
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
         <span className="text-gray-700 dark:text-slate-300">Total CBM</span>
       </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-200/50 dark:border-indigo-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-indigo-500 to-indigo-600 shadow-sm" />
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200/50 dark:border-yellow-800/50">
+        <div className="w-3 h-3 rounded bg-gradient-to-br from-yellow-500 to-yellow-600 shadow-sm" />
         <span className="text-gray-700 dark:text-slate-300">EDEL CBM</span>
       </div>
     </div>
@@ -669,13 +670,29 @@ function InventoryPageContent() {
     return new Date(year, 0, 1 + daysOffset);
   };
 
+  // Function to convert data to percentage
+  const convertToPercentage = (points: InventoryTimeSeriesPoint[]): InventoryTimeSeriesPoint[] => {
+    return points.map(point => {
+      const totalQty = point.inventoryQty + point.edelInventoryQty;
+      const totalCbm = point.totalCbm + point.edelTotalCbm;
+      
+      return {
+        ...point,
+        inventoryQty: totalQty > 0 ? (point.inventoryQty / totalQty) * 100 : 0,
+        edelInventoryQty: totalQty > 0 ? (point.edelInventoryQty / totalQty) * 100 : 0,
+        totalCbm: totalCbm > 0 ? (point.totalCbm / totalCbm) * 100 : 0,
+        edelTotalCbm: totalCbm > 0 ? (point.edelTotalCbm / totalCbm) * 100 : 0,
+      };
+    });
+  };
+
   const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
     // Use fullChartData so charts always show all months regardless of filter
     if (!fullChartData || !fullChartData.points) return [];
     const points = fullChartData.points;
 
     if (timeGranularity === 'day') {
-      return points;
+      return chartDisplayMode === 'percentage' ? convertToPercentage(points) : points;
     }
 
     const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -731,7 +748,7 @@ function InventoryPageContent() {
     }
 
     // Calculate averages
-    return Object.keys(groups)
+    const result = Object.keys(groups)
       .sort()
       .map((k) => {
         const group = groups[k];
@@ -745,6 +762,8 @@ function InventoryPageContent() {
           edelTotalCbm: Math.round((group.data.edelTotalCbm / count) * 100) / 100,
         };
       });
+
+    return chartDisplayMode === 'percentage' ? convertToPercentage(result) : result;
   };
 
   // Empty state / error state
@@ -1073,14 +1092,6 @@ function InventoryPageContent() {
           </div>
         </div>
 
-        {/* Date range info - Bottom Right */}
-        {data?.filters.availableDateRange && (
-          <div className="flex justify-end mt-3">
-            <p className="text-xs text-gray-500 dark:text-slate-500">
-              Data available: {data.filters.availableDateRange.minDate || 'N/A'} to {data.filters.availableDateRange.maxDate || 'N/A'}
-            </p>
-          </div>
-        )}
       </motion.div>
 
       {/* Metrics Card - Consolidated Premium Design */}
@@ -1185,22 +1196,43 @@ function InventoryPageContent() {
               <TrendingUp className="w-5 h-5 text-brandRed" />
               <label className="text-base font-semibold text-gray-900 dark:text-slate-100">Time Series Analysis</label>
             </div>
-            <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
-              {(['month', 'week', 'day'] as const).map((granularity) => (
-                <motion.button
-                  key={granularity}
-                  onClick={() => setTimeGranularity(granularity)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
-                    ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                    : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
-                    }`}
-                  suppressHydrationWarning={true}
-                >
-                  {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
-                </motion.button>
-              ))}
+            <div className="flex items-center gap-3">
+              {/* Value/Percentage Toggle */}
+              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
+                {(['value', 'percentage'] as const).map((mode) => (
+                  <motion.button
+                    key={mode}
+                    onClick={() => setChartDisplayMode(mode)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${chartDisplayMode === mode
+                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
+                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    suppressHydrationWarning={true}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </motion.button>
+                ))}
+              </div>
+              {/* Time Granularity Toggle */}
+              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
+                {(['month', 'week', 'day'] as const).map((granularity) => (
+                  <motion.button
+                    key={granularity}
+                    onClick={() => setTimeGranularity(granularity)}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
+                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
+                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                      }`}
+                    suppressHydrationWarning={true}
+                  >
+                    {granularity.charAt(0).toUpperCase() + granularity.slice(1)}
+                  </motion.button>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -1218,7 +1250,9 @@ function InventoryPageContent() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Inventory Qty vs EDEL Qty</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison (in Lakhs)</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {chartDisplayMode === 'value' ? 'Quantity comparison (in Lakhs)' : 'Percentage comparison'}
+                  </p>
                 </div>
               </div>
               <div className="relative z-10">
@@ -1230,12 +1264,12 @@ function InventoryPageContent() {
                   >
                     <defs>
                       <linearGradient id="inventoryQtyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0.7} />
-                      </linearGradient>
-                      <linearGradient id="edelInventoryQtyGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="edelInventoryQtyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#eab308" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#ca8a04" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -1252,7 +1286,7 @@ function InventoryPageContent() {
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: 'currentColor' }}
-                      tickFormatter={(value: number) => `${formatInLakhs(value)} L`}
+                      tickFormatter={(value: number) => chartDisplayMode === 'value' ? `${formatInLakhs(value)} L` : `${value.toFixed(0)}%`}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                     />
@@ -1268,7 +1302,7 @@ function InventoryPageContent() {
                       labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
                       itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
                       formatter={(value: number, name: string) => [
-                        `${formatInLakhs(value)} L`,
+                        chartDisplayMode === 'value' ? `${formatInLakhs(value)} L` : `${value.toFixed(2)}%`,
                         name === 'edelInventoryQty' ? 'EDEL Inventory Qty' : 'Inventory Qty',
                       ]}
                       cursor={{ fill: 'rgba(59, 130, 246, 0.1)' }}
@@ -1290,7 +1324,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="inventoryQty"
                         position="top"
-                        formatter={(value: any) => `${formatInLakhs(value)} L`}
+                        formatter={(value: any) => chartDisplayMode === 'value' ? `${formatInLakhs(value)} L` : `${value.toFixed(1)}%`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1305,7 +1339,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelInventoryQty"
                         position="top"
-                        formatter={(value: any) => `${formatInLakhs(value)} L`}
+                        formatter={(value: any) => chartDisplayMode === 'value' ? `${formatInLakhs(value)} L` : `${value.toFixed(1)}%`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1327,7 +1361,9 @@ function InventoryPageContent() {
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Total CBM vs EDEL CBM</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                    {chartDisplayMode === 'value' ? 'Volume comparison' : 'Percentage comparison'}
+                  </p>
                 </div>
               </div>
               <div className="relative z-10">
@@ -1335,12 +1371,12 @@ function InventoryPageContent() {
                   <BarChart data={displayPoints} margin={{ top: 20, right: 20, bottom: 10, left: 0 }}>
                     <defs>
                       <linearGradient id="totalCbmGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
                       </linearGradient>
                       <linearGradient id="edelCbmGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#4f46e5" stopOpacity={0.7} />
+                        <stop offset="0%" stopColor="#eab308" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#ca8a04" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -1357,7 +1393,7 @@ function InventoryPageContent() {
                     />
                     <YAxis
                       tick={{ fontSize: 11, fill: 'currentColor' }}
-                      tickFormatter={(value: number) => `${formatInLakhs(value)} L`}
+                      tickFormatter={(value: number) => chartDisplayMode === 'value' ? `${formatInLakhs(value)} L` : `${value.toFixed(0)}%`}
                       className="text-gray-600 dark:text-slate-400"
                       axisLine={{ stroke: 'currentColor', strokeOpacity: 0.2 }}
                     />
@@ -1373,7 +1409,7 @@ function InventoryPageContent() {
                       labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
                       itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
                       formatter={(value: number, name: string) => [
-                        formatNumber(value, 2),
+                        chartDisplayMode === 'value' ? formatNumber(value, 2) : `${value.toFixed(2)}%`,
                         name === 'edelTotalCbm' ? 'EDEL CBM' : 'Total CBM',
                       ]}
                       cursor={{ fill: 'rgba(99, 102, 241, 0.1)' }}
@@ -1388,7 +1424,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="totalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: any) => chartDisplayMode === 'value' ? formatNumber(value, 2) : `${value.toFixed(1)}%`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
@@ -1396,7 +1432,7 @@ function InventoryPageContent() {
                       <LabelList
                         dataKey="edelTotalCbm"
                         position="top"
-                        formatter={(value: any) => formatNumber(value, 2)}
+                        formatter={(value: any) => chartDisplayMode === 'value' ? formatNumber(value, 2) : `${value.toFixed(1)}%`}
                         style={{ fontSize: 10, fill: '#64748b', fontWeight: '600' }}
                       />
                     </Bar>
