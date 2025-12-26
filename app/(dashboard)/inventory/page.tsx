@@ -675,7 +675,7 @@ function InventoryPageContent() {
     return points.map(point => {
       const totalQty = point.inventoryQty + point.edelInventoryQty;
       const totalCbm = point.totalCbm + point.edelTotalCbm;
-      
+
       return {
         ...point,
         inventoryQty: totalQty > 0 ? (point.inventoryQty / totalQty) * 100 : 0,
@@ -844,10 +844,10 @@ function InventoryPageContent() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-yellow-400/30 dark:bg-yellow-500/30 backdrop-blur-2xl border-2 border-yellow-500/70 dark:border-yellow-500/70 rounded-2xl p-5 mb-8 shadow-xl shadow-yellow-500/20 hover:shadow-2xl hover:shadow-yellow-500/30 transition-all duration-300"
+        className="relative z-10 bg-white border-2 border-enterprise-border rounded-2xl p-5 mb-8 shadow-lg hover:shadow-xl transition-all duration-300"
       >
         {/* Decorative gradient blob */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
@@ -1114,75 +1114,91 @@ function InventoryPageContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-indigo-400/60 dark:border-indigo-600/60 rounded-2xl p-6 shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-300 overflow-hidden mb-8"
+          whileHover={{ y: -2 }}
+          className="relative bg-gradient-to-br from-white via-white to-red-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border mb-8"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <Boxes className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center gap-3 mb-6 pl-2">
+            <motion.div
+              whileHover={{ rotate: 5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+            >
+              <Boxes className="w-5 h-5 text-brandRed" />
+            </motion.div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Inventory Overview</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Current stock metrics</p>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Inventory Overview</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">Current stock metrics</p>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Inbound SKU */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-200 to-blue-300 dark:from-blue-900/60 dark:to-blue-800/40 rounded-xl border-2 border-blue-400/30 dark:border-blue-600/30 hover:shadow-md transition-all">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pl-2">
+            {/* Inbound SKU - Red Theme */}
+            <motion.div
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="flex items-center justify-between p-4 bg-white rounded-xl border border-enterprise-border shadow-sm hover:shadow-md transition-all"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                  <Package className="w-5 h-5 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inbound SKU</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs with CBM &gt; 0</p>
+                  <span className="text-xs font-bold text-enterprise-textSecondary uppercase tracking-wider">Inbound SKU</span>
+                  <p className="text-[10px] text-enterprise-textSecondary/70">Unique SKUs with CBM &gt; 0</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+              <span className="text-2xl font-bold font-mono text-brandRed">
                 {formatNumber(data?.cards.inboundSkuCount)}
               </span>
-            </div>
+            </motion.div>
 
-            {/* Total Inventory QTY */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-200 to-green-300 dark:from-green-900/60 dark:to-green-800/40 rounded-xl border-2 border-green-400/30 dark:border-green-600/30 hover:shadow-md transition-all">
+            {/* Total Inventory QTY - Yellow Theme */}
+            <motion.div
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="flex items-center justify-between p-4 bg-white rounded-xl border border-enterprise-border shadow-sm hover:shadow-md transition-all"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="w-10 h-10 rounded-lg bg-yellow-50 flex items-center justify-center">
+                  <TrendingUp className="w-5 h-5 text-amber-600" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Total Inventory QTY</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Sum of per-row AVERAGE</p>
+                  <span className="text-xs font-bold text-enterprise-textSecondary uppercase tracking-wider">Total Inventory QTY</span>
+                  <p className="text-[10px] text-enterprise-textSecondary/70">Sum of per-row AVERAGE</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+              <span className="text-2xl font-bold font-mono text-amber-600">
                 {formatInLakhs(data?.cards.inventoryQtyTotal)} L
               </span>
-            </div>
+            </motion.div>
 
-            {/* Total CBM */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-200 to-purple-300 dark:from-purple-900/60 dark:to-purple-800/40 rounded-xl border-2 border-purple-400/30 dark:border-purple-600/30 hover:shadow-md transition-all">
+            {/* Total CBM - Red Theme */}
+            <motion.div
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 300 }}
+              className="flex items-center justify-between p-4 bg-white rounded-xl border border-enterprise-border shadow-sm hover:shadow-md transition-all"
+            >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
-                  <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                <div className="w-10 h-10 rounded-lg bg-red-50 flex items-center justify-center">
+                  <Box className="w-5 h-5 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Total CBM</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Sum of (AVG QTY × CBM/unit)</p>
+                  <span className="text-xs font-bold text-enterprise-textSecondary uppercase tracking-wider">Total CBM</span>
+                  <p className="text-[10px] text-enterprise-textSecondary/70">Sum of (AVG QTY × CBM/unit)</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
-                {(data?.cards.totalCbm ? (data.cards.totalCbm / 1000).toFixed(2) : '0.00')} K
+              <span className="text-2xl font-bold font-mono text-brandRed">
+                {formatNumber(data?.cards.totalCbm, 2)}
               </span>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
       )}
 
-      {/* Time Series Charts - Premium Glassmorphism Design */}
+      {/* Time Series Charts - Clean Design */}
       {!loading && data && chartData && chartData.points.length > 0 && displayPoints.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1190,15 +1206,24 @@ function InventoryPageContent() {
           transition={{ duration: 0.6 }}
           className="mb-8"
         >
-          {/* View by toggle - Enhanced Design */}
+          {/* View by toggle - Clean Design */}
           <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-brandRed" />
-              <label className="text-base font-semibold text-gray-900 dark:text-slate-100">Time Series Analysis</label>
+            <div className="flex items-center gap-3">
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <TrendingUp className="w-5 h-5 text-brandRed" />
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Time Series Analysis</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">View by granularity and mode</p>
+              </div>
             </div>
             <div className="flex items-center gap-3">
               {/* Value/Percentage Toggle */}
-              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 {(['value', 'percentage'] as const).map((mode) => (
                   <motion.button
                     key={mode}
@@ -1206,8 +1231,8 @@ function InventoryPageContent() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${chartDisplayMode === mode
-                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                      ? 'bg-white dark:bg-slate-600 text-brandRed shadow-sm'
+                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                     suppressHydrationWarning={true}
                   >
@@ -1216,7 +1241,7 @@ function InventoryPageContent() {
                 ))}
               </div>
               {/* Time Granularity Toggle */}
-              <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
+              <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 {(['month', 'week', 'day'] as const).map((granularity) => (
                   <motion.button
                     key={granularity}
@@ -1224,8 +1249,8 @@ function InventoryPageContent() {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
-                      ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                      ? 'bg-white dark:bg-slate-600 text-brandRed shadow-sm'
+                      : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                       }`}
                     suppressHydrationWarning={true}
                   >
@@ -1237,20 +1262,21 @@ function InventoryPageContent() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Inventory Qty vs EDEL Inventory Qty Chart - Premium Design */}
+            {/* Inventory Qty vs EDEL Inventory Qty Chart - Clean Design */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="relative bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-amber-400/60 dark:border-amber-600/60 rounded-2xl p-6 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 overflow-hidden"
+              whileHover={{ y: -2 }}
+              className="relative bg-gradient-to-br from-white via-white to-red-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border"
             >
-              {/* Decorative gradient blob */}
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+              {/* Left accent bar */}
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-6 relative z-10">
+              <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Inventory Qty vs EDEL Qty</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                  <h3 className="text-lg font-bold text-enterprise-text mb-1">Inventory Qty vs EDEL Qty</h3>
+                  <p className="text-xs text-enterprise-textSecondary">
                     {chartDisplayMode === 'value' ? 'Quantity comparison (in Lakhs)' : 'Percentage comparison'}
                   </p>
                 </div>
@@ -1348,20 +1374,21 @@ function InventoryPageContent() {
               </div>
             </motion.div>
 
-            {/* Total CBM vs EDEL CBM Chart - Premium Design */}
+            {/* Total CBM vs EDEL CBM Chart - Clean Design */}
             <motion.div
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="relative bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-teal-400/60 dark:border-teal-600/60 rounded-2xl p-6 shadow-xl shadow-teal-500/30 hover:shadow-2xl hover:shadow-teal-500/40 transition-all duration-300 overflow-hidden"
+              whileHover={{ y: -2 }}
+              className="relative bg-gradient-to-br from-white via-white to-yellow-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-yellow-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border"
             >
-              {/* Decorative gradient blob */}
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl -z-10 pointer-events-none" />
+              {/* Left accent bar */}
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-yellow-500 via-yellow-500 to-yellow-500/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-6 relative z-10">
+              <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">Total CBM vs EDEL CBM</h3>
-                  <p className="text-xs text-gray-500 dark:text-slate-400">
+                  <h3 className="text-lg font-bold text-enterprise-text mb-1">Total CBM vs EDEL CBM</h3>
+                  <p className="text-xs text-enterprise-textSecondary">
                     {chartDisplayMode === 'value' ? 'Volume comparison' : 'Percentage comparison'}
                   </p>
                 </div>
@@ -1444,7 +1471,7 @@ function InventoryPageContent() {
         </motion.div>
       )}
 
-      {/* Fast-Moving SKUs Section */}
+      {/* Fast-Moving SKUs Section - Clean Design */}
       {data && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -1455,12 +1482,16 @@ function InventoryPageContent() {
           {/* Section Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl shadow-lg">
-                <TrendingUp className="w-5 h-5 text-white" />
-              </div>
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <TrendingUp className="w-5 h-5 text-brandRed" />
+              </motion.div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fast-Moving SKUs Availability</h2>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Monitor stock levels for high-velocity items</p>
+                <h2 className="text-xl font-extrabold text-enterprise-text tracking-tight">Fast-Moving SKUs Availability</h2>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Monitor stock levels for high-velocity items</p>
               </div>
             </div>
             <button
@@ -1473,8 +1504,10 @@ function InventoryPageContent() {
 
           {showFastMovingSection && (
             <>
-              {/* Filters */}
-              <div className="bg-gradient-to-br from-sky-100 to-blue-100 dark:from-sky-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-sky-400/60 dark:border-sky-600/60 rounded-xl p-4 mb-6 shadow-xl shadow-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/40 transition-all duration-300">
+              {/* Filters - Premium Design */}
+              <div className="relative bg-white border-2 border-enterprise-border rounded-2xl p-4 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                {/* Decorative gradient blob */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Warehouse:</label>
@@ -1531,7 +1564,7 @@ function InventoryPageContent() {
                   <div className="relative">
                     <button
                       onClick={() => setShowFastMovingInfo(!showFastMovingInfo)}
-                      className="w-8 h-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-full bg-brandRed hover:bg-red-700 text-white flex items-center justify-center transition-colors"
                       title="Information"
                     >
                       <Info className="w-4 h-4" />
@@ -1569,8 +1602,10 @@ function InventoryPageContent() {
                 </div>
               </div>
 
-              {/* SKUs Table */}
-              <div className="bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-blue-400/60 dark:border-blue-600/60 rounded-xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 overflow-hidden">
+              {/* SKUs Table - Clean Design */}
+              <div className="relative bg-gradient-to-br from-white via-white to-red-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-red-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+                {/* Left accent bar */}
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
                 {fastMovingLoading ? (
                   <div className="flex items-center justify-center h-48">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
@@ -1698,12 +1733,16 @@ function InventoryPageContent() {
           {/* Section Header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl shadow-lg">
-                <Package className="w-5 h-5 text-white" />
-              </div>
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+              >
+                <Package className="w-5 h-5 text-amber-600" />
+              </motion.div>
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100">Non-Moving / Slow Moving SKUs</h2>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Identify dead stock and slow-moving inventory</p>
+                <h2 className="text-xl font-extrabold text-enterprise-text tracking-tight">Non-Moving / Slow Moving SKUs</h2>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Identify dead stock and slow-moving inventory</p>
               </div>
             </div>
             <button
@@ -1716,8 +1755,10 @@ function InventoryPageContent() {
 
           {showZeroOrderSection && (
             <>
-              {/* Filters */}
-              <div className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-emerald-400/60 dark:border-emerald-600/60 rounded-xl p-4 mb-6 shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300">
+              {/* Filters - Premium Design */}
+              <div className="relative bg-white border-2 border-enterprise-border rounded-2xl p-4 mb-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                {/* Decorative gradient blob */}
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-brandYellow/5 rounded-full blur-3xl -z-10 pointer-events-none" />
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Warehouse:</label>
@@ -1772,7 +1813,7 @@ function InventoryPageContent() {
                       fetchZeroOrderProducts();
                     }}
                     disabled={zeroOrderLoading}
-                    className="flex items-center gap-2 px-4 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                    className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
                   >
                     {zeroOrderLoading ? (
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -1785,7 +1826,7 @@ function InventoryPageContent() {
                   <div className="relative">
                     <button
                       onClick={() => setShowZeroOrderInfo(!showZeroOrderInfo)}
-                      className="w-8 h-8 rounded-full bg-purple-500 hover:bg-purple-600 text-white flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-full bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center transition-colors"
                       title="Information"
                     >
                       <Info className="w-4 h-4" />
@@ -1822,8 +1863,10 @@ function InventoryPageContent() {
                 </div>
               </div>
 
-              {/* Products Table */}
-              <div className="bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-purple-400/60 dark:border-purple-600/60 rounded-xl shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 overflow-hidden">
+              {/* Products Table - Clean Design */}
+              <div className="relative bg-gradient-to-br from-white via-white to-yellow-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-yellow-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+                {/* Left accent bar */}
+                <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-yellow-500 via-yellow-500 to-yellow-500/70 rounded-l-2xl" />
                 {zeroOrderLoading ? (
                   <div className="flex items-center justify-center h-48">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
