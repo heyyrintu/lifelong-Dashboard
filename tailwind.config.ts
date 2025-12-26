@@ -15,6 +15,17 @@ const config: Config = {
       colors: {
         brandRed: '#DE1C1C',
         brandYellow: '#FEA418',
+        // Enterprise design system
+        enterprise: {
+          bg: '#FFF7F0',
+          card: '#FFFFFF',
+          border: '#F2D2D2',
+          text: '#1F2937',
+          textSecondary: '#6B7280',
+          redTint: '#FDECEC',
+          yellowTint: '#FFF1D6',
+          pendingBg: '#FFF5F5',
+        },
         primary: {
           50: '#f0f9ff',
           100: '#e0f2fe',

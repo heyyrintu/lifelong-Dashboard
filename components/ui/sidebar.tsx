@@ -91,7 +91,6 @@ export const DesktopSidebar = ({
           "h-full px-3 py-4 hidden md:flex md:flex-col shrink-0 w-[240px] bg-gradient-to-b from-[#DC2626] via-[#DC2626]/95 to-[#EF4444]/90 backdrop-blur-xl border-r border-red-300/20",
           className
         )}
-        style={{ boxShadow: '4px 0 30px rgba(220, 38, 38, 0.5), 8px 0 60px rgba(220, 38, 38, 0.3), inset -1px 0 0 rgba(255, 255, 255, 0.1)' }}
         animate={{
           width: animate ? (open ? "240px" : "60px") : "240px",
         }}
@@ -124,7 +123,6 @@ export const MobileSidebar = ({
         className={cn(
           "h-10 px-4 py-4 flex flex-row md:hidden items-center justify-between w-full bg-[#DC2626]/90 backdrop-blur-xl border-b border-white/10"
         )}
-        style={{ boxShadow: '0 4px 20px rgba(220, 38, 38, 0.4), 0 0 40px rgba(220, 38, 38, 0.2)' }}
         {...props}
       >
         <div className="flex justify-end z-20 w-full">

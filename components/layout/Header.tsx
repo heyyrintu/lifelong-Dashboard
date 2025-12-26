@@ -94,7 +94,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 w-full border-b border-amber-300/30 bg-gradient-to-r from-[#F59E0B] via-[#F59E0B]/90 to-[#FBBF24]/90 backdrop-blur-md transition-all duration-300" style={{ boxShadow: '0 4px 30px rgba(245, 158, 11, 0.5), 0 8px 60px rgba(245, 158, 11, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)' }}>
+    <header className="sticky top-0 z-10 w-full border-b border-red-300/30 bg-gradient-to-r from-[#DC2626] via-[#DC2626]/90 to-[#EF4444]/90 backdrop-blur-md transition-all duration-300">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: menu + logo */}
         <div className="flex items-center gap-4">
@@ -106,7 +106,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center">
-             <div className="bg-white/75 backdrop-blur-md rounded-[7px] px-4 py-2 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white/85">
+             <div className="bg-white backdrop-blur-md rounded-[7px] px-4 py-2 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white">
                <img 
                 src="https://12d9mn3oyd.ucarecd.net/d13ae91b-1651-44ce-8457-7c7d74f43847/Untitleddesign.png" 
                 alt="Drona Lifelong" 
@@ -129,7 +129,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
           {/* Selected Date Display */}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5
             bg-white/10 hover:bg-white/20
-            border border-white/20
+            border-2 border-yellow-400
             rounded-full transition-all duration-200">
             <Calendar className="w-4 h-4 text-white/90" />
             <time

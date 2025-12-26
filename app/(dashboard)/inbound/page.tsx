@@ -520,7 +520,7 @@ export default function InboundPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 rounded-2xl p-5 mb-8 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+        className="relative z-10 bg-yellow-400/30 dark:bg-yellow-500/30 backdrop-blur-2xl border-2 border-yellow-500/70 dark:border-yellow-500/70 rounded-2xl p-5 mb-8 shadow-xl shadow-yellow-500/20 hover:shadow-2xl hover:shadow-yellow-500/30 transition-all duration-300"
       >
         {/* Decorative gradient blob */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -819,7 +819,7 @@ export default function InboundPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-blue-400/60 dark:border-blue-600/60 rounded-2xl p-6 shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -836,7 +836,7 @@ export default function InboundPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-200 to-blue-300 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border-2 border-blue-400/30 dark:border-blue-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
                     <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -851,7 +851,7 @@ export default function InboundPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all group">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-200 to-blue-300 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border-2 border-blue-400/30 dark:border-blue-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -869,7 +869,7 @@ export default function InboundPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-200 to-blue-300 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border-2 border-blue-400/30 dark:border-blue-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
                     <Truck className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -891,7 +891,7 @@ export default function InboundPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-green-400/60 dark:border-green-600/60 rounded-2xl p-6 shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -908,7 +908,7 @@ export default function InboundPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-200 to-green-300 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border-2 border-green-400/30 dark:border-green-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                     <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -923,7 +923,7 @@ export default function InboundPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all group">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-200 to-green-300 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border-2 border-green-400/30 dark:border-green-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                     <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -941,7 +941,7 @@ export default function InboundPage() {
                 </span>
               </div>
 
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all group">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-200 to-green-300 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border-2 border-green-400/30 dark:border-green-700/30 hover:shadow-md transition-all group">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                     <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -966,7 +966,7 @@ export default function InboundPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-purple-400/60 dark:border-purple-600/60 rounded-2xl p-6 shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
             <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -983,7 +983,7 @@ export default function InboundPage() {
             </div>
 
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-200 to-purple-300 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border-2 border-purple-400/30 dark:border-purple-700/30 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
                     <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -1005,7 +1005,7 @@ export default function InboundPage() {
       {/* Product Category Table */}
       {!loading && summaryData && summaryData.categoryTable && summaryData.categoryTable.length > 0 && (
         <div className="w-full mb-8">
-          <div className="relative border border-gray-200 dark:border-slate-700/30 rounded-2xl p-6 bg-white dark:bg-slate-800/50">
+          <div className="relative border-2 border-indigo-400/60 dark:border-indigo-600/60 rounded-2xl p-6 bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/80 dark:to-slate-900/80 shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-300">
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div className="flex items-center gap-3">
@@ -1248,7 +1248,7 @@ export default function InboundPage() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+              className="relative bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-blue-400/60 dark:border-blue-600/60 rounded-2xl p-6 shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 overflow-hidden"
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1371,7 +1371,7 @@ export default function InboundPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+              className="relative bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-amber-400/60 dark:border-amber-600/60 rounded-2xl p-6 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 overflow-hidden"
             >
               {/* Decorative gradient blob */}
               <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1494,7 +1494,7 @@ export default function InboundPage() {
       {/* Summary Totals Table - Server Management Style */}
       {!loading && summaryData && (
         <div className="w-full mb-8">
-          <div className="relative border border-gray-200 dark:border-slate-700/30 rounded-2xl p-6 bg-white dark:bg-slate-800/50">
+          <div className="relative border-2 border-green-400/60 dark:border-green-600/60 rounded-2xl p-6 bg-gradient-to-br from-green-100 to-emerald-100 dark:from-green-950/80 dark:to-slate-900/80 shadow-xl shadow-green-500/30 hover:shadow-2xl hover:shadow-green-500/40 transition-all duration-300">
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">

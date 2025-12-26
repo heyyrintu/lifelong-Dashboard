@@ -795,10 +795,10 @@ export default function SummaryPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 rounded-2xl p-5 mb-8 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+        className="relative z-10 bg-gradient-to-r from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/30 backdrop-blur-2xl border-2 border-brandRed/70 dark:border-brandYellow/70 rounded-2xl p-5 mb-8 shadow-xl shadow-brandRed/20 hover:shadow-2xl hover:shadow-brandYellow/30 transition-all duration-300"
       >
         {/* Decorative gradient blob */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
@@ -1002,7 +1002,7 @@ export default function SummaryPage() {
               onClick={handleFilter}
               disabled={loading}
               title="Apply Filter"
-              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-brandYellow text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandYellow/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
@@ -1061,14 +1061,14 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandRed/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandRed/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
                 <ArrowDownToLine className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -1079,49 +1079,49 @@ export default function SummaryPage() {
 
             <div className="space-y-4">
               {/* Received SKU Count */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs received</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatNumber(data.inbound.receivedSkuCount)}
                 </span>
               </div>
 
               {/* Received Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total quantity received</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatInLakhs(data.inbound.receivedQty)}
                 </span>
               </div>
 
               {/* Received CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Volume received</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatInThousands(data.inbound.receivedCbm)}
                 </span>
               </div>
@@ -1133,14 +1133,14 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandYellow/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandYellow/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandYellow to-brandRed flex items-center justify-center shadow-lg shadow-brandYellow/30">
                 <Boxes className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -1151,49 +1151,49 @@ export default function SummaryPage() {
 
             <div className="space-y-4">
               {/* Inventory SKU */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-brandYellow dark:text-brandRed" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs in stock</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
+                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
                   {formatNumber(data.inventory.inventorySku)}
                 </span>
               </div>
 
               {/* Inventory Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-brandYellow dark:text-brandRed" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total stock quantity</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
+                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
                   {formatInLakhs(data.inventory.inventoryQty)}
                 </span>
               </div>
 
               {/* Inventory CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-brandYellow dark:text-brandRed" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total volume in stock</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-purple-600 dark:text-purple-400">
+                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
                   {formatInThousands(data.inventory.inventoryCbm)}
                 </span>
               </div>
@@ -1205,14 +1205,14 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            className="relative bg-gradient-to-br from-brandYellow/10 to-brandRed/10 dark:from-brandYellow/20 dark:to-brandRed/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden"
           >
             {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/30">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
                 <ArrowUpFromLine className="w-6 h-6 text-white" />
               </div>
               <div>
@@ -1223,49 +1223,49 @@ export default function SummaryPage() {
 
             <div className="space-y-4">
               {/* DN SKU */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <Package className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN SKU</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Unique delivery SKUs</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatNumber(data.outbound.dnSku)}
                 </span>
               </div>
 
               {/* DN Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <TrendingUp className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Qty</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Total delivery quantity</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatInLakhs(data.outbound.dnQty)}
                 </span>
               </div>
 
               {/* DN Total CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
+                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
+                    <Box className="w-5 h-5 text-brandRed dark:text-brandYellow" />
                   </div>
                   <div>
                     <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Total CBM</span>
                     <p className="text-xs text-gray-400 dark:text-slate-500">Delivery volume</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
                   {formatInThousands(data.outbound.dnTotalCbm)}
                 </span>
               </div>
@@ -1285,13 +1285,13 @@ export default function SummaryPage() {
           {/* Half Donuts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Half Donut Chart - Average Fulfillment */}
-            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
                     <TrendingUp className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1306,8 +1306,8 @@ export default function SummaryPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, averageFulfillment)), fill: '#10b981' },
-                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, averageFulfillment)), fill: '#f59e0b' },
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, averageFulfillment)), fill: '#DE1C1C' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, averageFulfillment)), fill: '#FEA418' },
                       ]}
                       cx="50%"
                       cy="80%"
@@ -1318,8 +1318,8 @@ export default function SummaryPage() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      <Cell fill="#10b981" />
-                      <Cell fill="#f59e0b" />
+                      <Cell fill="#DE1C1C" />
+                      <Cell fill="#FEA418" />
                     </Pie>
                     <Tooltip
                       content={({ active, payload }) => {
@@ -1340,7 +1340,7 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+                  <span className="text-3xl font-bold text-brandRed dark:text-brandYellow">
                     {averageFulfillment.toFixed(1)}%
                   </span>
                   <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Overall Rate</span>
@@ -1349,24 +1349,24 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
             </div>
 
             {/* Current Month Fulfillment - Half Donut */}
-            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-pink-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="relative bg-gradient-to-br from-brandYellow/10 to-brandRed/10 dark:from-brandYellow/20 dark:to-brandRed/10 backdrop-blur-xl border-2 border-brandYellow/60 dark:border-brandRed/60 rounded-2xl p-6 shadow-xl shadow-brandYellow/30 hover:shadow-2xl hover:shadow-brandRed/40 transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandYellow to-brandRed flex items-center justify-center shadow-lg shadow-brandYellow/30">
                     <Calendar className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1380,8 +1380,8 @@ export default function SummaryPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, currentMonthFulfillment.percentage)), fill: '#a855f7' },
-                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, currentMonthFulfillment.percentage)), fill: '#f59e0b' },
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, currentMonthFulfillment.percentage)), fill: '#FEA418' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, currentMonthFulfillment.percentage)), fill: '#DE1C1C' },
                       ]}
                       cx="50%"
                       cy="80%"
@@ -1392,8 +1392,8 @@ export default function SummaryPage() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      <Cell fill="#a855f7" />
-                      <Cell fill="#f59e0b" />
+                      <Cell fill="#FEA418" />
+                      <Cell fill="#DE1C1C" />
                     </Pie>
                     <Tooltip
                       content={({ active, payload }) => {
@@ -1414,7 +1414,7 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                  <span className="text-3xl font-bold text-brandYellow dark:text-brandRed">
                     {currentMonthFulfillment.percentage.toFixed(1)}%
                   </span>
                   <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Monthly Rate</span>
@@ -1423,24 +1423,24 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-purple-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
             </div>
 
             {/* Daily Fulfillment - Half Donut */}
-            <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
               <div className="mb-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
                     <Clock className="w-5 h-5 text-white" />
                   </div>
                   <div>
@@ -1453,7 +1453,7 @@ export default function SummaryPage() {
                     <button
                       onClick={() => setSelectedFulfillmentDay('today')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'today'
-                        ? 'bg-blue-500 text-white shadow-md'
+                        ? 'bg-brandRed text-white shadow-md'
                         : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                     >
@@ -1462,7 +1462,7 @@ export default function SummaryPage() {
                     <button
                       onClick={() => setSelectedFulfillmentDay('yesterday')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'yesterday'
-                        ? 'bg-blue-500 text-white shadow-md'
+                        ? 'bg-brandRed text-white shadow-md'
                         : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                     >
@@ -1471,14 +1471,14 @@ export default function SummaryPage() {
                     <button
                       onClick={() => setSelectedFulfillmentDay('7days')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === '7days'
-                        ? 'bg-blue-500 text-white shadow-md'
+                        ? 'bg-brandRed text-white shadow-md'
                         : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
                         }`}
                     >
                       7 Days
                     </button>
                   </div>
-                  <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-blue-50 dark:bg-blue-900/30 px-3 py-1.5 rounded-lg border border-blue-200 dark:border-blue-700">
+                  <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-brandYellow/20 dark:bg-brandRed/30 px-3 py-1.5 rounded-lg border border-brandYellow/40 dark:border-brandRed/50">
                     {lastDayFulfillment.date}
                   </div>
                 </div>
@@ -1489,8 +1489,8 @@ export default function SummaryPage() {
                   <PieChart>
                     <Pie
                       data={[
-                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, lastDayFulfillment.percentage)), fill: '#3b82f6' },
-                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, lastDayFulfillment.percentage)), fill: '#f59e0b' },
+                        { name: 'Fulfilled', value: Math.min(100, Math.max(0, lastDayFulfillment.percentage)), fill: '#DE1C1C' },
+                        { name: 'Gap', value: Math.max(0, 100 - Math.max(0, lastDayFulfillment.percentage)), fill: '#FEA418' },
                       ]}
                       cx="50%"
                       cy="80%"
@@ -1501,8 +1501,8 @@ export default function SummaryPage() {
                       paddingAngle={2}
                       dataKey="value"
                     >
-                      <Cell fill="#3b82f6" />
-                      <Cell fill="#f59e0b" />
+                      <Cell fill="#DE1C1C" />
+                      <Cell fill="#FEA418" />
                     </Pie>
                     <Tooltip
                       content={({ active, payload }) => {
@@ -1523,7 +1523,7 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                  <span className="text-3xl font-bold text-brandRed dark:text-brandYellow">
                     {lastDayFulfillment.percentage.toFixed(1)}%
                   </span>
                   <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{selectedFulfillmentDay === 'today' ? "Today's Rate" : selectedFulfillmentDay === 'yesterday' ? "Yesterday's Rate" : "7 Days Rate"}</span>
@@ -1532,11 +1532,11 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
@@ -1544,13 +1544,13 @@ export default function SummaryPage() {
           </div>
 
           {/* Line Chart - Month over Month Fulfillment Rates (Full Width) */}
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-            <div className="absolute -top-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
+            <div className="absolute -top-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
                   <TrendingUp className="w-5 h-5 text-white" />
                 </div>
                 <div>
@@ -1568,12 +1568,12 @@ export default function SummaryPage() {
                   >
                     <defs>
                       <linearGradient id="fulfillmentLineGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={1} />
-                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={1} />
+                        <stop offset="0%" stopColor="#DE1C1C" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#FEA418" stopOpacity={1} />
                       </linearGradient>
                       <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-                        <stop offset="100%" stopColor="#8b5cf6" stopOpacity={0.05} />
+                        <stop offset="0%" stopColor="#DE1C1C" stopOpacity={0.3} />
+                        <stop offset="100%" stopColor="#FEA418" stopOpacity={0.05} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -1609,7 +1609,7 @@ export default function SummaryPage() {
                       labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
                       itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
                       formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
-                      cursor={{ stroke: 'rgba(99, 102, 241, 0.3)', strokeWidth: 2 }}
+                      cursor={{ stroke: 'rgba(222, 28, 28, 0.3)', strokeWidth: 2 }}
                     />
                     <Line
                       type="monotone"
@@ -1617,13 +1617,13 @@ export default function SummaryPage() {
                       stroke="url(#fulfillmentLineGradient)"
                       strokeWidth={3}
                       dot={{
-                        fill: '#6366f1',
+                        fill: '#DE1C1C',
                         stroke: '#ffffff',
                         strokeWidth: 2,
                         r: 5,
                       }}
                       activeDot={{
-                        fill: '#6366f1',
+                        fill: '#DE1C1C',
                         stroke: '#ffffff',
                         strokeWidth: 3,
                         r: 8,
@@ -1658,7 +1658,7 @@ export default function SummaryPage() {
             {monthlyFulfillmentData.length > 0 && (
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500" />
+                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
                 </div>
               </div>
@@ -1675,20 +1675,20 @@ export default function SummaryPage() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="w-full mb-8"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
+          <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl backdrop-saturate-150 border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
             {/* Decorative gradient blobs */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
             {/* Header */}
             <div className="flex items-center justify-between mb-6 relative z-10">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-brandRed to-brandYellow animate-pulse shadow-lg shadow-brandRed/50" />
                 <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
               </div>
               <motion.button
                 onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-brandRed to-brandYellow hover:from-brandRed/90 hover:to-brandYellow/90 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
@@ -1778,7 +1778,7 @@ export default function SummaryPage() {
                       <div className="relative grid grid-cols-5 gap-4 items-center text-center">
                         {/* Date */}
                         <div className="flex items-center justify-center gap-2">
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500 to-purple-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
                             <Calendar className="w-4 h-4 text-white" />
                           </div>
                           <span className="text-gray-900 dark:text-slate-200 font-medium text-sm">
@@ -1788,8 +1788,8 @@ export default function SummaryPage() {
 
                         {/* SO Qty */}
                         <div className="flex justify-center">
-                          <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                            <span className="text-indigo-600 dark:text-indigo-400 text-sm font-medium font-mono">
+                          <div className="px-3 py-1.5 rounded-lg bg-brandRed/10 border border-brandRed/30 inline-flex items-center justify-center min-w-[5rem]">
+                            <span className="text-brandRed dark:text-brandYellow text-sm font-medium font-mono">
                               {formatNumber(row.soQty)}
                             </span>
                           </div>
@@ -1797,8 +1797,8 @@ export default function SummaryPage() {
 
                         {/* DN Qty */}
                         <div className="flex justify-center">
-                          <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 inline-flex items-center justify-center min-w-[5rem]">
-                            <span className="text-blue-600 dark:text-blue-400 text-sm font-medium font-mono">
+                          <div className="px-3 py-1.5 rounded-lg bg-brandYellow/10 border border-brandYellow/30 inline-flex items-center justify-center min-w-[5rem]">
+                            <span className="text-brandYellow dark:text-brandRed text-sm font-medium font-mono">
                               {formatNumber(row.dnQty)}
                             </span>
                           </div>
@@ -1849,10 +1849,10 @@ export default function SummaryPage() {
 
               {/* Average Row - Sticky at bottom */}
               <div className="sticky bottom-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pt-4">
-                <div className="relative bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-2 border-amber-200 dark:border-amber-700/50 rounded-xl p-4 overflow-hidden">
+                <div className="relative bg-gradient-to-r from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/20 border-2 border-brandRed/50 dark:border-brandYellow/50 rounded-xl p-4 overflow-hidden">
                   {/* Decorative gradient overlay */}
                   <div
-                    className="absolute inset-0 bg-gradient-to-l from-amber-500/10 to-transparent pointer-events-none"
+                    className="absolute inset-0 bg-gradient-to-l from-brandYellow/10 to-transparent pointer-events-none"
                     style={{
                       backgroundSize: "40% 100%",
                       backgroundPosition: "right",
@@ -1864,7 +1864,7 @@ export default function SummaryPage() {
                   <div className="relative grid grid-cols-5 gap-4 items-center text-center">
                     {/* Overall/Total Label */}
                     <div className="flex items-center justify-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center">
                         <TrendingUp className="w-4 h-4 text-white" />
                       </div>
                       <span className="text-lg font-bold text-gray-900 dark:text-slate-100">
@@ -1874,8 +1874,8 @@ export default function SummaryPage() {
 
                     {/* Total SO Qty */}
                     <div className="flex justify-center">
-                      <div className="px-4 py-2 rounded-lg bg-indigo-500/20 border-2 border-indigo-500/50 inline-flex items-center justify-center min-w-[5rem]">
-                        <span className="text-indigo-700 dark:text-indigo-300 text-base font-bold font-mono">
+                      <div className="px-4 py-2 rounded-lg bg-brandRed/20 border-2 border-brandRed/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-brandRed dark:text-brandYellow text-base font-bold font-mono">
                           {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0))}
                         </span>
                       </div>
@@ -1883,8 +1883,8 @@ export default function SummaryPage() {
 
                     {/* Total DN Qty */}
                     <div className="flex justify-center">
-                      <div className="px-4 py-2 rounded-lg bg-blue-500/20 border-2 border-blue-500/50 inline-flex items-center justify-center min-w-[5rem]">
-                        <span className="text-blue-700 dark:text-blue-300 text-base font-bold font-mono">
+                      <div className="px-4 py-2 rounded-lg bg-brandYellow/20 border-2 border-brandYellow/50 inline-flex items-center justify-center min-w-[5rem]">
+                        <span className="text-brandYellow dark:text-brandRed text-base font-bold font-mono">
                           {formatNumber(data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0))}
                         </span>
                       </div>

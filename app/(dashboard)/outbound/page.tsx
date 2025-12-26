@@ -688,26 +688,26 @@ export default function OutboundPage() {
 
   const QtyLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">SO Qty</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-redTint rounded-lg border border-enterprise-border">
+        <div className="w-3 h-3 rounded bg-brandRed shadow-sm" />
+        <span className="text-enterprise-text">SO Qty</span>
       </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">DN Qty</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-yellowTint rounded-lg border border-enterprise-border">
+        <div className="w-3 h-3 rounded bg-brandYellow shadow-sm" />
+        <span className="text-enterprise-text">DN Qty</span>
       </div>
     </div>
   );
 
   const CbmLegend = () => (
     <div className="flex justify-end gap-4 text-xs font-semibold">
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200/50 dark:border-blue-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-blue-500 to-blue-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">SO Total CBM</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-redTint rounded-lg border border-enterprise-border">
+        <div className="w-3 h-3 rounded bg-brandRed shadow-sm" />
+        <span className="text-enterprise-text">SO Total CBM</span>
       </div>
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200/50 dark:border-red-800/50">
-        <div className="w-3 h-3 rounded bg-gradient-to-br from-red-500 to-red-600 shadow-sm" />
-        <span className="text-gray-700 dark:text-slate-300">DN Total CBM</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-yellowTint rounded-lg border border-enterprise-border">
+        <div className="w-3 h-3 rounded bg-brandYellow shadow-sm" />
+        <span className="text-enterprise-text">DN Total CBM</span>
       </div>
     </div>
   );
@@ -765,10 +765,10 @@ export default function OutboundPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 rounded-2xl p-5 mb-8 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+        className="relative z-10 bg-white border-2 border-enterprise-border rounded-2xl p-5 mb-8 shadow-lg hover:shadow-xl transition-all duration-300"
       >
         {/* Decorative gradient blob */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
@@ -776,7 +776,7 @@ export default function OutboundPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
-            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <input
                   type="date"
@@ -818,7 +818,7 @@ export default function OutboundPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
@@ -851,7 +851,7 @@ export default function OutboundPage() {
                   ))}
                 </select>
               </div>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandYellow transition-colors">
                 <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
               </div>
             </div>
@@ -862,7 +862,7 @@ export default function OutboundPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedWarehouse}
@@ -880,7 +880,7 @@ export default function OutboundPage() {
                   ))}
                 </select>
               </div>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandYellow transition-colors">
                 <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
               </div>
             </div>
@@ -892,8 +892,8 @@ export default function OutboundPage() {
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
-              ? 'border-brandRed ring-4 ring-brandRed/5 z-20'
-              : 'border-gray-200 dark:border-slate-700 hover:border-brandRed/30 hover:shadow-md'
+              ? 'border-brandYellow ring-4 ring-brandYellow/10 z-20'
+              : 'border-gray-200 dark:border-slate-700 hover:border-brandYellow/50 hover:shadow-md'
               }`}>
               <button
                 type="button"
@@ -906,7 +906,7 @@ export default function OutboundPage() {
                 </span>
               </button>
               <div className={`absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none transition-transform duration-300 ${categoryDropdownOpen ? 'rotate-180' : ''}`}>
-                <ChevronDown className={`h-3.5 w-3.5 stroke-[3] ${categoryDropdownOpen ? 'text-brandRed' : 'text-gray-400'}`} />
+                <ChevronDown className={`h-3.5 w-3.5 stroke-[3] ${categoryDropdownOpen ? 'text-brandYellow' : 'text-gray-400'}`} />
               </div>
             </div>
 
@@ -922,7 +922,7 @@ export default function OutboundPage() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandYellow hover:bg-brandYellow/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -943,8 +943,8 @@ export default function OutboundPage() {
                       className="flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group"
                     >
                       <div className={`w-4 h-4 rounded border mr-2 flex items-center justify-center transition-all duration-200 ${selectedProductCategories.includes(category)
-                        ? 'bg-brandRed border-brandRed shadow-sm shadow-brandRed/30 scale-105'
-                        : 'border-gray-300 dark:border-slate-600 group-hover:border-brandRed/50 bg-white dark:bg-slate-900'
+                        ? 'bg-brandYellow border-brandYellow shadow-sm shadow-brandYellow/30 scale-105'
+                        : 'border-gray-300 dark:border-slate-600 group-hover:border-brandYellow/50 bg-white dark:bg-slate-900'
                         }`}>
                         {selectedProductCategories.includes(category) && (
                           <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
@@ -986,15 +986,15 @@ export default function OutboundPage() {
               onClick={handleFilter}
               disabled={loading}
               title="Apply Filter"
-              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-red-600 text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandRed/40"
+              className="h-[36px] px-4 bg-brandYellow text-enterprise-text font-semibold rounded-xl shadow-lg shadow-brandYellow/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:bg-brandYellow/90 hover:shadow-brandYellow/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-enterprise-text/30 border-t-enterprise-text rounded-full animate-spin" />
               ) : (
-                <Search className="w-4 h-4 stroke-[2.5]" />
+                <Search className="w-4 h-4 stroke-[2.5] text-enterprise-text" />
               )}
-              <span className="font-semibold text-xs">Filter</span>
+              <span className="font-semibold text-xs text-enterprise-text">Filter</span>
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
@@ -1014,269 +1014,292 @@ export default function OutboundPage() {
 
       {/* Metrics Cards - Consolidated 3-Card Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        {/* Sales Order (SO) Card */}
+        {/* Sales Order (SO) Card - Red Accent */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          whileHover={{ scale: 1.01, y: -2 }}
+          className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <TrendingUp className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center gap-3 mb-4 pl-2">
+            <motion.div
+              whileHover={{ rotate: 5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+            >
+              <TrendingUp className="w-5 h-5 text-brandRed" />
+            </motion.div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Sales Order (SO)</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Order metrics</p>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Sales Order (SO)</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">Order metrics</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          <div className="space-y-2.5 pl-2">
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <Package className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO SKU</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Unique Sales Order Items</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">SO SKU</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Unique Items</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatNumber(derivedCards?.soSku)}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO Qty</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Total Sales Order Quantity</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">SO Qty</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Total Quantity</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatInLakhs(derivedCards?.soQty)}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
-                  <Box className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <Box className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">SO Total CBM</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Sales Order Volume</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">SO CBM</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Volume</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-blue-600 dark:text-blue-400">
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatInThousands(derivedCards?.soTotalCbm)}
               </span>
-            </div>
+            </motion.div>
           </div>
         </motion.div>
 
-        {/* Delivery Note (DN) Card */}
+        {/* Delivery Note (DN) Card - Yellow Accent with Progress Bar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          whileHover={{ scale: 1.01, y: -2 }}
+          className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/40 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center shadow-lg shadow-green-500/30">
-              <FileText className="w-6 h-6 text-white" />
-            </div>
+          <div className="flex items-center gap-3 mb-4 pl-2">
+            <motion.div
+              whileHover={{ rotate: -5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+            >
+              <FileText className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+            </motion.div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Delivery Note (DN)</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Delivery metrics</p>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Delivery Note (DN)</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">Delivery metrics</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-green-600 dark:text-green-400" />
+          <div className="space-y-2.5 pl-2">
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                  <Package className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN SKU</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Unique Delivery Note Items</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN SKU</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Unique Items</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+              <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                 {loading ? '-' : formatNumber(derivedCards?.dnSku)}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                  <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Qty</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Total Delivery Note Quantity</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN Qty</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Total Quantity</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+              <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                 {loading ? '-' : formatInLakhs(derivedCards?.dnQty)}
               </span>
-            </div>
+            </motion.div>
 
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
-                  <Box className="w-5 h-5 text-green-600 dark:text-green-400" />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                  <Box className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                 </div>
                 <div>
-                  <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Total CBM</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Delivery Note Volume</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN CBM</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">Volume</p>
                 </div>
               </div>
-              <span className="text-2xl font-bold font-mono text-green-600 dark:text-green-400">
+              <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                 {loading ? '-' : formatInThousands(derivedCards?.dnTotalCbm)}
               </span>
+            </motion.div>
+
+            {/* Fulfillment Progress Bar */}
+            <div className="mt-3 pt-3 border-t border-enterprise-border/50">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-enterprise-textSecondary uppercase tracking-wider">Qty Fulfillment</span>
+                <span className="text-sm font-bold text-yellow-700 dark:text-yellow-500">
+                  {loading ? '-' : `${((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100).toFixed(1)}%`}
+                </span>
+              </div>
+              <div className="h-2 bg-enterprise-border/50 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, ((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100))}%` }}
+                  transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-yellow-600 to-amber-600 rounded-full"
+                />
+              </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Difference (SO - DN) Card */}
+        {/* Pending (SO - DN) Card - Urgency Styling with Progress Bar */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          whileHover={{ scale: 1.01, y: -2 }}
+          className="relative bg-gradient-to-br from-enterprise-pendingBg via-enterprise-pendingBg to-enterprise-redTint/50 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandRed/15 transition-all duration-300 overflow-hidden border-2 border-brandRed group"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
-              <ArrowRightLeft className="w-6 h-6 text-white" />
-            </div>
+          {/* Urgency pulse indicator */}
+          <div className="absolute top-3 right-3">
+            <span className="flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brandRed opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-brandRed"></span>
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3 mb-4 pl-2">
+            <motion.div
+              whileHover={{ rotate: 10, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/70 flex items-center justify-center shadow-sm border border-brandRed/20"
+            >
+              <ArrowRightLeft className="w-5 h-5 text-brandRed" />
+            </motion.div>
             <div>
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Pending (SO - DN)</h3>
-              <p className="text-sm text-gray-500 dark:text-slate-400">Difference metrics</p>
+              <h3 className="text-xl font-extrabold text-brandRed tracking-tight">Pending (SO - DN)</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">Unfulfilled orders</p>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-              : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-              }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                  : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                    ? 'bg-red-500/10 dark:bg-red-500/20'
-                    : 'bg-green-500/10 dark:bg-green-500/20'
-                  }`}>
-                  <Package className={`w-5 h-5 ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                    ? 'text-orange-600 dark:text-orange-400'
-                    : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-600 dark:text-green-400'
-                    }`} />
+          <div className="space-y-2.5 pl-2">
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <Package className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN SKU</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Pending SKU difference</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Pending SKU</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">SO - DN</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${(derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) > 0
-                ? 'text-orange-600 dark:text-orange-400'
-                : (derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0) < 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-green-600 dark:text-green-400'
-                }`}>
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatNumber((derivedCards?.soSku || 0) - (derivedCards?.dnSku || 0))}
               </span>
-            </div>
+            </motion.div>
 
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${(derivedCards?.soMinusDnQty || 0) > 0
-              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-              : (derivedCards?.soMinusDnQty || 0) < 0
-                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-              }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${(derivedCards?.soMinusDnQty || 0) > 0
-                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                  : (derivedCards?.soMinusDnQty || 0) < 0
-                    ? 'bg-red-500/10 dark:bg-red-500/20'
-                    : 'bg-green-500/10 dark:bg-green-500/20'
-                  }`}>
-                  <TrendingUp className={`w-5 h-5 ${(derivedCards?.soMinusDnQty || 0) > 0
-                    ? 'text-orange-600 dark:text-orange-400'
-                    : (derivedCards?.soMinusDnQty || 0) < 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-600 dark:text-green-400'
-                    }`} />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <TrendingUp className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN Qty</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Pending delivery quantity</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Pending Qty</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">SO - DN</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${(derivedCards?.soMinusDnQty || 0) > 0
-                ? 'text-orange-600 dark:text-orange-400'
-                : (derivedCards?.soMinusDnQty || 0) < 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-green-600 dark:text-green-400'
-                }`}>
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatInLakhs(derivedCards?.soMinusDnQty)}
               </span>
-            </div>
+            </motion.div>
 
-            <div className={`flex items-center justify-between p-4 bg-gradient-to-br rounded-xl border hover:shadow-md transition-all ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-              ? 'from-orange-50/80 to-orange-100/50 dark:from-orange-900/30 dark:to-orange-800/20 border-orange-200/50 dark:border-orange-700/30'
-              : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                ? 'from-red-50/80 to-red-100/50 dark:from-red-900/30 dark:to-red-800/20 border-red-200/50 dark:border-red-700/30'
-                : 'from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 border-green-200/50 dark:border-green-700/30'
-              }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                  ? 'bg-orange-500/10 dark:bg-orange-500/20'
-                  : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                    ? 'bg-red-500/10 dark:bg-red-500/20'
-                    : 'bg-green-500/10 dark:bg-green-500/20'
-                  }`}>
-                  <Box className={`w-5 h-5 ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                    ? 'text-orange-600 dark:text-orange-400'
-                    : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                      ? 'text-red-600 dark:text-red-400'
-                      : 'text-green-600 dark:text-green-400'
-                    }`} />
+            <motion.div
+              whileHover={{ x: 2 }}
+              className="flex items-center justify-between p-3 bg-white/80 rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                  <Box className="w-4 h-4 text-brandRed" />
                 </div>
                 <div>
-                  <span className="text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">SO - DN CBM</span>
-                  <p className="text-xs text-gray-400 dark:text-slate-500">Pending delivery volume</p>
+                  <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Pending CBM</span>
+                  <p className="text-xs text-enterprise-textSecondary/60 font-medium">SO - DN</p>
                 </div>
               </div>
-              <span className={`text-2xl font-bold font-mono ${((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) > 0
-                ? 'text-orange-600 dark:text-orange-400'
-                : ((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)) < 0
-                  ? 'text-red-600 dark:text-red-400'
-                  : 'text-green-600 dark:text-green-400'
-                }`}>
+              <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                 {loading ? '-' : formatInThousands((derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0))}
               </span>
+            </motion.div>
+
+            {/* Pending Progress Bar (inverted - showing unfulfilled %) */}
+            <div className="mt-3 pt-3 border-t border-brandRed/20">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-bold text-enterprise-textSecondary uppercase tracking-wider">Pending Rate</span>
+                <span className="text-sm font-bold text-brandRed">
+                  {loading ? '-' : `${Math.max(0, 100 - ((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100)).toFixed(1)}%`}
+                </span>
+              </div>
+              <div className="h-2 bg-enterprise-border/50 rounded-full overflow-hidden">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.max(0, Math.min(100, 100 - ((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100)))}%` }}
+                  transition={{ duration: 1, delay: 0.5, ease: "easeOut" }}
+                  className="h-full bg-gradient-to-r from-brandRed to-brandRed/80 rounded-full"
+                />
+              </div>
             </div>
           </div>
         </motion.div>
@@ -1289,19 +1312,23 @@ export default function OutboundPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.35 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          whileHover={{ scale: 1.01, y: -2 }}
+          className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-              <TrendingUp className="w-5 h-5 text-white" />
-            </div>
+          <div className="flex items-center gap-3 mb-4 pl-2">
+            <motion.div
+              whileHover={{ rotate: 5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+            >
+              <TrendingUp className="w-5 h-5 text-brandYellow" />
+            </motion.div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Qty Fulfillment</h3>
-              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Quantity Ratio (Sort by DN Date)</p>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Qty Fulfillment</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">SO to DN Quantity Ratio</p>
             </div>
           </div>
 
@@ -1313,12 +1340,12 @@ export default function OutboundPage() {
                     {
                       name: 'Fulfilled (DN)',
                       value: derivedCards?.dnQty || 0,
-                      fill: '#10b981'
+                      fill: '#FEA418'
                     },
                     {
                       name: 'Pending',
                       value: Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)),
-                      fill: '#f59e0b'
+                      fill: '#DE1C1C'
                     },
                   ]}
                   cx="50%"
@@ -1330,8 +1357,8 @@ export default function OutboundPage() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  <Cell fill="#10b981" />
-                  <Cell fill="#f59e0b" />
+                  <Cell fill="#FEA418" />
+                  <Cell fill="#DE1C1C" />
                 </Pie>
                 <Tooltip
                   content={({ active, payload }) => {
@@ -1359,22 +1386,22 @@ export default function OutboundPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-              <span className="text-3xl font-bold text-emerald-600 dark:text-emerald-400">
+              <span className="text-3xl font-bold text-yellow-700 dark:text-yellow-500">
                 {loading ? '-' : `${((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100).toFixed(1)}%`}
               </span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
+              <span className="text-xs text-enterprise-textSecondary font-medium">Fulfilled</span>
             </div>
           </div>
 
           {/* Legend */}
-          <div className="flex justify-center gap-6 mt-2">
+          <div className="flex justify-center gap-6 mt-2 pl-2">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-emerald-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">DN Qty: {formatInLakhs(derivedCards?.dnQty)}</span>
+              <div className="w-3 h-3 rounded-full bg-yellow-600" />
+              <span className="text-xs text-enterprise-textSecondary">DN Qty: {formatInLakhs(derivedCards?.dnQty)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInLakhs(Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)))}</span>
+              <div className="w-3 h-3 rounded-full bg-brandRed" />
+              <span className="text-xs text-enterprise-textSecondary">Pending: {formatInLakhs(Math.max(0, (derivedCards?.soQty || 0) - (derivedCards?.dnQty || 0)))}</span>
             </div>
           </div>
         </motion.div>
@@ -1384,19 +1411,23 @@ export default function OutboundPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.4 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+          whileHover={{ scale: 1.01, y: -2 }}
+          className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
         >
-          {/* Decorative gradient */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-              <Box className="w-5 h-5 text-white" />
-            </div>
+          <div className="flex items-center gap-3 mb-4 pl-2">
+            <motion.div
+              whileHover={{ rotate: -5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+            >
+              <Box className="w-5 h-5 text-brandYellow" />
+            </motion.div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900 dark:text-white">CBM Fulfillment</h3>
-              <p className="text-xs text-gray-500 dark:text-slate-400">SO to DN Volume Ratio (Sort by DN Date)</p>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">CBM Fulfillment</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">SO to DN Volume Ratio</p>
             </div>
           </div>
 
@@ -1408,12 +1439,12 @@ export default function OutboundPage() {
                     {
                       name: 'Fulfilled (DN)',
                       value: derivedCards?.dnTotalCbm || 0,
-                      fill: '#3b82f6'
+                      fill: '#FEA418'
                     },
                     {
                       name: 'Pending',
                       value: Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)),
-                      fill: '#f59e0b'
+                      fill: '#DE1C1C'
                     },
                   ]}
                   cx="50%"
@@ -1425,8 +1456,8 @@ export default function OutboundPage() {
                   paddingAngle={2}
                   dataKey="value"
                 >
-                  <Cell fill="#3b82f6" />
-                  <Cell fill="#f59e0b" />
+                  <Cell fill="#FEA418" />
+                  <Cell fill="#DE1C1C" />
                 </Pie>
                 <Tooltip
                   content={({ active, payload }) => {
@@ -1454,22 +1485,22 @@ export default function OutboundPage() {
               </PieChart>
             </ResponsiveContainer>
             <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-              <span className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+              <span className="text-3xl font-bold text-yellow-700 dark:text-yellow-500">
                 {loading ? '-' : `${((derivedCards?.dnTotalCbm || 0) / (derivedCards?.soTotalCbm || 1) * 100).toFixed(1)}%`}
               </span>
-              <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Fulfilled</span>
+              <span className="text-xs text-enterprise-textSecondary font-medium">Fulfilled</span>
             </div>
           </div>
 
           {/* Legend */}
-          <div className="flex justify-center gap-6 mt-2">
+          <div className="flex justify-center gap-6 mt-2 pl-2">
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-blue-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">DN CBM: {formatInThousands(derivedCards?.dnTotalCbm)}</span>
+              <div className="w-3 h-3 rounded-full bg-yellow-600" />
+              <span className="text-xs text-enterprise-textSecondary">DN CBM: {formatInThousands(derivedCards?.dnTotalCbm)}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-amber-500" />
-              <span className="text-xs text-gray-600 dark:text-slate-400">Pending: {formatInThousands(Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)))}</span>
+              <div className="w-3 h-3 rounded-full bg-brandRed" />
+              <span className="text-xs text-enterprise-textSecondary">Pending: {formatInThousands(Math.max(0, (derivedCards?.soTotalCbm || 0) - (derivedCards?.dnTotalCbm || 0)))}</span>
             </div>
           </div>
         </motion.div>
@@ -1480,18 +1511,27 @@ export default function OutboundPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
+        whileHover={{ y: -2 }}
         className="w-full mb-8"
       >
-        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-          {/* Decorative gradient blobs */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/20 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+          {/* Left accent bar with gradient */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Category Wise OutBound</h3>
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <Package className="w-5 h-5 text-brandRed" />
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Category Wise OutBound</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Category distribution breakdown</p>
+              </div>
             </div>
           </div>
 
@@ -1501,11 +1541,11 @@ export default function OutboundPage() {
             </div>
           ) : categoryTableWithTotal.length > 0 ? (
             <motion.div
-              className="space-y-2"
+              className="space-y-1.5 pl-2"
               variants={{
                 visible: {
                   transition: {
-                    staggerChildren: 0.08,
+                    staggerChildren: 0.05,
                     delayChildren: 0.1,
                   }
                 }
@@ -1514,7 +1554,7 @@ export default function OutboundPage() {
               animate="visible"
             >
               {/* Headers */}
-              <div className="grid grid-cols-9 gap-4 px-4 py-3 mb-2 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-gray-200/50 dark:border-slate-700/50 text-sm font-bold uppercase tracking-wider relative z-10 text-gray-700 dark:text-white">
+              <div className="grid grid-cols-9 gap-3 px-3 py-2.5 mb-2 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 text-sm font-bold uppercase tracking-widest text-enterprise-textSecondary">
                 <div className="col-span-2 text-left">Category</div>
                 <div className="col-span-1 text-center">SO Count</div>
                 <div className="col-span-1 text-center">SO Qty</div>
@@ -1522,7 +1562,7 @@ export default function OutboundPage() {
                 <div className="col-span-1 text-center">DN Count</div>
                 <div className="col-span-1 text-center">DN Qty</div>
                 <div className="col-span-1 text-center">DN CBM</div>
-                <div className="col-span-1 text-center">SO - DN Qty</div>
+                <div className="col-span-1 text-center">Pending Qty</div>
               </div>
 
               {/* Data Rows */}
@@ -1532,15 +1572,13 @@ export default function OutboundPage() {
                   variants={{
                     hidden: {
                       opacity: 0,
-                      x: -25,
-                      scale: 0.95,
-                      filter: "blur(4px)"
+                      x: -15,
+                      scale: 0.98,
                     },
                     visible: {
                       opacity: 1,
                       x: 0,
                       scale: 1,
-                      filter: "blur(0px)",
                       transition: {
                         type: "spring",
                         stiffness: 400,
@@ -1553,47 +1591,34 @@ export default function OutboundPage() {
                 >
                   <motion.div
                     className={`relative ${row.categoryLabel === 'TOTAL'
-                      ? 'bg-gradient-to-r from-brandRed/20 via-brandRed/10 to-brandRed/5 border-2 border-brandRed/40 shadow-lg shadow-brandRed/20 backdrop-blur-sm'
-                      : 'bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40'
-                      } rounded-xl p-4 overflow-hidden transition-all duration-200`}
+                      ? 'bg-gradient-to-r from-enterprise-redTint via-enterprise-redTint/80 to-enterprise-redTint/50 border-2 border-brandRed/40 shadow-lg shadow-brandRed/10'
+                      : 'bg-gradient-to-r from-white to-white/80 border border-enterprise-border/50 hover:border-brandYellow/30'
+                      } rounded-lg p-3 overflow-hidden transition-all duration-200`}
                     whileHover={{
-                      y: -2,
-                      scale: 1.01,
+                      x: 2,
                       transition: { type: "spring", stiffness: 400, damping: 25 }
                     }}
                   >
-                    {/* Status gradient overlay */}
-                    {row.categoryLabel !== 'TOTAL' && (
-                      <div
-                        className="absolute inset-0 bg-gradient-to-l from-blue-500/15 via-blue-500/5 to-transparent pointer-events-none"
-                        style={{
-                          backgroundSize: "30% 100%",
-                          backgroundPosition: "right",
-                          backgroundRepeat: "no-repeat"
-                        }}
-                      />
-                    )}
-
                     {/* Grid Content */}
-                    <div className={`relative grid grid-cols-9 gap-4 items-center ${row.categoryLabel === 'TOTAL' ? 'text-lg font-bold' : ''
+                    <div className={`relative grid grid-cols-9 gap-3 items-center ${row.categoryLabel === 'TOTAL' ? 'text-base font-bold' : ''
                       }`}>
                       {/* Category */}
-                      <div className="col-span-2 flex items-center gap-3">
+                      <div className="col-span-2 flex items-center gap-2">
                         {row.categoryLabel === 'TOTAL' ? (
                           <>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-brandRed/70 flex items-center justify-center border-2 border-brandRed/50">
-                              <span className="text-white text-sm font-bold">Σ</span>
+                            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brandRed to-brandRed/70 flex items-center justify-center">
+                              <span className="text-white text-xs font-bold">Σ</span>
                             </div>
-                            <span className="text-brandRed dark:text-brandRed font-bold text-lg">
+                            <span className="text-brandRed font-bold text-base">
                               {row.categoryLabel}
                             </span>
                           </>
                         ) : (
                           <>
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center border border-gray-200 dark:border-slate-600/30">
-                              <Package className="w-4 h-4 text-white" />
+                            <div className="w-7 h-7 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                              <Package className="w-3.5 h-3.5 text-brandRed" />
                             </div>
-                            <span className="text-gray-900 dark:text-slate-200 font-medium">
+                            <span className="text-enterprise-text font-medium text-base">
                               {row.categoryLabel}
                             </span>
                           </>
@@ -1602,13 +1627,13 @@ export default function OutboundPage() {
 
                       {/* SO Count */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-orange-500/10 border border-orange-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandRed/20 border border-brandRed/40'
+                          : 'bg-enterprise-redTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-orange-600 dark:text-orange-400 text-sm'
+                            ? 'text-brandRed text-base font-bold'
+                            : 'text-brandRed text-base'
                             }`}>
                             {formatNumber(row.soCount)}
                           </span>
@@ -1617,13 +1642,13 @@ export default function OutboundPage() {
 
                       {/* SO Qty */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-indigo-500/10 border border-indigo-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandRed/20 border border-brandRed/40'
+                          : 'bg-enterprise-redTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-indigo-600 dark:text-indigo-400 text-sm'
+                            ? 'text-brandRed text-base font-bold'
+                            : 'text-brandRed text-base'
                             }`}>
                             {formatNumber(row.soQty)}
                           </span>
@@ -1632,13 +1657,13 @@ export default function OutboundPage() {
 
                       {/* SO CBM */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-blue-500/10 border border-blue-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandRed/20 border border-brandRed/40'
+                          : 'bg-enterprise-redTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-blue-600 dark:text-blue-400 text-sm'
+                            ? 'text-brandRed text-base font-bold'
+                            : 'text-brandRed text-base'
                             }`}>
                             {formatNumber(row.soTotalCbm, 2)}
                           </span>
@@ -1647,13 +1672,13 @@ export default function OutboundPage() {
 
                       {/* DN Count */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-teal-500/10 border border-teal-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandYellow/20 border border-brandYellow/40'
+                          : 'bg-enterprise-yellowTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-teal-600 dark:text-teal-400 text-sm'
+                            ? 'text-yellow-700 dark:text-yellow-500 text-base font-bold'
+                            : 'text-amber-600 dark:text-amber-500 text-base'
                             }`}>
                             {formatNumber(row.dnCount)}
                           </span>
@@ -1662,13 +1687,13 @@ export default function OutboundPage() {
 
                       {/* DN Qty */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-green-500/10 border border-green-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandYellow/20 border border-brandYellow/40'
+                          : 'bg-enterprise-yellowTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-green-600 dark:text-green-400 text-sm'
+                            ? 'text-yellow-700 dark:text-yellow-500 text-base font-bold'
+                            : 'text-amber-600 dark:text-amber-500 text-base'
                             }`}>
                             {formatNumber(row.dnQty)}
                           </span>
@@ -1677,36 +1702,36 @@ export default function OutboundPage() {
 
                       {/* DN Total CBM */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
-                          : 'bg-purple-500/10 border border-purple-500/30'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandYellow/20 border border-brandYellow/40'
+                          : 'bg-enterprise-yellowTint/50 border border-enterprise-border/50'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
-                            : 'text-purple-600 dark:text-purple-400 text-sm'
+                            ? 'text-yellow-700 dark:text-yellow-500 text-base font-bold'
+                            : 'text-amber-600 dark:text-amber-500 text-base'
                             }`}>
                             {formatNumber(row.dnTotalCbm, 2)}
                           </span>
                         </div>
                       </div>
 
-                      {/* SO - DN Qty */}
+                      {/* Pending Qty */}
                       <div className="col-span-1 flex justify-center">
-                        <div className={`w-full min-w-[4rem] px-3 py-1.5 rounded-lg inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
-                          ? 'bg-brandRed/20 border-2 border-brandRed/50'
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.categoryLabel === 'TOTAL'
+                          ? 'bg-brandRed/20 border border-brandRed/40'
                           : row.soMinusDnQty > 0
-                            ? 'bg-red-500/10 border border-red-500/30'
+                            ? 'bg-enterprise-redTint border border-brandRed/30'
                             : row.soMinusDnQty < 0
-                              ? 'bg-yellow-500/10 border border-yellow-500/30'
-                              : 'bg-green-500/10 border border-green-500/30'
+                              ? 'bg-enterprise-yellowTint border border-brandYellow/30'
+                              : 'bg-gray-100 border border-gray-200'
                           }`}>
                           <span className={`font-medium font-mono ${row.categoryLabel === 'TOTAL'
-                            ? 'text-brandRed dark:text-brandRed text-lg font-bold'
+                            ? 'text-brandRed text-base font-bold'
                             : row.soMinusDnQty > 0
-                              ? 'text-red-600 dark:text-red-400 text-sm'
+                              ? 'text-brandRed text-base font-semibold'
                               : row.soMinusDnQty < 0
-                                ? 'text-yellow-600 dark:text-yellow-400 text-sm'
-                                : 'text-green-600 dark:text-green-400 text-sm'
+                                ? 'text-brandYellow text-base font-semibold'
+                                : 'text-gray-500 text-base'
                             }`}>
                             {formatNumber(row.soMinusDnQty)}
                           </span>
@@ -1737,29 +1762,32 @@ export default function OutboundPage() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="w-full"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden min-h-[580px]">
-            {/* Decorative gradient blobs */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border min-h-[580px]">
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
             {/* Header */}
-            <div className="flex items-center gap-3 mb-6 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
-                <Box className="w-5 h-5 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4 pl-2 relative z-10">
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <Box className="w-5 h-5 text-brandRed" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                  Top 10 Product CBM Wise Chart
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">
+                  Top 10 Product CBM
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
-                  Top 10 Products Contribution CBM Wise
+                <p className="text-xs text-enterprise-textSecondary font-medium">
+                  Top Products by Volume
                 </p>
               </div>
             </div>
 
             {/* Pie Chart */}
             {topProducts.length > 0 ? (
-              <div className="h-80">
+              <div className="h-80 pl-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1784,8 +1812,8 @@ export default function OutboundPage() {
                         <Cell
                           key={`cell-${index}`}
                           fill={[
-                            '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-                            '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
+                            '#f59e0b', '#9ca3af', '#f97316', '#6b7280', '#ef4444',
+                            '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#eab308'
                           ][index % 10]}
                         />
                       ))}
@@ -1795,12 +1823,12 @@ export default function OutboundPage() {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                            <div className="bg-white/95 backdrop-blur-md p-3 rounded-xl border border-enterprise-border shadow-xl">
+                              <p className="text-sm font-semibold text-enterprise-text mb-1">
                                 {data.fullName}
                               </p>
-                              <p className="text-sm text-gray-600 dark:text-slate-400">
-                                CBM: <span className="font-mono font-semibold text-blue-600 dark:text-blue-400">{formatNumber(data.value, 2)}</span>
+                              <p className="text-sm text-enterprise-textSecondary">
+                                CBM: <span className="font-mono font-semibold text-brandRed">{formatNumber(data.value, 2)}</span>
                               </p>
                             </div>
                           );
@@ -1821,53 +1849,63 @@ export default function OutboundPage() {
             )}
 
             {/* Legend */}
-            {topProducts.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {topProducts.slice(0, 10).map((product, index) => (
-                  <div key={product.deliveryNoteItem} className="flex items-center gap-2 text-xs">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: [
-                          '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981',
-                          '#6366f1', '#14b8a6', '#f97316', '#84cc16', '#06b6d4'
-                        ][index % 10]
-                      }}
-                    />
-                    <span className="text-gray-600 dark:text-slate-400 truncate">
-                      {product.deliveryNoteItem.length > 25
-                        ? product.deliveryNoteItem.substring(0, 25) + '...'
-                        : product.deliveryNoteItem}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {topProducts.length > 0 && (() => {
+              const totalCbm = topProducts.slice(0, 10).reduce((sum, p) => sum + p.totalCbm, 0);
+              return (
+                <div className="mt-4 pl-2 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                  {topProducts.slice(0, 10).map((product, index) => {
+                    const percentage = ((product.totalCbm / totalCbm) * 100).toFixed(1);
+                    return (
+                      <div key={product.deliveryNoteItem} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: [
+                              '#f59e0b', '#9ca3af', '#f97316', '#6b7280', '#ef4444',
+                              '#3b82f6', '#8b5cf6', '#ec4899', '#10b981', '#eab308'
+                            ][index % 10]
+                          }}
+                        />
+                        <span className="text-enterprise-textSecondary truncate">
+                          {product.deliveryNoteItem.length > 20
+                            ? product.deliveryNoteItem.substring(0, 20) + '...'
+                            : product.deliveryNoteItem} - {percentage}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </motion.div>
 
-        {/* Categories by CBM Pie Chart */}
+        {/* Categories by CBM Pie Chart - Clean Design */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
+          whileHover={{ y: -2 }}
           className="w-full"
         >
-          <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden min-h-[580px]">
-            {/* Decorative gradient blobs */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="relative bg-gradient-to-br from-white via-white to-emerald-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border min-h-[580px]">
+            {/* Left accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-500 via-emerald-500 to-emerald-500/70 rounded-l-2xl" />
 
             {/* Header */}
-            <div className="flex items-center gap-3 mb-6 relative z-10">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
-                <Package className="w-5 h-5 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4 pl-2 relative z-10">
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-100 to-emerald-100/50 flex items-center justify-center shadow-sm"
+              >
+                <Package className="w-5 h-5 text-emerald-600" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">
                   Category Wise OutBound
                 </h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">
+                <p className="text-xs text-enterprise-textSecondary font-medium">
                   Category distribution by CBM
                 </p>
               </div>
@@ -1875,7 +1913,7 @@ export default function OutboundPage() {
 
             {/* Pie Chart */}
             {productCategoryDonutData.some(item => item.value > 0) ? (
-              <div className="h-80">
+              <div className="h-80 pl-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1905,12 +1943,12 @@ export default function OutboundPage() {
                         if (active && payload && payload.length) {
                           const data = payload[0].payload;
                           return (
-                            <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md p-3 rounded-xl border border-gray-200/50 dark:border-slate-700/50 shadow-xl">
-                              <p className="text-sm font-semibold text-gray-900 dark:text-slate-100 mb-1">
+                            <div className="bg-white/95 backdrop-blur-md p-3 rounded-xl border border-enterprise-border shadow-xl">
+                              <p className="text-sm font-semibold text-enterprise-text mb-1">
                                 {data.name}
                               </p>
-                              <p className="text-sm text-gray-600 dark:text-slate-400">
-                                CBM: <span className="font-mono font-semibold text-emerald-600 dark:text-emerald-400">{formatNumber(data.value, 2)}</span>
+                              <p className="text-sm text-enterprise-textSecondary">
+                                CBM: <span className="font-mono font-semibold text-emerald-600">{formatNumber(data.value, 2)}</span>
                               </p>
                             </div>
                           );
@@ -1931,63 +1969,66 @@ export default function OutboundPage() {
             )}
 
             {/* Legend */}
-            {productCategoryDonutData.some(item => item.value > 0) && (
-              <div className="mt-4 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {productCategoryDonutData.map((category, index) => (
-                  <div key={category.name} className="flex items-center gap-2 text-xs">
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{
-                        backgroundColor: [
-                          '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
-                          '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
-                        ][index % 10]
-                      }}
-                    />
-                    <span className="text-gray-600 dark:text-slate-400 truncate">
-                      {category.name}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
+            {productCategoryDonutData.some(item => item.value > 0) && (() => {
+              const totalCbm = productCategoryDonutData.reduce((sum, cat) => sum + cat.value, 0);
+              return (
+                <div className="mt-4 pl-2 grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                  {productCategoryDonutData.map((category, index) => {
+                    const percentage = ((category.value / totalCbm) * 100).toFixed(1);
+                    return (
+                      <div key={category.name} className="flex items-center gap-2 text-xs">
+                        <div
+                          className="w-3 h-3 rounded-full flex-shrink-0"
+                          style={{
+                            backgroundColor: [
+                              '#10b981', '#14b8a6', '#06b6d4', '#3b82f6', '#8b5cf6',
+                              '#ec4899', '#f59e0b', '#f97316', '#84cc16', '#6366f1'
+                            ][index % 10]
+                          }}
+                        />
+                        <span className="text-enterprise-textSecondary truncate">
+                          {category.name} - {percentage}%
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
           </div>
         </motion.div>
       </div>
 
-      {/* Product Performances Table - Premium Glassmorphism Design */}
+      {/* Top 10 Products - Clean Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.15 }}
+        transition={{ duration: 0.6 }}
+        whileHover={{ y: -2 }}
         className="w-full mb-8"
       >
-        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-          {/* Decorative gradient blobs */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-orange-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/20 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+          {/* Left accent bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-500 via-amber-500 to-amber-500/70 rounded-l-2xl" />
 
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 relative z-10">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/30">
-                  <Trophy className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">
-                    Top 10 Product CBM Wise
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-slate-400">
-                    Ranked by {topProductsRankBy === 'cbm' ? 'CBM' : 'Quantity'}
-                  </p>
-                </div>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4 relative z-10 pl-2">
+            <div className="flex items-center gap-3">
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+              >
+                <Trophy className="w-5 h-5 text-amber-600" />
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Top 10 Product CBM Wise</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Ranked by {topProductsRankBy === 'cbm' ? 'CBM' : 'Quantity'}</p>
               </div>
             </div>
 
             {/* Controls */}
             <div className="flex items-center gap-3">
-              {/* Rank By Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 <button
                   onClick={() => handleRankByChange('cbm')}
@@ -2008,8 +2049,6 @@ export default function OutboundPage() {
                   By Qty
                 </button>
               </div>
-
-              {/* Sort Order Toggle */}
               <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
                 <button
                   onClick={() => handleSortOrderChange('top')}
@@ -2040,32 +2079,67 @@ export default function OutboundPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
           ) : topProducts.length > 0 ? (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg">
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Rank</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Product Item</th>
-                    <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Category</th>
-                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">
-                      <span className={topProductsRankBy === 'qty' ? 'text-amber-600 dark:text-amber-400' : ''}>DN Qty</span>
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">
-                      <span className={topProductsRankBy === 'cbm' ? 'text-amber-600 dark:text-amber-400' : ''}>DN CBM</span>
-                    </th>
-                    <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">% of Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
-                  {topProducts.map((product, index) => (
-                    <motion.tr
-                      key={product.deliveryNoteItem}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors"
-                    >
-                      <td className="px-4 py-3">
+            <motion.div
+              className="space-y-1.5 pl-2"
+              variants={{
+                visible: {
+                  transition: {
+                    staggerChildren: 0.05,
+                    delayChildren: 0.1,
+                  }
+                }
+              }}
+              initial="hidden"
+              animate="visible"
+            >
+              {/* Headers */}
+              <div className="grid grid-cols-12 gap-3 px-3 py-2.5 mb-2 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 text-sm font-bold uppercase tracking-widest text-enterprise-textSecondary">
+                <div className="col-span-1 text-center">Rank</div>
+                <div className="col-span-4 text-left">Product Item</div>
+                <div className="col-span-2 text-center">Category</div>
+                <div className="col-span-2 text-center">
+                  <span className={topProductsRankBy === 'qty' ? 'text-amber-600 dark:text-amber-500' : ''}>DN Qty</span>
+                </div>
+                <div className="col-span-2 text-center">
+                  <span className={topProductsRankBy === 'cbm' ? 'text-amber-600 dark:text-amber-500' : ''}>DN CBM</span>
+                </div>
+                <div className="col-span-1 text-center">% Total</div>
+              </div>
+
+              {/* Data Rows */}
+              {topProducts.map((product, index) => (
+                <motion.div
+                  key={product.deliveryNoteItem}
+                  variants={{
+                    hidden: {
+                      opacity: 0,
+                      x: -15,
+                      scale: 0.98,
+                    },
+                    visible: {
+                      opacity: 1,
+                      x: 0,
+                      scale: 1,
+                      transition: {
+                        type: "spring",
+                        stiffness: 400,
+                        damping: 28,
+                        mass: 0.6,
+                      },
+                    },
+                  }}
+                  className="relative"
+                >
+                  <motion.div
+                    className="relative bg-gradient-to-r from-white to-white/80 border border-enterprise-border/50 hover:border-amber-500/30 rounded-lg p-3 overflow-hidden transition-all duration-200"
+                    whileHover={{
+                      x: 2,
+                      transition: { type: "spring", stiffness: 400, damping: 25 }
+                    }}
+                  >
+                    <div className="relative grid grid-cols-12 gap-3 items-center">
+                      {/* Rank */}
+                      <div className="col-span-1 flex justify-center">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-sm ${product.rank === 1
                           ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-white shadow-lg shadow-amber-500/30'
                           : product.rank === 2
@@ -2076,43 +2150,68 @@ export default function OutboundPage() {
                           }`}>
                           {product.rank}
                         </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className="text-sm font-medium text-gray-900 dark:text-slate-200">
+                      </div>
+
+                      {/* Product Name */}
+                      <div className="col-span-4 flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                          <Package className="w-3.5 h-3.5 text-amber-600" />
+                        </div>
+                        <span className="text-enterprise-text font-medium text-base truncate">
                           {product.deliveryNoteItem}
                         </span>
-                      </td>
-                      <td className="px-4 py-3">
+                      </div>
+
+                      {/* Category */}
+                      <div className="col-span-2 flex justify-center">
                         <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200/50 dark:border-blue-700/50">
                           {product.productCategory}
                         </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'qty'
-                          ? 'text-amber-600 dark:text-amber-400'
-                          : 'text-gray-700 dark:text-slate-300'
+                      </div>
+
+                      {/* DN Qty */}
+                      <div className="col-span-2 flex justify-center">
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${topProductsRankBy === 'qty'
+                          ? 'bg-amber-500/20 border border-amber-500/40'
+                          : 'bg-enterprise-yellowTint/50 border border-enterprise-border/50'
                           }`}>
-                          {formatNumber(product.totalQty)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className={`text-sm font-mono font-semibold ${topProductsRankBy === 'cbm'
-                          ? 'text-amber-600 dark:text-amber-400'
-                          : 'text-gray-700 dark:text-slate-300'
+                          <span className={`font-medium font-mono text-base ${topProductsRankBy === 'qty'
+                            ? 'text-amber-600 dark:text-amber-500'
+                            : 'text-enterprise-text'
+                            }`}>
+                            {formatNumber(product.totalQty)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* DN CBM */}
+                      <div className="col-span-2 flex justify-center">
+                        <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${topProductsRankBy === 'cbm'
+                          ? 'bg-amber-500/20 border border-amber-500/40'
+                          : 'bg-enterprise-yellowTint/50 border border-enterprise-border/50'
                           }`}>
-                          {formatNumber(product.totalCbm, 2)}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <span className="text-sm font-mono font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatNumber(product.percentageOfTotal, 2)}%
-                        </span>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                          <span className={`font-medium font-mono text-base ${topProductsRankBy === 'cbm'
+                            ? 'text-amber-600 dark:text-amber-500'
+                            : 'text-enterprise-text'
+                            }`}>
+                            {formatNumber(product.totalCbm, 2)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* % of Total */}
+                      <div className="col-span-1 flex justify-center">
+                        <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200/50 dark:border-emerald-700/50">
+                          <span className="font-medium font-mono text-base text-emerald-600 dark:text-emerald-400">
+                            {formatNumber(product.percentageOfTotal, 2)}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                </motion.div>
+              ))}
+            </motion.div>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
               <div className="text-center">
@@ -2124,20 +2223,29 @@ export default function OutboundPage() {
         </div>
       </motion.div>
 
-      {/* Time Series Charts - Premium Glassmorphism Design */}
+      {/* Time Series Charts - Clean Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
         className="mb-8"
       >
-        {/* View by toggle - Enhanced Design */}
+        {/* View by toggle - Clean Design */}
         <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-brandRed" />
-            <label className="text-base font-semibold text-gray-900 dark:text-slate-100">Time Series Analysis</label>
+          <div className="flex items-center gap-3">
+            <motion.div
+              whileHover={{ rotate: 5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+            >
+              <TrendingUp className="w-5 h-5 text-brandRed" />
+            </motion.div>
+            <div>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Time Series Analysis</h3>
+              <p className="text-xs text-enterprise-textSecondary font-medium">View by granularity</p>
+            </div>
           </div>
-          <div className="flex items-center gap-2 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-xl p-1 shadow-sm">
+          <div className="flex items-center gap-2 bg-gray-100 dark:bg-slate-700/50 rounded-xl p-1">
             {(['month', 'week', 'day'] as const).map((granularity) => (
               <motion.button
                 key={granularity}
@@ -2145,8 +2253,8 @@ export default function OutboundPage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={`px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${timeGranularity === granularity
-                  ? 'bg-gradient-to-r from-brandRed to-red-600 text-white shadow-lg shadow-brandRed/25'
-                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200 hover:bg-gray-100/50 dark:hover:bg-slate-700/50'
+                  ? 'bg-white dark:bg-slate-600 text-brandRed shadow-sm'
+                  : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-slate-200'
                   }`}
                 suppressHydrationWarning={true}
               >
@@ -2157,20 +2265,21 @@ export default function OutboundPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* SO vs DN Qty Chart - Premium Design */}
+          {/* SO vs DN Qty Chart - Clean Design */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            whileHover={{ y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-blue-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border"
           >
-            {/* Decorative gradient blob */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Left accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO Qty vs DN Qty</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Quantity comparison (in Lakhs)</p>
+                <h3 className="text-lg font-bold text-enterprise-text mb-1">SO Qty vs DN Qty</h3>
+                <p className="text-xs text-enterprise-textSecondary">Quantity comparison (in Lakhs)</p>
               </div>
             </div>
             {chartLoading ? (
@@ -2187,12 +2296,12 @@ export default function OutboundPage() {
                   >
                     <defs>
                       <linearGradient id="soQtyGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0.7} />
-                      </linearGradient>
-                      <linearGradient id="dnQtyGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="dnQtyGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -2279,20 +2388,21 @@ export default function OutboundPage() {
             )}
           </motion.div>
 
-          {/* SO vs DN Total CBM Chart - Premium Design */}
+          {/* SO vs DN Total CBM Chart - Clean Design */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            whileHover={{ y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-amber-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border"
           >
-            {/* Decorative gradient blob */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-red-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Left accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-500 via-amber-500 to-amber-500/70 rounded-l-2xl" />
 
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
               <div>
-                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-1">SO CBM vs DN CBM</h3>
-                <p className="text-xs text-gray-500 dark:text-slate-400">Volume comparison</p>
+                <h3 className="text-lg font-bold text-enterprise-text mb-1">SO CBM vs DN CBM</h3>
+                <p className="text-xs text-enterprise-textSecondary">Volume comparison</p>
               </div>
             </div>
             {chartLoading ? (
@@ -2309,12 +2419,12 @@ export default function OutboundPage() {
                   >
                     <defs>
                       <linearGradient id="soCbmGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.9} />
-                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0.7} />
-                      </linearGradient>
-                      <linearGradient id="dnCbmGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#dc2626" stopOpacity={0.9} />
                         <stop offset="100%" stopColor="#b91c1c" stopOpacity={0.7} />
+                      </linearGradient>
+                      <linearGradient id="dnCbmGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#f59e0b" stopOpacity={0.9} />
+                        <stop offset="100%" stopColor="#d97706" stopOpacity={0.7} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -2403,23 +2513,32 @@ export default function OutboundPage() {
         </div>
       </motion.div>
 
-      {/* Summary Totals Table - Premium Glassmorphism Design */}
+      {/* Daily OutBound Summary - Clean Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
+        transition={{ duration: 0.6 }}
+        whileHover={{ y: -2 }}
         className="w-full mb-8"
       >
-        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-          {/* Decorative gradient blobs */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/20 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+          {/* Left accent bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-green-400 to-green-600 animate-pulse shadow-lg shadow-green-500/50" />
-              <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Daily OutBound Summary</h3>
+              <motion.div
+                whileHover={{ rotate: -5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <ArrowUpFromLine className="w-5 h-5 text-brandRed" />
+              </motion.div>
+              <div>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Daily OutBound Summary</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Day-wise breakdown</p>
+              </div>
             </div>
           </div>
 
@@ -2428,35 +2547,34 @@ export default function OutboundPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
           ) : data?.summaryTotals ? (
-            <div className="relative">
-              {/* Scrollable container with sticky header and footer */}
-              <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
-                {/* Headers - Sticky */}
-                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 bg-gradient-to-r from-gray-100/95 to-gray-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+            <div className="relative pl-2">
+              <motion.div
+                className="space-y-1.5"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                      delayChildren: 0.1,
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="visible"
+              >
+                {/* Headers */}
+                <div className="grid grid-cols-8 gap-3 px-3 py-2.5 mb-2 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 text-sm font-bold uppercase tracking-widest text-enterprise-textSecondary">
                   <div className="text-left">Date</div>
+                  <div className="text-center">SO Qty</div>
                   <div className="text-center">DN Qty</div>
                   <div className="text-center">DN CBM</div>
-                  <div className="text-center">EDEL Qty</div>
-                  <div className="text-center">EDEL CBM</div>
                   <div className="text-center">Pend Qty</div>
                   <div className="text-center">Pend CBM</div>
-                  <div className="text-center">SO Qty</div>
+                  <div className="text-center">EDEL Qty</div>
+                  <div className="text-center">EDEL CBM</div>
                 </div>
 
-                {/* Data Rows */}
-                <motion.div
-                  className="space-y-2 py-2"
-                  variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.08,
-                        delayChildren: 0.1,
-                      }
-                    }
-                  }}
-                  initial="hidden"
-                  animate="visible"
-                >
+                {/* Scrollable Data Rows */}
+                <div className="max-h-96 overflow-y-auto overflow-x-hidden space-y-1.5">
                   {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 ? (
                     data.summaryTotals.dayData.map((day, index) => (
                       <motion.div
@@ -2464,15 +2582,13 @@ export default function OutboundPage() {
                         variants={{
                           hidden: {
                             opacity: 0,
-                            x: -25,
-                            scale: 0.95,
-                            filter: "blur(4px)"
+                            x: -15,
+                            scale: 0.98,
                           },
                           visible: {
                             opacity: 1,
                             x: 0,
                             scale: 1,
-                            filter: "blur(0px)",
                             transition: {
                               type: "spring",
                               stiffness: 400,
@@ -2481,39 +2597,39 @@ export default function OutboundPage() {
                             },
                           },
                         }}
-                        className="relative px-1"
+                        className="relative"
                       >
                         <motion.div
-                          className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-lg p-2.5 overflow-hidden transition-all duration-200"
+                          className="relative bg-gradient-to-r from-white to-white/80 border border-enterprise-border/50 hover:border-brandRed/30 rounded-lg p-3 overflow-hidden transition-all duration-200"
                           whileHover={{
-                            y: -1,
-                            scale: 1.005,
+                            x: 2,
                             transition: { type: "spring", stiffness: 400, damping: 25 }
                           }}
                         >
-                          {/* Status gradient overlay */}
-                          <div
-                            className="absolute inset-0 bg-gradient-to-l from-green-500/15 via-green-500/5 to-transparent pointer-events-none"
-                            style={{
-                              backgroundSize: "30% 100%",
-                              backgroundPosition: "right",
-                              backgroundRepeat: "no-repeat"
-                            }}
-                          />
-
-                          {/* Grid Content */}
-                          <div className="relative grid grid-cols-8 gap-2 items-center">
+                          <div className="relative grid grid-cols-8 gap-3 items-center">
                             {/* Date */}
                             <div className="flex items-center gap-2">
-                              <span className="text-gray-900 dark:text-slate-200 text-xs font-medium truncate">
+                              <div className="w-7 h-7 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                                <Calendar className="w-3.5 h-3.5 text-brandRed" />
+                              </div>
+                              <span className="text-enterprise-text font-medium text-base truncate">
                                 {day.label}
                               </span>
                             </div>
 
+                            {/* SO Qty */}
+                            <div className="flex justify-center">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-blue-50 dark:bg-blue-900/30 border border-blue-200/50 dark:border-blue-700/50">
+                                <span className="text-blue-600 dark:text-blue-400 text-base font-medium font-mono">
+                                  {formatNumber(day.soQty)}
+                                </span>
+                              </div>
+                            </div>
+
                             {/* DN Qty */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-green-500/10 border border-green-500/30 w-24 flex items-center justify-center">
-                                <span className="text-green-600 dark:text-green-400 text-xs font-medium font-mono">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-amber-50 dark:bg-amber-900/30 border border-amber-200/50 dark:border-amber-700/50">
+                                <span className="text-amber-600 dark:text-amber-400 text-base font-medium font-mono">
                                   {formatNumber(day.dnQty)}
                                 </span>
                               </div>
@@ -2521,35 +2637,17 @@ export default function OutboundPage() {
 
                             {/* DN CBM */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
-                                <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-amber-50 dark:bg-amber-900/30 border border-amber-200/50 dark:border-amber-700/50">
+                                <span className="text-amber-600 dark:text-amber-400 text-base font-medium font-mono">
                                   {formatNumber(day.dnCbm, 2)}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* EDEL DN Qty */}
-                            <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-purple-500/10 border border-purple-500/30 w-24 flex items-center justify-center">
-                                <span className="text-purple-600 dark:text-purple-400 text-xs font-medium font-mono">
-                                  {formatNumber(day.edelDnQty)}
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* EDEL DN CBM */}
-                            <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-orange-500/10 border border-orange-500/30 w-24 flex items-center justify-center">
-                                <span className="text-orange-600 dark:text-orange-400 text-xs font-medium font-mono">
-                                  {formatNumber(day.edelDnCbm, 2)}
                                 </span>
                               </div>
                             </div>
 
                             {/* Pending Qty (SO - DN) */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-red-500/10 border border-red-500/30 w-24 flex items-center justify-center">
-                                <span className="text-red-600 dark:text-red-400 text-xs font-medium font-mono">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-red-50 dark:bg-red-900/30 border border-red-200/50 dark:border-red-700/50">
+                                <span className="text-red-600 dark:text-red-400 text-base font-medium font-mono">
                                   {formatNumber((day.soQty || 0) - (day.dnQty || 0))}
                                 </span>
                               </div>
@@ -2557,18 +2655,27 @@ export default function OutboundPage() {
 
                             {/* Pending CBM (SO - DN) */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-amber-500/10 border border-amber-500/30 w-24 flex items-center justify-center">
-                                <span className="text-amber-600 dark:text-amber-400 text-xs font-medium font-mono">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-red-50 dark:bg-red-900/30 border border-red-200/50 dark:border-red-700/50">
+                                <span className="text-red-600 dark:text-red-400 text-base font-medium font-mono">
                                   {formatNumber((day.soCbm || 0) - (day.dnCbm || 0), 2)}
                                 </span>
                               </div>
                             </div>
 
-                            {/* SO Qty */}
+                            {/* EDEL DN Qty */}
                             <div className="flex justify-center">
-                              <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
-                                <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
-                                  {formatNumber(day.soQty)}
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-purple-50 dark:bg-purple-900/30 border border-purple-200/50 dark:border-purple-700/50">
+                                <span className="text-purple-600 dark:text-purple-400 text-base font-medium font-mono">
+                                  {formatNumber(day.edelDnQty)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* EDEL DN CBM */}
+                            <div className="flex justify-center">
+                              <div className="w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center bg-purple-50 dark:bg-purple-900/30 border border-purple-200/50 dark:border-purple-700/50">
+                                <span className="text-purple-600 dark:text-purple-400 text-base font-medium font-mono">
+                                  {formatNumber(day.edelDnCbm, 2)}
                                 </span>
                               </div>
                             </div>
@@ -2577,69 +2684,71 @@ export default function OutboundPage() {
                       </motion.div>
                     ))
                   ) : null}
-                </motion.div>
-              </div>
-
-              {/* Total Row - Sticky at bottom, outside scroll container */}
-              {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 && (
-                <div className="grid grid-cols-8 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-green-100/95 via-green-50/95 to-emerald-50/95 dark:from-green-900/40 dark:via-green-800/30 dark:to-emerald-900/30 backdrop-blur-sm border-2 border-green-500/40 dark:border-green-500/30 rounded-lg shadow-lg shadow-green-500/10 sticky bottom-0 z-20 items-center">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                      <TrendingUp className="w-4 h-4 text-white" />
-                    </div>
-                    <span className="text-green-800 dark:text-green-300 text-sm font-bold">Total</span>
-                  </div>
-
-                  {/* DN Qty */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-2 py-1 rounded-md bg-green-500/20 border border-green-500/30 w-24 flex items-center justify-center">
-                      <span className="text-green-700 dark:text-green-300 text-sm font-bold font-mono min-w-[4rem] text-center">{formatNumber(data.summaryTotals.totalDnQty)}</span>
-                    </div>
-                  </div>
-
-                  {/* DN CBM */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
-                      <span className="text-blue-700 dark:text-blue-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalDnCbm, 2)}</span>
-                    </div>
-                  </div>
-
-                  {/* EDEL Qty */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-purple-500/10 border border-purple-500/30 w-24 flex items-center justify-center">
-                      <span className="text-purple-700 dark:text-purple-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnQty)}</span>
-                    </div>
-                  </div>
-
-                  {/* EDEL CBM */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-orange-500/10 border border-orange-500/30 w-24 flex items-center justify-center">
-                      <span className="text-orange-700 dark:text-orange-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Pend Qty */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-red-500/10 border border-red-500/30 w-24 flex items-center justify-center">
-                      <span className="text-red-700 dark:text-red-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}</span>
-                    </div>
-                  </div>
-
-                  {/* Pend CBM */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/30 w-24 flex items-center justify-center">
-                      <span className="text-amber-700 dark:text-amber-300 text-sm font-bold">{formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}</span>
-                    </div>
-                  </div>
-
-                  {/* SO Qty */}
-                  <div className="col-span-1 flex items-center justify-center">
-                    <div className="px-3 py-1.5 rounded-lg bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
-                      <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold">{formatNumber(data.summaryTotals.totalSoQty)}</span>
-                    </div>
-                  </div>
                 </div>
-              )}
+
+                {/* Total Row */}
+                {data.summaryTotals.dayData && data.summaryTotals.dayData.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, delay: 0.3 }}
+                    className="relative mt-3"
+                  >
+                    <div className="relative bg-gradient-to-r from-enterprise-redTint via-enterprise-redTint/80 to-enterprise-redTint/50 border-2 border-brandRed/40 shadow-lg shadow-brandRed/10 rounded-lg p-3 overflow-hidden">
+                      <div className="relative grid grid-cols-8 gap-3 items-center">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brandRed to-brandRed/70 flex items-center justify-center">
+                            <span className="text-white text-xs font-bold">Σ</span>
+                          </div>
+                          <span className="text-brandRed font-bold text-base">TOTAL</span>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-blue-500/20 border border-blue-500/40">
+                            <span className="text-blue-700 dark:text-blue-400 text-base font-bold font-mono">{formatNumber(data.summaryTotals.totalSoQty)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-amber-500/20 border border-amber-500/40">
+                            <span className="text-yellow-700 dark:text-yellow-500 text-base font-bold font-mono">{formatNumber(data.summaryTotals.totalDnQty)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-amber-500/20 border border-amber-500/40">
+                            <span className="text-yellow-700 dark:text-yellow-500 text-base font-bold font-mono">{formatNumber(data.summaryTotals.totalDnCbm, 2)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-red-500/20 border border-red-500/40">
+                            <span className="text-red-700 dark:text-red-400 text-base font-bold font-mono">{formatNumber((data.summaryTotals.totalSoQty || 0) - (data.summaryTotals.totalDnQty || 0))}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-red-500/20 border border-red-500/40">
+                            <span className="text-red-700 dark:text-red-400 text-base font-bold font-mono">{formatNumber((data.summaryTotals.totalSoCbm || 0) - (data.summaryTotals.totalDnCbm || 0), 2)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-purple-500/20 border border-purple-500/40">
+                            <span className="text-purple-700 dark:text-purple-400 text-base font-bold font-mono">{formatNumber(data.summaryTotals.totalEdelDnQty)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex justify-center">
+                          <div className="w-full px-2 py-1 rounded-md inline-flex items-center justify-center bg-purple-500/20 border border-purple-500/40">
+                            <span className="text-purple-700 dark:text-purple-400 text-base font-bold font-mono">{formatNumber(data.summaryTotals.totalEdelDnCbm, 2)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </motion.div>
             </div>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
@@ -2649,28 +2758,34 @@ export default function OutboundPage() {
               </div>
             </div>
           )}
-        </div>
-      </motion.div>
+        </div >
+      </motion.div >
 
-      {/* Fulfillment Table - Shows SO Qty by Dispatch Date vs DN Qty delivered by that date */}
+      {/* Fulfillment Table - Clean Design */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.15 }}
+        transition={{ duration: 0.6 }}
+        whileHover={{ y: -2 }}
         className="w-full mb-8"
       >
-        <div className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden">
-          {/* Decorative gradient blobs */}
-          <div className="absolute -top-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-          <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/20 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+          {/* Left accent bar */}
+          <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-500 via-amber-500 to-amber-500/70 rounded-l-2xl" />
 
           {/* Header */}
-          <div className="flex items-center justify-between mb-6 relative z-10">
+          <div className="flex items-center justify-between mb-4 relative z-10 pl-2">
             <div className="flex items-center gap-3">
-              <div className="w-3 h-3 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 animate-pulse shadow-lg shadow-purple-500/50" />
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+              >
+                <TrendingUp className="w-5 h-5 text-amber-600" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Daily Fulfillments Rates ( Sort by Dispatch by Date)</p>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Fulfillment Table</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Daily Fulfillment Rates (Sort by Dispatch Date)</p>
               </div>
             </div>
           </div>
@@ -2680,11 +2795,22 @@ export default function OutboundPage() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
           ) : data?.fulfillmentTable && data.fulfillmentTable.length > 0 ? (
-            <div className="relative">
-              {/* Scrollable container with sticky header */}
-              <div className="max-h-96 overflow-y-auto overflow-x-hidden rounded-lg">
-                {/* Headers - Sticky */}
-                <div className="grid grid-cols-5 gap-2 px-3 py-2.5 bg-gradient-to-r from-purple-100/95 to-purple-50/95 dark:from-slate-800/95 dark:to-slate-700/95 backdrop-blur-sm border border-purple-200/50 dark:border-slate-700/50 text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider sticky top-0 z-20 rounded-t-lg shadow-sm">
+            <div className="relative pl-2">
+              <motion.div
+                className="space-y-1.5"
+                variants={{
+                  visible: {
+                    transition: {
+                      staggerChildren: 0.05,
+                      delayChildren: 0.1,
+                    }
+                  }
+                }}
+                initial="hidden"
+                animate="visible"
+              >
+                {/* Headers */}
+                <div className="grid grid-cols-5 gap-3 px-3 py-2.5 mb-2 bg-gradient-to-r from-emerald-100/40 to-transparent rounded-lg border border-enterprise-border/50 text-sm font-bold uppercase tracking-widest text-enterprise-textSecondary">
                   <div className="text-center">Date</div>
                   <div className="text-center">SO Qty</div>
                   <div className="text-center">DN Qty</div>
@@ -2692,35 +2818,21 @@ export default function OutboundPage() {
                   <div className="text-center">%</div>
                 </div>
 
-                {/* Data Rows */}
-                <motion.div
-                  className="space-y-2 py-2"
-                  variants={{
-                    visible: {
-                      transition: {
-                        staggerChildren: 0.08,
-                        delayChildren: 0.1,
-                      }
-                    }
-                  }}
-                  initial="hidden"
-                  animate="visible"
-                >
+                {/* Scrollable Data Rows */}
+                <div className="max-h-96 overflow-y-auto overflow-x-hidden space-y-1.5">
                   {data.fulfillmentTable.map((row, index) => (
                     <motion.div
                       key={row.date}
                       variants={{
                         hidden: {
                           opacity: 0,
-                          x: -25,
-                          scale: 0.95,
-                          filter: "blur(4px)"
+                          x: -15,
+                          scale: 0.98,
                         },
                         visible: {
                           opacity: 1,
                           x: 0,
                           scale: 1,
-                          filter: "blur(0px)",
                           transition: {
                             type: "spring",
                             stiffness: 400,
@@ -2729,46 +2841,50 @@ export default function OutboundPage() {
                           },
                         },
                       }}
-                      className="relative px-1"
+                      className="relative"
                     >
                       <motion.div
-                        className="relative bg-white/60 dark:bg-slate-700/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-600/40 rounded-lg p-2.5 overflow-hidden transition-all duration-200"
+                        className={`relative bg-gradient-to-r from-white to-white/80 border rounded-lg p-3 overflow-hidden transition-all duration-200 ${row.date === 'Average'
+                          ? 'border-emerald-500/40 bg-gradient-to-r from-emerald-50 via-emerald-50/80 to-emerald-50/50'
+                          : 'border-enterprise-border/50 hover:border-emerald-500/30'
+                          }`}
                         whileHover={{
-                          y: -1,
-                          scale: 1.005,
+                          x: row.date === 'Average' ? 0 : 2,
                           transition: { type: "spring", stiffness: 400, damping: 25 }
                         }}
                       >
-                        {/* Status gradient overlay based on percentage */}
-                        <div
-                          className={`absolute inset-0 bg-gradient-to-l ${row.percentage >= 100
-                            ? 'from-green-500/20 via-green-500/10 to-transparent'
-                            : row.percentage >= 90
-                              ? 'from-blue-500/15 via-blue-500/5 to-transparent'
-                              : row.percentage >= 75
-                                ? 'from-yellow-500/15 via-yellow-500/5 to-transparent'
-                                : 'from-red-500/15 via-red-500/5 to-transparent'
-                            } pointer-events-none`}
-                          style={{
-                            backgroundSize: "30% 100%",
-                            backgroundPosition: "right",
-                            backgroundRepeat: "no-repeat"
-                          }}
-                        />
-
-                        {/* Grid Content */}
-                        <div className="relative grid grid-cols-5 gap-2 items-center text-center">
+                        <div className="relative grid grid-cols-5 gap-3 items-center">
                           {/* Date */}
-                          <div className="flex items-center justify-center gap-1">
-                            <span className="text-gray-900 dark:text-slate-200 font-medium text-xs truncate">
-                              {row.date}
-                            </span>
+                          <div className="flex items-center justify-center gap-2">
+                            {row.date === 'Average' ? (
+                              <>
+                                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center">
+                                  <span className="text-white text-xs font-bold">Σ</span>
+                                </div>
+                                <span className="text-emerald-700 font-bold text-base">AVERAGE</span>
+                              </>
+                            ) : (
+                              <>
+                                <div className="w-7 h-7 rounded-lg bg-emerald-100 flex items-center justify-center">
+                                  <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                                </div>
+                                <span className="text-enterprise-text font-medium text-base truncate">
+                                  {row.date}
+                                </span>
+                              </>
+                            )}
                           </div>
 
                           {/* SO Qty */}
                           <div className="flex justify-center">
-                            <div className="px-2 py-1 rounded-md bg-indigo-500/10 border border-indigo-500/30 w-24 flex items-center justify-center">
-                              <span className="text-indigo-600 dark:text-indigo-400 text-xs font-medium font-mono">
+                            <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.date === 'Average'
+                              ? 'bg-blue-500/20 border border-blue-500/40'
+                              : 'bg-blue-50 dark:bg-blue-900/30 border border-blue-200/50 dark:border-blue-700/50'
+                              }`}>
+                              <span className={`font-medium font-mono text-base ${row.date === 'Average'
+                                ? 'text-blue-700 dark:text-blue-400 font-bold'
+                                : 'text-blue-600 dark:text-blue-400'
+                                }`}>
                                 {formatNumber(row.soQty)}
                               </span>
                             </div>
@@ -2776,8 +2892,14 @@ export default function OutboundPage() {
 
                           {/* DN Qty */}
                           <div className="flex justify-center">
-                            <div className="px-2 py-1 rounded-md bg-blue-500/10 border border-blue-500/30 w-24 flex items-center justify-center">
-                              <span className="text-blue-600 dark:text-blue-400 text-xs font-medium font-mono">
+                            <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.date === 'Average'
+                              ? 'bg-amber-500/20 border border-amber-500/40'
+                              : 'bg-amber-50 dark:bg-amber-900/30 border border-amber-200/50 dark:border-amber-700/50'
+                              }`}>
+                              <span className={`font-medium font-mono text-base ${row.date === 'Average'
+                                ? 'text-yellow-700 dark:text-yellow-500 font-bold'
+                                : 'text-amber-600 dark:text-amber-400'
+                                }`}>
                                 {formatNumber(row.dnQty)}
                               </span>
                             </div>
@@ -2785,12 +2907,12 @@ export default function OutboundPage() {
 
                           {/* Pending */}
                           <div className="flex justify-center">
-                            <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${row.pending === 0
-                              ? 'bg-green-500/10 border border-green-500/30'
-                              : 'bg-red-500/10 border border-red-500/30'
+                            <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.date === 'Average'
+                              ? 'bg-red-500/20 border border-red-500/40'
+                              : 'bg-red-50 dark:bg-red-900/30 border border-red-200/50 dark:border-red-700/50'
                               }`}>
-                              <span className={`text-xs font-medium font-mono ${row.pending === 0
-                                ? 'text-green-600 dark:text-green-400'
+                              <span className={`font-medium font-mono text-base ${row.date === 'Average'
+                                ? 'text-red-700 dark:text-red-400 font-bold'
                                 : 'text-red-600 dark:text-red-400'
                                 }`}>
                                 {formatNumber(row.pending)}
@@ -2800,23 +2922,15 @@ export default function OutboundPage() {
 
                           {/* Percentage */}
                           <div className="flex justify-center">
-                            <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${row.percentage >= 100
-                              ? 'bg-green-500/20 border-2 border-green-500/50'
-                              : row.percentage >= 90
-                                ? 'bg-blue-500/10 border border-blue-500/30'
-                                : row.percentage >= 75
-                                  ? 'bg-yellow-500/10 border border-yellow-500/30'
-                                  : 'bg-red-500/10 border border-red-500/30'
+                            <div className={`w-full min-w-[3.5rem] px-2 py-1 rounded-md inline-flex items-center justify-center ${row.date === 'Average'
+                              ? 'bg-emerald-500/20 border border-emerald-500/40'
+                              : 'bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200/50 dark:border-emerald-700/50'
                               }`}>
-                              <span className={`text-sm font-bold font-mono ${row.percentage >= 100
-                                ? 'text-green-600 dark:text-green-400'
-                                : row.percentage >= 90
-                                  ? 'text-blue-600 dark:text-blue-400'
-                                  : row.percentage >= 75
-                                    ? 'text-yellow-600 dark:text-yellow-400'
-                                    : 'text-red-600 dark:text-red-400'
+                              <span className={`font-medium font-mono text-base ${row.date === 'Average'
+                                ? 'text-emerald-700 dark:text-emerald-400 font-bold'
+                                : 'text-emerald-600 dark:text-emerald-400'
                                 }`}>
-                                {row.percentage.toFixed(1)}%
+                                {formatNumber(row.fulfillmentPercentage, 2)}%
                               </span>
                             </div>
                           </div>
@@ -2824,94 +2938,19 @@ export default function OutboundPage() {
                       </motion.div>
                     </motion.div>
                   ))}
-                </motion.div>
-              </div>
-
-              {/* Average Row - Sticky at bottom, outside scroll container */}
-              {(() => {
-                const count = data.fulfillmentTable.length;
-                const avgSoQty = data.fulfillmentTable.reduce((sum, row) => sum + row.soQty, 0) / count;
-                const avgDnQty = data.fulfillmentTable.reduce((sum, row) => sum + row.dnQty, 0) / count;
-                const avgPending = data.fulfillmentTable.reduce((sum, row) => sum + row.pending, 0) / count;
-                const avgPercentage = data.fulfillmentTable.reduce((sum, row) => sum + row.percentage, 0) / count;
-
-                return (
-                  <div className="grid grid-cols-5 gap-2 px-3 py-2.5 mt-2 bg-gradient-to-r from-purple-100/95 via-purple-50/95 to-indigo-50/95 dark:from-purple-900/40 dark:via-purple-800/30 dark:to-indigo-900/30 backdrop-blur-sm border-2 border-purple-500/40 dark:border-purple-500/30 rounded-lg shadow-lg shadow-purple-500/10 sticky bottom-0 z-20">
-                    {/* Average Label */}
-                    <div className="flex items-center justify-center">
-                      <span className="text-purple-800 dark:text-purple-300 font-bold text-xs">AVG</span>
-                    </div>
-
-                    {/* Avg SO Qty */}
-                    <div className="flex justify-center">
-                      <div className="px-2 py-1 rounded-md bg-indigo-500/20 border-2 border-indigo-500/50 w-24 flex items-center justify-center">
-                        <span className="text-indigo-700 dark:text-indigo-300 text-sm font-bold font-mono">
-                          {formatNumber(avgSoQty)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Avg DN Qty */}
-                    <div className="flex justify-center">
-                      <div className="px-2 py-1 rounded-md bg-blue-500/20 border-2 border-blue-500/50 w-24 flex items-center justify-center">
-                        <span className="text-blue-700 dark:text-blue-300 text-sm font-bold font-mono">
-                          {formatNumber(avgDnQty)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Avg Pending */}
-                    <div className="flex justify-center">
-                      <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${avgPending === 0
-                        ? 'bg-green-500/20 border-2 border-green-500/50'
-                        : 'bg-red-500/20 border-2 border-red-500/50'
-                        }`}>
-                        <span className={`text-sm font-bold font-mono ${avgPending === 0
-                          ? 'text-green-700 dark:text-green-300'
-                          : 'text-red-700 dark:text-red-300'
-                          }`}>
-                          {formatNumber(avgPending)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Avg Percentage */}
-                    <div className="flex justify-center">
-                      <div className={`px-2 py-1 rounded-md w-24 flex items-center justify-center ${avgPercentage >= 100
-                        ? 'bg-green-500/30 border-2 border-green-500/60'
-                        : avgPercentage >= 90
-                          ? 'bg-blue-500/20 border-2 border-blue-500/50'
-                          : avgPercentage >= 75
-                            ? 'bg-yellow-500/20 border-2 border-yellow-500/50'
-                            : 'bg-red-500/20 border-2 border-red-500/50'
-                        }`}>
-                        <span className={`text-sm font-bold font-mono ${avgPercentage >= 100
-                          ? 'text-green-700 dark:text-green-300'
-                          : avgPercentage >= 90
-                            ? 'text-blue-700 dark:text-blue-300'
-                            : avgPercentage >= 75
-                              ? 'text-yellow-700 dark:text-yellow-300'
-                              : 'text-red-700 dark:text-red-300'
-                          }`}>
-                          {avgPercentage.toFixed(1)}%
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })()}
+                </div>
+              </motion.div>
             </div>
           ) : (
             <div className="h-32 flex items-center justify-center text-gray-500 dark:text-slate-400 relative z-10">
               <div className="text-center">
-                <Calendar className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                <TrendingUp className="w-12 h-12 mx-auto mb-2 opacity-50" />
                 <p>No fulfillment data available</p>
-                <p className="text-xs mt-1">Ensure Dispatch By Date (column G) is set in your Excel file</p>
               </div>
             </div>
           )}
         </div>
       </motion.div>
-    </div >
+    </div>
   );
 }

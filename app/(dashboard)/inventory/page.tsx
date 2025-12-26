@@ -844,7 +844,7 @@ function InventoryPageContent() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-white/60 dark:bg-slate-900/60 backdrop-blur-2xl border border-white/40 dark:border-slate-700/40 rounded-2xl p-5 mb-8 shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.2)]"
+        className="relative z-10 bg-yellow-400/30 dark:bg-yellow-500/30 backdrop-blur-2xl border-2 border-yellow-500/70 dark:border-yellow-500/70 rounded-2xl p-5 mb-8 shadow-xl shadow-yellow-500/20 hover:shadow-2xl hover:shadow-yellow-500/30 transition-all duration-300"
       >
         {/* Decorative gradient blob */}
         <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/5 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1114,7 +1114,7 @@ function InventoryPageContent() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden mb-8"
+          className="relative bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-indigo-400/60 dark:border-indigo-600/60 rounded-2xl p-6 shadow-xl shadow-indigo-500/30 hover:shadow-2xl hover:shadow-indigo-500/40 transition-all duration-300 overflow-hidden mb-8"
         >
           {/* Decorative gradient */}
           <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
@@ -1132,7 +1132,7 @@ function InventoryPageContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Inbound SKU */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50/80 to-blue-100/50 dark:from-blue-900/30 dark:to-blue-800/20 rounded-xl border border-blue-200/50 dark:border-blue-700/30 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-200 to-blue-300 dark:from-blue-900/60 dark:to-blue-800/40 rounded-xl border-2 border-blue-400/30 dark:border-blue-600/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-blue-500/10 dark:bg-blue-500/20 flex items-center justify-center">
                   <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
@@ -1148,7 +1148,7 @@ function InventoryPageContent() {
             </div>
 
             {/* Total Inventory QTY */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-50/80 to-green-100/50 dark:from-green-900/30 dark:to-green-800/20 rounded-xl border border-green-200/50 dark:border-green-700/30 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-green-200 to-green-300 dark:from-green-900/60 dark:to-green-800/40 rounded-xl border-2 border-green-400/30 dark:border-green-600/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-green-500/10 dark:bg-green-500/20 flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-green-600 dark:text-green-400" />
@@ -1164,7 +1164,7 @@ function InventoryPageContent() {
             </div>
 
             {/* Total CBM */}
-            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-50/80 to-purple-100/50 dark:from-purple-900/30 dark:to-purple-800/20 rounded-xl border border-purple-200/50 dark:border-purple-700/30 hover:shadow-md transition-all">
+            <div className="flex items-center justify-between p-4 bg-gradient-to-br from-purple-200 to-purple-300 dark:from-purple-900/60 dark:to-purple-800/40 rounded-xl border-2 border-purple-400/30 dark:border-purple-600/30 hover:shadow-md transition-all">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-lg bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center">
                   <Box className="w-5 h-5 text-purple-600 dark:text-purple-400" />
@@ -1242,10 +1242,10 @@ function InventoryPageContent() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.1 }}
-              className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+              className="relative bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-amber-400/60 dark:border-amber-600/60 rounded-2xl p-6 shadow-xl shadow-amber-500/30 hover:shadow-2xl hover:shadow-amber-500/40 transition-all duration-300 overflow-hidden"
             >
               {/* Decorative gradient blob */}
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-amber-500/20 rounded-full blur-3xl -z-10 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
@@ -1353,10 +1353,10 @@ function InventoryPageContent() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+              className="relative bg-gradient-to-br from-teal-100 to-cyan-100 dark:from-teal-950/80 dark:to-slate-900/80 backdrop-blur-xl backdrop-saturate-150 border-2 border-teal-400/60 dark:border-teal-600/60 rounded-2xl p-6 shadow-xl shadow-teal-500/30 hover:shadow-2xl hover:shadow-teal-500/40 transition-all duration-300 overflow-hidden"
             >
               {/* Decorative gradient blob */}
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+              <div className="absolute -top-20 -right-20 w-64 h-64 bg-teal-500/20 rounded-full blur-3xl -z-10 pointer-events-none" />
 
               <div className="flex items-center justify-between mb-6 relative z-10">
                 <div>
@@ -1474,7 +1474,7 @@ function InventoryPageContent() {
           {showFastMovingSection && (
             <>
               {/* Filters */}
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-slate-700/40 rounded-xl p-4 mb-6 shadow-sm">
+              <div className="bg-gradient-to-br from-sky-100 to-blue-100 dark:from-sky-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-sky-400/60 dark:border-sky-600/60 rounded-xl p-4 mb-6 shadow-xl shadow-sky-500/30 hover:shadow-2xl hover:shadow-sky-500/40 transition-all duration-300">
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Warehouse:</label>
@@ -1570,7 +1570,7 @@ function InventoryPageContent() {
               </div>
 
               {/* SKUs Table */}
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-br from-blue-100 to-cyan-100 dark:from-blue-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-blue-400/60 dark:border-blue-600/60 rounded-xl shadow-xl shadow-blue-500/30 hover:shadow-2xl hover:shadow-blue-500/40 transition-all duration-300 overflow-hidden">
                 {fastMovingLoading ? (
                   <div className="flex items-center justify-center h-48">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
@@ -1717,7 +1717,7 @@ function InventoryPageContent() {
           {showZeroOrderSection && (
             <>
               {/* Filters */}
-              <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-white/40 dark:border-slate-700/40 rounded-xl p-4 mb-6 shadow-sm">
+              <div className="bg-gradient-to-br from-emerald-100 to-teal-100 dark:from-emerald-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-emerald-400/60 dark:border-emerald-600/60 rounded-xl p-4 mb-6 shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300">
                 <div className="flex flex-wrap items-center gap-4">
                   <div className="flex items-center gap-2">
                     <label className="text-xs font-semibold text-gray-500 dark:text-slate-400">Warehouse:</label>
@@ -1823,7 +1823,7 @@ function InventoryPageContent() {
               </div>
 
               {/* Products Table */}
-              <div className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-slate-700/50 rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-br from-purple-100 to-indigo-100 dark:from-purple-950/80 dark:to-slate-900/80 backdrop-blur-xl border-2 border-purple-400/60 dark:border-purple-600/60 rounded-xl shadow-xl shadow-purple-500/30 hover:shadow-2xl hover:shadow-purple-500/40 transition-all duration-300 overflow-hidden">
                 {zeroOrderLoading ? (
                   <div className="flex items-center justify-center h-48">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
