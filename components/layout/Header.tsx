@@ -2,7 +2,6 @@
 
 import { Menu, Calendar } from 'lucide-react';
 import { usePathname } from 'next/navigation';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { useDateFilter } from '@/lib/date-filter-context';
 
 interface HeaderProps {
@@ -141,12 +140,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             </time>
           </div>
 
-          {/* Theme Toggle */}
-          <div className="bg-white/10 hover:bg-white/20
-            border border-white/20
-            rounded-full p-1 transition-all duration-200">
-            <ThemeToggle />
-          </div>
+          {/* Theme toggle removed */}
         </div>
       </div>
       

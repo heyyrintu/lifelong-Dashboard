@@ -803,10 +803,10 @@ export default function SummaryPage() {
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
           <div className="md:col-span-2 space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
-            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
+            <div className="group flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <input
                   type="date"
@@ -817,11 +817,11 @@ export default function SummaryPage() {
                   }}
                   min={availableDates?.minDate || ''}
                   max={availableDates?.maxDate || ''}
-                  className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
+                  className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
                   suppressHydrationWarning={true}
                 />
               </div>
-              <div className="px-3 text-gray-300 dark:text-slate-600">
+              <div className="px-3 text-gray-300">
                 <ArrowRightLeft className="w-3.5 h-3.5" />
               </div>
               <div className="relative flex-1">
@@ -834,7 +834,7 @@ export default function SummaryPage() {
                   }}
                   min={availableDates?.minDate || ''}
                   max={availableDates?.maxDate || ''}
-                  className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
+                  className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
                   suppressHydrationWarning={true}
                 />
               </div>
@@ -843,10 +843,10 @@ export default function SummaryPage() {
 
           {/* Month Selector */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
+            <div className="group relative flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
@@ -869,7 +869,7 @@ export default function SummaryPage() {
                       }
                     }
                   }}
-                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
+                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
                   {availableMonths.map((month) => (
@@ -887,15 +887,15 @@ export default function SummaryPage() {
 
           {/* Warehouse Filter */}
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
+            <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
+            <div className="group relative flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedWarehouse}
                   onChange={(e) => setSelectedWarehouse(e.target.value)}
-                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
+                  className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
                   {availableWarehouses.map((warehouse) => (
@@ -916,14 +916,14 @@ export default function SummaryPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Package className="w-3.5 h-3.5" /> Category
             </label>
-            <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
+            <div className={`group relative flex items-center bg-white border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
               ? 'border-brandYellow ring-4 ring-brandYellow/10 z-20'
-              : 'border-gray-200 dark:border-slate-700 hover:border-brandYellow/50 hover:shadow-md'
+              : 'border-gray-200 hover:border-brandYellow/50 hover:shadow-md'
               }`}>
               <button
                 type="button"
                 onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
-                className="w-full pl-3 pr-8 py-1.5 text-left bg-transparent text-xs font-semibold outline-none transition-all duration-200 flex items-center justify-between text-gray-900 dark:text-white cursor-pointer"
+                className="w-full pl-3 pr-8 py-1.5 text-left bg-transparent text-xs font-semibold outline-none transition-all duration-200 flex items-center justify-between text-gray-900 cursor-pointer"
                 suppressHydrationWarning={true}
               >
                 <span className="truncate block">
@@ -941,9 +941,9 @@ export default function SummaryPage() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.98 }}
                 transition={{ duration: 0.2 }}
-                className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl shadow-2xl shadow-gray-200/50 dark:shadow-black/50 overflow-hidden ring-1 ring-black/5"
+                className="absolute z-50 top-full left-0 right-0 mt-1.5 bg-white border border-gray-100 rounded-xl shadow-2xl shadow-gray-200/50 overflow-hidden ring-1 ring-black/5"
               >
-                <div className="flex border-b border-gray-100 dark:border-slate-700 bg-gray-50/50 dark:bg-slate-800/50 p-0.5">
+                <div className="flex border-b border-gray-100 bg-gray-50/50 p-0.5">
                   <button
                     type="button"
                     onClick={selectAllCategories}
@@ -951,11 +951,11 @@ export default function SummaryPage() {
                   >
                     Select All
                   </button>
-                  <div className="w-px bg-gray-200 dark:bg-slate-700 mx-0.5"></div>
+                  <div className="w-px bg-gray-200 mx-0.5"></div>
                   <button
                     type="button"
                     onClick={clearAllCategories}
-                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-colors"
                   >
                     Clear
                   </button>
@@ -965,19 +965,19 @@ export default function SummaryPage() {
                   {availableCategories.map((category) => (
                     <label
                       key={category}
-                      className="flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group"
+                      className="flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors group"
                     >
                       <div className={`w-4 h-4 rounded border mr-2 flex items-center justify-center transition-all duration-200 ${selectedProductCategories.includes(category)
                         ? 'bg-brandYellow border-brandYellow shadow-sm shadow-brandYellow/30 scale-105'
-                        : 'border-gray-300 dark:border-slate-600 group-hover:border-brandYellow/50 bg-white dark:bg-slate-900'
+                        : 'border-gray-300 group-hover:border-brandYellow/50 bg-white'
                         }`}>
                         {selectedProductCategories.includes(category) && (
                           <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
                         )}
                       </div>
                       <span className={`text-xs transition-colors ${selectedProductCategories.includes(category)
-                        ? 'text-gray-900 dark:text-white font-semibold'
-                        : 'text-gray-600 dark:text-slate-400'
+                        ? 'text-gray-900 font-semibold'
+                        : 'text-gray-600'
                         }`}>
                         {formatProductCategory(category)}
                       </span>
@@ -1018,7 +1018,7 @@ export default function SummaryPage() {
                 whileTap={{ scale: 0.95, translateY: 0 }}
                 onClick={handleReset}
                 title="Reset Filters"
-                className="h-[36px] w-[36px] bg-white/80 dark:bg-slate-800/80 backdrop-blur-sm border border-gray-200/50 dark:border-slate-700/50 text-gray-700 dark:text-slate-300 rounded-xl transition-all hover:bg-red-50 dark:hover:bg-red-900/20 hover:border-red-200 dark:hover:border-red-800 hover:text-red-600 dark:hover:text-red-400 shadow-sm flex items-center justify-center"
+                className="h-[36px] w-[36px] bg-white/80 backdrop-blur-sm border border-gray-200/50 text-gray-700 rounded-xl transition-all hover:bg-red-50 hover:border-red-200 hover:text-red-600 shadow-sm flex items-center justify-center"
               >
                 <RefreshCw className="w-4 h-4" />
               </motion.button>
@@ -1073,7 +1073,7 @@ export default function SummaryPage() {
                 transition={{ type: "spring", stiffness: 400 }}
                 className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
               >
-                <ArrowDownToLine className="w-5 h-5 text-red-600 dark:text-red-500" />
+                <ArrowDownToLine className="w-5 h-5 text-red-600" />
               </motion.div>
               <div>
                 <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Inbound</h3>
@@ -1243,7 +1243,7 @@ export default function SummaryPage() {
                 transition={{ type: "spring", stiffness: 400 }}
                 className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
               >
-                <ArrowUpFromLine className="w-5 h-5 text-red-600 dark:text-red-500" />
+                <ArrowUpFromLine className="w-5 h-5 text-red-600" />
               </motion.div>
               <div>
                 <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Outbound</h3>
@@ -1334,7 +1334,7 @@ export default function SummaryPage() {
               {/* Left accent bar with gradient */}
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-4 pl-2">
+              <div className="flex items-center justify-between mb-4 pl-2 h-20">
                 <div className="flex items-center gap-3">
                   <motion.div
                     whileHover={{ rotate: -5, scale: 1.1 }}
@@ -1389,21 +1389,21 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-brandRed dark:text-brandYellow">
+                  <span className="text-3xl font-bold text-brandRed">
                     {averageFulfillment.toFixed(1)}%
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Overall Rate</span>
+                  <span className="text-xs text-gray-500 font-medium">Overall Rate</span>
                 </div>
               </div>
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                  <span className="text-xs text-gray-600">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
+                  <span className="text-xs text-gray-600">Pending</span>
                 </div>
               </div>
             </motion.div>
@@ -1419,7 +1419,7 @@ export default function SummaryPage() {
               {/* Left accent bar with gradient */}
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-4 pl-2">
+              <div className="flex items-center justify-between mb-4 pl-2 h-20">
                 <div className="flex items-center gap-3">
                   <motion.div
                     whileHover={{ rotate: 5, scale: 1.1 }}
@@ -1473,21 +1473,21 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-brandYellow dark:text-brandRed">
+                  <span className="text-3xl font-bold text-brandYellow">
                     {currentMonthFulfillment.percentage.toFixed(1)}%
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">Monthly Rate</span>
+                  <span className="text-xs text-gray-500 font-medium">Monthly Rate</span>
                 </div>
               </div>
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                  <span className="text-xs text-gray-600">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
+                  <span className="text-xs text-gray-600">Pending</span>
                 </div>
               </div>
             </motion.div>
@@ -1503,7 +1503,7 @@ export default function SummaryPage() {
               {/* Left accent bar with gradient */}
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-              <div className="mb-4 space-y-3 pl-2">
+              <div className="mb-4 pl-2 h-20 flex flex-col gap-1">
                 <div className="flex items-center gap-3">
                   <motion.div
                     whileHover={{ rotate: -5, scale: 1.1 }}
@@ -1518,12 +1518,12 @@ export default function SummaryPage() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   {/* Today/Yesterday Toggle Buttons */}
-                  <div className="flex items-center bg-gray-100 dark:bg-slate-700/50 rounded-lg p-1">
+                  <div className="flex items-center bg-gray-100 rounded-lg p-1">
                     <button
                       onClick={() => setSelectedFulfillmentDay('today')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'today'
                         ? 'bg-brandRed text-white shadow-md'
-                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                       Today
@@ -1532,7 +1532,7 @@ export default function SummaryPage() {
                       onClick={() => setSelectedFulfillmentDay('yesterday')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === 'yesterday'
                         ? 'bg-brandRed text-white shadow-md'
-                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                       Yesterday
@@ -1541,7 +1541,7 @@ export default function SummaryPage() {
                       onClick={() => setSelectedFulfillmentDay('7days')}
                       className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-all duration-200 ${selectedFulfillmentDay === '7days'
                         ? 'bg-brandRed text-white shadow-md'
-                        : 'text-gray-600 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white'
+                        : 'text-gray-600 hover:text-gray-900'
                         }`}
                     >
                       7 Days
@@ -1592,21 +1592,21 @@ export default function SummaryPage() {
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-end pb-4 pointer-events-none">
-                  <span className="text-3xl font-bold text-brandRed dark:text-brandYellow">
+                  <span className="text-3xl font-bold text-brandRed">
                     {lastDayFulfillment.percentage.toFixed(1)}%
                   </span>
-                  <span className="text-xs text-gray-500 dark:text-slate-400 font-medium">{selectedFulfillmentDay === 'today' ? "Today's Rate" : selectedFulfillmentDay === 'yesterday' ? "Yesterday's Rate" : "7 Days Rate"}</span>
+                  <span className="text-xs text-gray-500 font-medium">{selectedFulfillmentDay === 'today' ? "Today's Rate" : selectedFulfillmentDay === 'yesterday' ? "Yesterday's Rate" : "7 Days Rate"}</span>
                 </div>
               </div>
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
+                  <span className="text-xs text-gray-600">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
+                  <span className="text-xs text-gray-600">Pending</span>
                 </div>
               </div>
             </motion.div>

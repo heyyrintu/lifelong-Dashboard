@@ -2930,7 +2930,7 @@ export default function OutboundPage() {
                                 ? 'text-emerald-700 dark:text-emerald-400 font-bold'
                                 : 'text-emerald-600 dark:text-emerald-400'
                                 }`}>
-                                {formatNumber(row.fulfillmentPercentage, 2)}%
+                                {formatNumber(row.percentage, 2)}%
                               </span>
                             </div>
                           </div>
