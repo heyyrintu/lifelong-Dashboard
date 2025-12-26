@@ -94,7 +94,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
   };
 
   return (
-    <header className="sticky top-0 z-10 w-full border-b border-red-300/30 bg-gradient-to-r from-[#DC2626] via-[#DC2626]/90 to-[#EF4444]/90 backdrop-blur-md transition-all duration-300">
+    <header className="sticky top-0 z-10 w-full bg-gradient-to-r from-[#DC2626] via-[#DC2626]/90 to-[#EF4444]/90 backdrop-blur-md transition-all duration-300">
       <div className="flex h-16 items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: menu + logo */}
         <div className="flex items-center gap-4">
@@ -128,13 +128,13 @@ export default function Header({ onMenuClick }: HeaderProps) {
         <div className="flex items-center gap-3">
           {/* Selected Date Display */}
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5
-            bg-white/10 hover:bg-white/20
+            bg-white hover:bg-white/95
             border-2 border-yellow-400
             rounded-full transition-all duration-200">
-            <Calendar className="w-4 h-4 text-white/90" />
+            <Calendar className="w-4 h-4 text-gray-700" />
             <time
               dateTime={label}
-              className="text-sm font-medium text-white truncate max-w-[150px] lg:max-w-[240px]"
+              className="text-sm font-medium text-gray-800 truncate max-w-[150px] lg:max-w-[240px]"
               title={label}
             >
               {displayedLabel}

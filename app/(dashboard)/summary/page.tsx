@@ -795,10 +795,10 @@ export default function SummaryPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 bg-gradient-to-r from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/30 backdrop-blur-2xl border-2 border-brandRed/70 dark:border-brandYellow/70 rounded-2xl p-5 mb-8 shadow-xl shadow-brandRed/20 hover:shadow-2xl hover:shadow-brandYellow/30 transition-all duration-300"
+        className="relative z-10 bg-white border-2 border-enterprise-border rounded-2xl p-5 mb-8 shadow-lg hover:shadow-xl transition-all duration-300"
       >
         {/* Decorative gradient blob */}
-        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+        <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/5 rounded-full blur-3xl -z-10 pointer-events-none" />
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4 items-end" suppressHydrationWarning={true}>
           {/* Date Range - Unified Control */}
@@ -806,7 +806,7 @@ export default function SummaryPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Date Range
             </label>
-            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <input
                   type="date"
@@ -846,7 +846,7 @@ export default function SummaryPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Calendar className="w-3.5 h-3.5" /> Quick Select
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
@@ -890,7 +890,7 @@ export default function SummaryPage() {
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
               <Box className="w-3.5 h-3.5" /> Warehouse
             </label>
-            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
+            <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedWarehouse}
@@ -905,7 +905,7 @@ export default function SummaryPage() {
                   ))}
                 </select>
               </div>
-              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandRed transition-colors">
+              <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-400 group-hover:text-brandYellow transition-colors">
                 <ChevronDown className="h-3.5 w-3.5 stroke-[3]" />
               </div>
             </div>
@@ -917,13 +917,13 @@ export default function SummaryPage() {
               <Package className="w-3.5 h-3.5" /> Category
             </label>
             <div className={`group relative flex items-center bg-white dark:bg-slate-800/50 border rounded-xl p-1 shadow-sm transition-all duration-200 ${categoryDropdownOpen
-              ? 'border-brandRed ring-4 ring-brandRed/5 z-20'
-              : 'border-gray-200 dark:border-slate-700 hover:border-brandRed/30 hover:shadow-md'
+              ? 'border-brandYellow ring-4 ring-brandYellow/10 z-20'
+              : 'border-gray-200 dark:border-slate-700 hover:border-brandYellow/50 hover:shadow-md'
               }`}>
               <button
                 type="button"
                 onClick={() => setCategoryDropdownOpen(!categoryDropdownOpen)}
-                className="w-full pl-3 pr-8 py-2 text-left bg-transparent text-xs font-semibold outline-none transition-all duration-200 flex items-center justify-between text-gray-900 dark:text-white cursor-pointer"
+                className="w-full pl-3 pr-8 py-1.5 text-left bg-transparent text-xs font-semibold outline-none transition-all duration-200 flex items-center justify-between text-gray-900 dark:text-white cursor-pointer"
                 suppressHydrationWarning={true}
               >
                 <span className="truncate block">
@@ -931,7 +931,7 @@ export default function SummaryPage() {
                 </span>
               </button>
               <div className={`absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none transition-transform duration-300 ${categoryDropdownOpen ? 'rotate-180' : ''}`}>
-                <ChevronDown className={`h-3.5 w-3.5 stroke-[3] ${categoryDropdownOpen ? 'text-brandRed' : 'text-gray-400'}`} />
+                <ChevronDown className={`h-3.5 w-3.5 stroke-[3] ${categoryDropdownOpen ? 'text-brandYellow' : 'text-gray-400'}`} />
               </div>
             </div>
 
@@ -947,7 +947,7 @@ export default function SummaryPage() {
                   <button
                     type="button"
                     onClick={selectAllCategories}
-                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandRed hover:bg-brandRed/10 rounded-md transition-colors"
+                    className="flex-1 px-2 py-1.5 text-sm font-bold text-brandYellow hover:bg-brandYellow/10 rounded-md transition-colors"
                   >
                     Select All
                   </button>
@@ -968,8 +968,8 @@ export default function SummaryPage() {
                       className="flex items-center px-2 py-1.5 rounded-lg hover:bg-gray-50 dark:hover:bg-slate-700/50 cursor-pointer transition-colors group"
                     >
                       <div className={`w-4 h-4 rounded border mr-2 flex items-center justify-center transition-all duration-200 ${selectedProductCategories.includes(category)
-                        ? 'bg-brandRed border-brandRed shadow-sm shadow-brandRed/30 scale-105'
-                        : 'border-gray-300 dark:border-slate-600 group-hover:border-brandRed/50 bg-white dark:bg-slate-900'
+                        ? 'bg-brandYellow border-brandYellow shadow-sm shadow-brandYellow/30 scale-105'
+                        : 'border-gray-300 dark:border-slate-600 group-hover:border-brandYellow/50 bg-white dark:bg-slate-900'
                         }`}>
                         {selectedProductCategories.includes(category) && (
                           <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
@@ -1002,15 +1002,15 @@ export default function SummaryPage() {
               onClick={handleFilter}
               disabled={loading}
               title="Apply Filter"
-              className="h-[36px] px-4 bg-gradient-to-r from-brandRed to-brandYellow text-white rounded-xl shadow-lg shadow-brandRed/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:shadow-brandYellow/40"
+              className="h-[36px] px-4 bg-brandYellow text-enterprise-text font-semibold rounded-xl shadow-lg shadow-brandYellow/25 flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed transition-all hover:bg-brandYellow/90 hover:shadow-brandYellow/40"
               suppressHydrationWarning={true}
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-enterprise-text/30 border-t-enterprise-text rounded-full animate-spin" />
               ) : (
-                <Search className="w-4 h-4 stroke-[2.5]" />
+                <Search className="w-4 h-4 stroke-[2.5] text-enterprise-text" />
               )}
-              <span className="font-semibold text-xs">Filter</span>
+              <span className="font-semibold text-xs text-enterprise-text">Filter</span>
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button
@@ -1061,70 +1061,83 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandRed/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandRed/40 transition-all duration-300 overflow-hidden"
+            whileHover={{ scale: 1.01, y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
           >
-            {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
-                <ArrowDownToLine className="w-6 h-6 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4 pl-2">
+              <motion.div
+                whileHover={{ rotate: -5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <ArrowDownToLine className="w-5 h-5 text-red-600 dark:text-red-500" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Inbound</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Received metrics</p>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Inbound</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Received metrics</p>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2.5 pl-2">
               {/* Received SKU Count */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <Package className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received SKU</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs received</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Received SKU</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Unique Items</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatNumber(data.inbound.receivedSkuCount)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* Received Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total quantity received</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Received Qty</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Total Quantity</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatInLakhs(data.inbound.receivedQty)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* Received CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandRed/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandRed/40 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <Box className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Received CBM</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Volume received</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Received CBM</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Volume</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatInThousands(data.inbound.receivedCbm)}
                 </span>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
 
@@ -1133,70 +1146,83 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandYellow/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandYellow/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden"
+            whileHover={{ scale: 1.01, y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
           >
-            {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandYellow to-brandRed flex items-center justify-center shadow-lg shadow-brandYellow/30">
-                <Boxes className="w-6 h-6 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4 pl-2">
+              <motion.div
+                whileHover={{ rotate: 5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+              >
+                <Boxes className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Inventory</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Stock metrics</p>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Inventory</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Stock metrics</p>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2.5 pl-2">
               {/* Inventory SKU */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-brandYellow dark:text-brandRed" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                    <Package className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory SKU</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique SKUs in stock</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Inventory SKU</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Unique Items</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
+                <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                   {formatNumber(data.inventory.inventorySku)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* Inventory Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-brandYellow dark:text-brandRed" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total stock quantity</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Inventory Qty</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Total Quantity</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
+                <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                   {formatInLakhs(data.inventory.inventoryQty)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* Inventory CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandYellow/20 to-brandRed/20 dark:from-brandYellow/30 dark:to-brandRed/20 rounded-xl border-2 border-brandYellow/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandYellow/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-brandYellow dark:text-brandRed" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-yellowTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandYellow/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-yellowTint flex items-center justify-center">
+                    <Box className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">Inventory CBM</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total volume in stock</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">Inventory CBM</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Volume</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandYellow dark:text-brandRed">
+                <span className="text-2xl font-bold font-mono text-amber-600 dark:text-amber-500 tracking-tight">
                   {formatInThousands(data.inventory.inventoryCbm)}
                 </span>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
 
@@ -1205,70 +1231,83 @@ export default function SummaryPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="relative bg-gradient-to-br from-brandYellow/10 to-brandRed/10 dark:from-brandYellow/20 dark:to-brandRed/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden"
+            whileHover={{ scale: 1.01, y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
           >
-            {/* Decorative gradient */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
-                <ArrowUpFromLine className="w-6 h-6 text-white" />
-              </div>
+            <div className="flex items-center gap-3 mb-4 pl-2">
+              <motion.div
+                whileHover={{ rotate: -5, scale: 1.1 }}
+                transition={{ type: "spring", stiffness: 400 }}
+                className="w-11 h-11 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+              >
+                <ArrowUpFromLine className="w-5 h-5 text-red-600 dark:text-red-500" />
+              </motion.div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white">Outbound</h3>
-                <p className="text-sm text-gray-500 dark:text-slate-400">Delivery metrics</p>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Outbound</h3>
+                <p className="text-xs text-enterprise-textSecondary font-medium">Delivery metrics</p>
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2.5 pl-2">
               {/* DN SKU */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <Package className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <Package className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN SKU</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Unique delivery SKUs</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN SKU</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Unique Items</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatNumber(data.outbound.dnSku)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* DN Qty */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <TrendingUp className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Qty</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Total delivery quantity</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN Qty</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Total Quantity</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatInLakhs(data.outbound.dnQty)}
                 </span>
-              </div>
+              </motion.div>
 
               {/* DN Total CBM */}
-              <div className="flex items-center justify-between p-4 bg-gradient-to-br from-brandRed/20 to-brandYellow/20 dark:from-brandRed/30 dark:to-brandYellow/20 rounded-xl border-2 border-brandRed/30 dark:border-brandYellow/40 hover:shadow-md transition-all">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-brandRed/30 dark:bg-brandYellow/40 flex items-center justify-center">
-                    <Box className="w-5 h-5 text-brandRed dark:text-brandYellow" />
+              <motion.div
+                whileHover={{ x: 2 }}
+                className="flex items-center justify-between p-3 bg-gradient-to-r from-enterprise-redTint/40 to-transparent rounded-lg border border-enterprise-border/50 hover:border-brandRed/30 transition-all duration-200"
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-enterprise-redTint flex items-center justify-center">
+                    <Box className="w-4 h-4 text-brandRed" />
                   </div>
                   <div>
-                    <span className="text-sm font-semibold text-gray-600 dark:text-slate-300 uppercase tracking-wider">DN Total CBM</span>
-                    <p className="text-xs text-gray-400 dark:text-slate-500">Delivery volume</p>
+                    <span className="text-sm font-bold text-enterprise-textSecondary uppercase tracking-widest">DN Total CBM</span>
+                    <p className="text-xs text-enterprise-textSecondary/60 font-medium">Volume</p>
                   </div>
                 </div>
-                <span className="text-2xl font-bold font-mono text-brandRed dark:text-brandYellow">
+                <span className="text-2xl font-bold font-mono text-brandRed tracking-tight">
                   {formatInThousands(data.outbound.dnTotalCbm)}
                 </span>
-              </div>
+              </motion.div>
             </div>
           </motion.div>
         </div>
@@ -1285,23 +1324,33 @@ export default function SummaryPage() {
           {/* Half Donuts Row */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Half Donut Chart - Average Fulfillment */}
-            <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4, type: "spring", stiffness: 100 }}
+              whileHover={{ scale: 1.01, y: -2 }}
+              className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
+            >
+              {/* Left accent bar with gradient */}
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 pl-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
-                    <TrendingUp className="w-5 h-5 text-white" />
-                  </div>
+                  <motion.div
+                    whileHover={{ rotate: -5, scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400 }}
+                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+                  >
+                    <TrendingUp className="w-5 h-5 text-brandRed" />
+                  </motion.div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Overall Fulfillment</h3>
-                    <p className="text-xs text-gray-500 dark:text-slate-400">Total DN Qty / Total SO Qty</p>
+                    <h3 className="text-lg font-extrabold text-enterprise-text tracking-tight">Overall Fulfillment</h3>
+                    <p className="text-xs text-enterprise-textSecondary font-medium">Total DN Qty / Total SO Qty</p>
                   </div>
                 </div>
               </div>
 
-              <div className="h-52 relative">
+              <div className="h-52 relative pl-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1349,33 +1398,43 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandRed" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Current Month Fulfillment - Half Donut */}
-            <div className="relative bg-gradient-to-br from-brandYellow/10 to-brandRed/10 dark:from-brandYellow/20 dark:to-brandRed/10 backdrop-blur-xl border-2 border-brandYellow/60 dark:border-brandRed/60 rounded-2xl p-6 shadow-xl shadow-brandYellow/30 hover:shadow-2xl hover:shadow-brandRed/40 transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5, type: "spring", stiffness: 100 }}
+              whileHover={{ scale: 1.01, y: -2 }}
+              className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
+            >
+              {/* Left accent bar with gradient */}
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandYellow to-brandYellow/70 rounded-l-2xl" />
 
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 pl-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandYellow to-brandRed flex items-center justify-center shadow-lg shadow-brandYellow/30">
-                    <Calendar className="w-5 h-5 text-white" />
-                  </div>
+                  <motion.div
+                    whileHover={{ rotate: 5, scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400 }}
+                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-yellowTint/50 flex items-center justify-center shadow-sm"
+                  >
+                    <Calendar className="w-5 h-5 text-yellow-600 dark:text-yellow-500" />
+                  </motion.div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Fulfillment of {currentMonthFulfillment.month}</h3>
+                    <h3 className="text-lg font-extrabold text-enterprise-text tracking-tight">Fulfillment of {currentMonthFulfillment.month}</h3>
                   </div>
                 </div>
               </div>
 
-              <div className="h-52 relative">
+              <div className="h-52 relative pl-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1423,28 +1482,38 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandRed" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Daily Fulfillment - Half Donut */}
-            <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
-              <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-              <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.6, type: "spring", stiffness: 100 }}
+              whileHover={{ scale: 1.01, y: -2 }}
+              className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/40 rounded-2xl p-8 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border group"
+            >
+              {/* Left accent bar with gradient */}
+              <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-              <div className="mb-4 space-y-3">
+              <div className="mb-4 space-y-3 pl-2">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
-                    <Clock className="w-5 h-5 text-white" />
-                  </div>
+                  <motion.div
+                    whileHover={{ rotate: -5, scale: 1.1 }}
+                    transition={{ type: "spring", stiffness: 400 }}
+                    className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+                  >
+                    <Clock className="w-5 h-5 text-brandRed" />
+                  </motion.div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Daily Fulfillment</h3>
+                    <h3 className="text-lg font-extrabold text-enterprise-text tracking-tight">Daily Fulfillment</h3>
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
@@ -1478,13 +1547,13 @@ export default function SummaryPage() {
                       7 Days
                     </button>
                   </div>
-                  <div className="text-sm font-semibold text-gray-700 dark:text-slate-300 bg-brandYellow/20 dark:bg-brandRed/30 px-3 py-1.5 rounded-lg border border-brandYellow/40 dark:border-brandRed/50">
+                  <div className="text-sm font-semibold text-enterprise-textSecondary bg-enterprise-yellowTint px-3 py-1.5 rounded-lg border border-enterprise-border/50">
                     {lastDayFulfillment.date}
                   </div>
                 </div>
               </div>
 
-              <div className="h-52 relative">
+              <div className="h-52 relative pl-2">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -1532,34 +1601,45 @@ export default function SummaryPage() {
 
               <div className="flex justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandRed" />
+                  <div className="w-3 h-3 rounded-full bg-brandRed shadow-sm shadow-brandRed/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Fulfilled</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-brandYellow" />
+                  <div className="w-3 h-3 rounded-full bg-brandYellow shadow-sm shadow-brandYellow/50" />
                   <span className="text-xs text-gray-600 dark:text-slate-400">Pending</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Line Chart - Month over Month Fulfillment Rates (Full Width) */}
-          <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
-            <div className="absolute -top-20 -left-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.7, type: "spring", stiffness: 100 }}
+            whileHover={{ scale: 1.005, y: -2 }}
+            className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/30 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border"
+          >
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 pl-2">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brandRed to-brandYellow flex items-center justify-center shadow-lg shadow-brandRed/30">
-                  <TrendingUp className="w-5 h-5 text-white" />
-                </div>
+                <motion.div
+                  whileHover={{ rotate: 5, scale: 1.1 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+                >
+                  <TrendingUp className="w-5 h-5 text-brandRed" />
+                </motion.div>
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white cursor-pointer">Fulfillment Rate (All Months)</h3>
+                  <h3 className="text-lg font-extrabold text-enterprise-text tracking-tight">Fulfillment Rate (All Months)</h3>
+                  <p className="text-xs text-enterprise-textSecondary font-medium">Monthly trend analysis</p>
                 </div>
               </div>
             </div>
 
-            <div className="h-52 relative">
+            <div className="h-52 relative pl-2">
               {monthlyFulfillmentData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
@@ -1656,14 +1736,14 @@ export default function SummaryPage() {
             </div>
 
             {monthlyFulfillmentData.length > 0 && (
-              <div className="flex justify-center gap-6 mt-2">
+              <div className="flex justify-center gap-6 mt-2 pl-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow" />
-                  <span className="text-xs text-gray-600 dark:text-slate-400">Fulfillment Rate %</span>
+                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow shadow-sm" />
+                  <span className="text-xs text-enterprise-textSecondary font-medium">Fulfillment Rate %</span>
                 </div>
               </div>
             )}
-          </div>
+          </motion.div>
         </motion.div>
       )}
 
@@ -1675,16 +1755,24 @@ export default function SummaryPage() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="w-full mb-8"
         >
-          <div className="relative bg-gradient-to-br from-brandRed/10 to-brandYellow/10 dark:from-brandRed/20 dark:to-brandYellow/10 backdrop-blur-xl backdrop-saturate-150 border-2 border-brandRed/60 dark:border-brandYellow/60 rounded-2xl p-6 shadow-xl shadow-brandRed/30 hover:shadow-2xl hover:shadow-brandYellow/40 transition-all duration-300 overflow-hidden">
-            {/* Decorative gradient blobs */}
-            <div className="absolute -top-20 -right-20 w-64 h-64 bg-brandRed/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-            <div className="absolute -bottom-20 -left-20 w-64 h-64 bg-brandYellow/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+          <div className="relative bg-gradient-to-br from-white via-white to-enterprise-redTint/30 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:shadow-brandRed/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandRed via-brandRed to-brandRed/70 rounded-l-2xl" />
 
             {/* Header */}
-            <div className="flex items-center justify-between mb-6 relative z-10">
+            <div className="flex items-center justify-between mb-6 relative z-10 pl-2">
               <div className="flex items-center gap-3">
-                <div className="w-3 h-3 rounded-full bg-gradient-to-br from-brandRed to-brandYellow animate-pulse shadow-lg shadow-brandRed/50" />
-                <h3 className="text-xl font-bold text-gray-900 dark:text-slate-100">Fulfillment Table</h3>
+                <motion.div
+                  whileHover={{ rotate: 5, scale: 1.1 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-redTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+                >
+                  <TrendingUp className="w-5 h-5 text-brandRed" />
+                </motion.div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Fulfillment Table</h3>
+                  <p className="text-xs text-enterprise-textSecondary font-medium">Daily fulfillment breakdown</p>
+                </div>
               </div>
               <motion.button
                 onClick={() => downloadFulfillmentExcel(data.fulfillmentTable!)}
@@ -1698,10 +1786,10 @@ export default function SummaryPage() {
             </div>
 
             {/* Table Container */}
-            <div className="relative">
+            <div className="relative pl-2">
               {/* Headers - Sticky at top */}
               <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pb-2">
-                <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-gray-200/50 dark:border-slate-700/50 text-sm font-bold uppercase tracking-wider text-gray-700 dark:text-white">
+                <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-enterprise-redTint/30 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-enterprise-border text-sm font-bold uppercase tracking-wider text-enterprise-textSecondary">
                   <div className="text-center">Date</div>
                   <div className="text-center">SO Qty</div>
                   <div className="text-center">DN Qty</div>
