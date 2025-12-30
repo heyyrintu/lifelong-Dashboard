@@ -73,6 +73,17 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { isAdmin, user, logout } = useAuth();
   const [open, setOpen] = useState(false);
 
+  const handleLogout = useCallback(async () => {
+    try {
+      await logout();
+      router.push('/login');
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Still redirect to login even if logout fails
+      router.push('/login');
+    }
+  }, [logout, router]);
+
   // Memoize filtered menu items to prevent recalculation on every render
   const visibleMenuItems = useMemo(() => 
     menuItems.filter(item => !item.adminOnly || isAdmin),
@@ -166,7 +177,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             className="hover:bg-red-500/20 hover:text-red-100 rounded-md"
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
-              logout();
+              handleLogout();
             }}
           />
         </div>

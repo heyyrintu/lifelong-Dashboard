@@ -683,7 +683,7 @@ function BillingPageContent() {
               <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <div className="relative z-10">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200 uppercase tracking-wider">Core Total Revenue</h3>
+                  <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200 uppercase tracking-wider">Total Revenue</h3>
                   <div className="w-10 h-10 rounded-lg bg-orange-200 dark:bg-orange-700/50 flex items-center justify-center">
                     <Calculator className="w-5 h-5 text-orange-700 dark:text-orange-300" />
                   </div>

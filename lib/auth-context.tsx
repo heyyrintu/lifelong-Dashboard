@@ -50,6 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Ref to track if an auth operation is in progress (double-click protection)
   const authInProgress = useRef(false);
+  
+  // Ref for session check interval
+  const sessionCheckInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Check if user is member of admin team
   const checkAdminStatus = useCallback(async () => {
@@ -172,10 +175,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initAuth();
 
+    // Set up periodic session validation (every 30 seconds)
+    sessionCheckInterval.current = setInterval(async () => {
+      if (!isMounted) return;
+
+      try {
+        const currentUser = await checkExistingSession();
+        if (!currentUser && user) {
+          // Session expired or timed out
+          setUser(null);
+          setIsAdmin(false);
+          // Use window.location for redirect to avoid SSR issues
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      }
+    }, 30000); // Check every 30 seconds
+
     return () => {
       isMounted = false;
+      if (sessionCheckInterval.current) {
+        clearInterval(sessionCheckInterval.current);
+      }
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [checkExistingSession, checkAdminStatus, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = useCallback(async (email: string, password: string) => {
     // Double-click protection
