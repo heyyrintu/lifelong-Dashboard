@@ -65,18 +65,6 @@ const menuItems: MenuItem[] = [
     icon: FileText,
     adminOnly: true,
   },
-  {
-    name: 'Take Attendance',
-    path: '/attendance/take',
-    icon: UserCheck,
-    adminOnly: true,
-  },
-  {
-    name: 'View Attendance',
-    path: '/attendance/view',
-    icon: ClipboardList,
-    adminOnly: true,
-  },
 ];
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
@@ -101,15 +89,12 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const Logo = () => {
     return (
       <div className="flex items-center justify-start gap-2 font-normal text-sm text-white py-1 relative z-20">
-        <div className="h-6 w-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-             <span className="text-[#FEB343] font-bold text-xs">D</span>
-        </div>
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="font-bold text-lg text-white whitespace-pre drop-shadow-md tracking-tight"
         >
-          Drona Dashboard
+          Operational Dashboard
         </motion.span>
       </div>
     );
@@ -118,9 +103,6 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const LogoIcon = () => {
     return (
       <div className="flex items-center justify-center w-full font-normal text-sm text-white py-1 relative z-20">
-        <div className="h-6 w-6 bg-white rounded-lg flex items-center justify-center flex-shrink-0 shadow-sm">
-             <span className="text-[#FEB343] font-bold text-xs">D</span>
-        </div>
       </div>
     );
   };

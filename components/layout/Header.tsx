@@ -109,8 +109,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
                <img 
                 src="https://12d9mn3oyd.ucarecd.net/d13ae91b-1651-44ce-8457-7c7d74f43847/Untitleddesign.png" 
                 alt="Drona Lifelong" 
-                className="h-10 w-auto object-contain drop-shadow-sm"
-                style={{ clipPath: 'inset(10px 0 10px 0)' }}
+                className="h-12 w-auto object-contain drop-shadow-sm"
               />
              </div>
           </div>

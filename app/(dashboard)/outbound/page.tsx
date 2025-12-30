@@ -1179,7 +1179,7 @@ export default function OutboundPage() {
             {/* Fulfillment Progress Bar */}
             <div className="mt-3 pt-3 border-t border-enterprise-border/50">
               <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[10px] font-bold text-enterprise-textSecondary uppercase tracking-wider">Qty Fulfillment</span>
+                <span className="text-[10px] font-bold text-enterprise-textSecondary uppercase tracking-wider">Qty Filling Ratio</span>
                 <span className="text-sm font-bold text-yellow-700 dark:text-yellow-500">
                   {loading ? '-' : `${((derivedCards?.dnQty || 0) / (derivedCards?.soQty || 1) * 100).toFixed(1)}%`}
                 </span>
@@ -1327,7 +1327,7 @@ export default function OutboundPage() {
               <TrendingUp className="w-5 h-5 text-brandYellow" />
             </motion.div>
             <div>
-              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Qty Fulfillment</h3>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Qty Filling Ratio</h3>
               <p className="text-xs text-enterprise-textSecondary font-medium">SO to DN Quantity Ratio</p>
             </div>
           </div>
@@ -1426,7 +1426,7 @@ export default function OutboundPage() {
               <Box className="w-5 h-5 text-brandYellow" />
             </motion.div>
             <div>
-              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">CBM Fulfillment</h3>
+              <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">CBM Filling Ratio</h3>
               <p className="text-xs text-enterprise-textSecondary font-medium">SO to DN Volume Ratio</p>
             </div>
           </div>
@@ -1777,7 +1777,7 @@ export default function OutboundPage() {
               </motion.div>
               <div>
                 <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">
-                  Top 10 Product CBM
+                  Top 10 Selling Product CBM
                 </h3>
                 <p className="text-xs text-enterprise-textSecondary font-medium">
                   Top Products by Volume
@@ -2022,7 +2022,7 @@ export default function OutboundPage() {
                 <Trophy className="w-5 h-5 text-amber-600" />
               </motion.div>
               <div>
-                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Top 10 Product CBM Wise</h3>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Top 10 Selling Product CBM Wise</h3>
                 <p className="text-xs text-enterprise-textSecondary font-medium">Ranked by {topProductsRankBy === 'cbm' ? 'CBM' : 'Quantity'}</p>
               </div>
             </div>

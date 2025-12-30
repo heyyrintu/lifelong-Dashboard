@@ -621,24 +621,83 @@ function BillingPageContent() {
         <>
           {/* Billing Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <MetricCard
-              title="Inventory Revenue"
-              value={formatCurrency(billingPeriod.inventoryAmount)}
-              subtitle={`${formatNumber(billingPeriod.inventoryCbm)} CBM × ${formatCurrency(billingPeriod.inventoryRate)}/CBM`}
-              icon={DollarSign}
-            />
-            <MetricCard
-              title="Out Bound Revenue"
-              value={formatCurrency(billingPeriod.outboundAmount)}
-              subtitle={`${formatNumber(billingPeriod.outboundCbm)} CBM × ${formatCurrency(billingPeriod.outboundRate)}/CBM`}
-              icon={DollarSign}
-            />
-            <MetricCard
-              title="Core Total Revenue"
-              value={formatCurrency(billingPeriod.inventoryAmount + billingPeriod.outboundAmount)}
-              subtitle="Inventory + Outbound (excl. Other Expenses)"
-              icon={Calculator}
-            />
+            {/* Inventory Revenue Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="group relative bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900/20 dark:to-red-800/20 border border-red-200/50 dark:border-red-700/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-red-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-red-900 dark:text-red-200 uppercase tracking-wider">Inventory Revenue</h3>
+                  <div className="w-10 h-10 rounded-lg bg-red-200 dark:bg-red-700/50 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-red-700 dark:text-red-300" />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <p className="text-3xl font-extrabold text-red-900 dark:text-red-100 mb-1">
+                    {formatCurrency(billingPeriod.inventoryAmount)}
+                  </p>
+                  <p className="text-xs text-red-700 dark:text-red-300 font-medium">
+                    {formatNumber(billingPeriod.inventoryCbm)} CBM × {formatCurrency(billingPeriod.inventoryRate)}/CBM
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Outbound Revenue Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4 }}
+              className="group relative bg-gradient-to-br from-yellow-50 to-yellow-100 dark:from-yellow-900/20 dark:to-yellow-800/20 border border-yellow-200/50 dark:border-yellow-700/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-yellow-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-yellow-900 dark:text-yellow-200 uppercase tracking-wider">Outbound Revenue</h3>
+                  <div className="w-10 h-10 rounded-lg bg-yellow-200 dark:bg-yellow-700/50 flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-yellow-700 dark:text-yellow-300" />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <p className="text-3xl font-extrabold text-yellow-900 dark:text-yellow-100 mb-1">
+                    {formatCurrency(billingPeriod.outboundAmount)}
+                  </p>
+                  <p className="text-xs text-yellow-700 dark:text-yellow-300 font-medium">
+                    {formatNumber(billingPeriod.outboundCbm)} CBM × {formatCurrency(billingPeriod.outboundRate)}/CBM
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Total Revenue Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+              className="group relative bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 border border-orange-200/50 dark:border-orange-700/30 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-orange-400/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="relative z-10">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-semibold text-orange-900 dark:text-orange-200 uppercase tracking-wider">Core Total Revenue</h3>
+                  <div className="w-10 h-10 rounded-lg bg-orange-200 dark:bg-orange-700/50 flex items-center justify-center">
+                    <Calculator className="w-5 h-5 text-orange-700 dark:text-orange-300" />
+                  </div>
+                </div>
+                <div className="mb-3">
+                  <p className="text-3xl font-extrabold text-orange-900 dark:text-orange-100 mb-1">
+                    {formatCurrency(billingPeriod.inventoryAmount + billingPeriod.outboundAmount)}
+                  </p>
+                  <p className="text-xs text-orange-700 dark:text-orange-300 font-medium">
+                    Inventory + Outbound (excl. Other Expenses)
+                  </p>
+                </div>
+              </div>
+            </motion.div>
           </div>
 
           {/* Billing Table */}
