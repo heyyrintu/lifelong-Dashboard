@@ -34,7 +34,7 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    name: 'Quick Summary',
+    name: 'Operational Dashboard',
     path: '/summary',
     icon: LayoutDashboard,
   },
@@ -88,11 +88,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const Logo = () => {
     return (
-      <div className="flex items-center justify-start gap-2 font-normal text-sm text-white py-1 relative z-20">
+      <div className="bg-white backdrop-blur-md rounded-[4px] px-2 py-0.5 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white flex items-center justify-start gap-0 font-normal text-sm py-0 relative z-20">
         <motion.span
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="font-bold text-lg text-white whitespace-pre drop-shadow-md tracking-tight"
+          className="font-bold text-lg text-gray-900 whitespace-pre drop-shadow-sm tracking-tight"
         >
           Operational Dashboard
         </motion.span>
@@ -102,7 +102,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
   const LogoIcon = () => {
     return (
-      <div className="flex items-center justify-center w-full font-normal text-sm text-white py-1 relative z-20">
+      <div className="flex items-center justify-center w-full font-normal text-sm text-white py-0 relative z-20">
       </div>
     );
   };
@@ -111,8 +111,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <SidebarContainer open={open} setOpen={setOpen}>
       <SidebarBody className="justify-between gap-10">
         <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-          {open ? <Logo /> : <LogoIcon />}
-          <div className="mt-8 flex flex-col gap-2">
+          <div className={cn("flex flex-col gap-2", open ? "mt-8" : "mt-0")}>
             {visibleMenuItems.map((item) => {
               const isActive = pathname === item.path;
               return (

@@ -82,10 +82,10 @@ export default function Header({ onMenuClick }: HeaderProps) {
 
   const getPageName = () => {
     const routes: Record<string, string> = {
-      '/summary': 'Quick Summary',
-      '/inbound': 'Inbound',
-      '/inventory': 'Inventory',
-      '/outbound': 'Outbound',
+      '/summary': 'Operational Dashboard',
+      '/inbound': 'Inbound Dashboard',
+      '/inventory': 'Inventory Dashboard',
+      '/outbound': 'Outbound Dashboard',
       '/upload': 'Upload',
       '/billing': 'Billing',
     };
@@ -105,7 +105,7 @@ export default function Header({ onMenuClick }: HeaderProps) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center">
-             <div className="bg-white backdrop-blur-md rounded-[7px] px-4 py-2 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white">
+             <div className="bg-white backdrop-blur-md rounded-[4px] px-2 py-0.5 my-0.5 shadow-lg border border-white/20 transform hover:scale-105 transition-all duration-300 hover:bg-white">
                <img 
                 src="https://12d9mn3oyd.ucarecd.net/d13ae91b-1651-44ce-8457-7c7d74f43847/Untitleddesign.png" 
                 alt="Drona Lifelong" 
