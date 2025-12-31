@@ -122,7 +122,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <SidebarContainer open={open} setOpen={setOpen}>
       <SidebarBody className="justify-between gap-10">
         <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-          <div className={cn("flex flex-col gap-2", open ? "mt-8" : "mt-0")}>
+          <div className={cn("flex flex-col gap-2 mt-0")}> 
             {visibleMenuItems.map((item) => {
               const isActive = pathname === item.path;
               return (

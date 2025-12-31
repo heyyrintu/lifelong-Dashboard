@@ -180,11 +180,22 @@ export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<QuickSummaryData | null>(null);
   const [fullFulfillmentTable, setFullFulfillmentTable] = useState<FulfillmentRow[]>([]);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('ALL');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
-  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
+  
+  // Use shared filter context
+  const { 
+    fromDate, 
+    toDate, 
+    selectedMonth, 
+    selectedWarehouse, 
+    selectedProductCategories,
+    setFromDate,
+    setToDate,
+    setMonthWithDates,
+    setSelectedWarehouse,
+    setSelectedProductCategories,
+    resetFilters
+  } = useDateFilter();
+  
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [availableCategories, setAvailableCategories] = useState<string[]>([]);
@@ -242,42 +253,11 @@ export default function SummaryPage() {
 
 
   useEffect(() => {
-    fetchSummary();
+    // Apply default month filter on initial load
+    fetchSummary(true);
   }, []);
 
-  const { setLabel: setDateFilterLabel } = useDateFilter();
-
-  const selectedDateRangeLabel = useMemo(() => {
-    // Prefer a selected month label (e.g. "Nov 2025")
-    if (selectedMonth && selectedMonth !== 'ALL') {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      if (year && month) {
-        // Show the full date range for the selected month in DD-MM-YYYY format using UTC to avoid tz shifts
-        const start = new Date(Date.UTC(year, month - 1, 1));
-        const end = new Date(Date.UTC(year, month, 0));
-        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
-      }
-      return selectedMonth;
-    }
-
-    // If custom date range is selected
-    if (fromDate && toDate) {
-      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
-    }
-    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
-
-    // Fallback to the available data range when no explicit selection
-    if (availableDates) return `${formatHeaderDateShort(availableDates.minDate)} - ${formatHeaderDateShort(availableDates.maxDate)}`;
-
-    return 'All Dates';
-  }, [fromDate, toDate, selectedMonth, availableDates]);
-
-  // Update the global date filter label for header and other components
-  useEffect(() => {
-    setDateFilterLabel(selectedDateRangeLabel);
-  }, [selectedDateRangeLabel, setDateFilterLabel]);
+  // Label is now computed automatically in the context
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -457,22 +437,16 @@ export default function SummaryPage() {
   };
 
   const handleReset = () => {
-    setFromDate('');
-    setToDate('');
-    setSelectedMonth('ALL');
-    setSelectedWarehouse('ALL');
-    setSelectedProductCategories([]);
+    resetFilters();
     fetchSummary(false);
   };
 
   const toggleProductCategory = (category: string) => {
-    setSelectedProductCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(c => c !== category);
-      } else {
-        return [...prev, category];
-      }
-    });
+    setSelectedProductCategories(
+      selectedProductCategories.includes(category)
+        ? selectedProductCategories.filter(c => c !== category)
+        : [...selectedProductCategories, category]
+    );
   };
 
   const clearAllCategories = () => {
@@ -811,10 +785,7 @@ export default function SummaryPage() {
                 <input
                   type="date"
                   value={fromDate}
-                  onChange={(e) => {
-                    setFromDate(e.target.value);
-                    setSelectedMonth('ALL');
-                  }}
+                  onChange={(e) => setFromDate(e.target.value)}
                   min={availableDates?.minDate || ''}
                   max={availableDates?.maxDate || ''}
                   className="w-full pl-3 pr-2 py-1.5 bg-transparent text-xs font-semibold text-gray-900 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer"
@@ -828,10 +799,7 @@ export default function SummaryPage() {
                 <input
                   type="date"
                   value={toDate}
-                  onChange={(e) => {
-                    setToDate(e.target.value);
-                    setSelectedMonth('ALL');
-                  }}
+                  onChange={(e) => setToDate(e.target.value)}
                   min={availableDates?.minDate || ''}
                   max={availableDates?.maxDate || ''}
                   className="w-full pl-2 pr-3 py-1.5 bg-transparent text-xs font-semibold text-gray-900 border-none focus:ring-0 placeholder-gray-400 outline-none cursor-pointer text-right"
@@ -844,31 +812,13 @@ export default function SummaryPage() {
           {/* Month Selector */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 uppercase tracking-wider ml-1">
-              <Calendar className="w-3.5 h-3.5" /> Quick Select
+              <Calendar className="w-3.5 h-3.5" /> Select Month
             </label>
             <div className="group relative flex items-center bg-white border border-gray-200 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => {
-                    setSelectedMonth(e.target.value);
-                    if (e.target.value !== 'ALL') {
-                      const [year, month] = e.target.value.split('-').map(Number);
-                      if (year && month) {
-                        // Format dates in local timezone to avoid timezone shift issues
-                        const formatLocalDate = (d: Date) => {
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          const day = String(d.getDate()).padStart(2, '0');
-                          return `${y}-${m}-${day}`;
-                        };
-                        const startDate = new Date(year, month - 1, 1);
-                        const endDate = new Date(year, month, 0);
-                        setFromDate(formatLocalDate(startDate));
-                        setToDate(formatLocalDate(endDate));
-                      }
-                    }
-                  }}
+                  onChange={(e) => setMonthWithDates(e.target.value)}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
@@ -1010,7 +960,7 @@ export default function SummaryPage() {
               ) : (
                 <Search className="w-4 h-4 stroke-[2.5] text-enterprise-text" />
               )}
-              <span className="font-semibold text-xs text-enterprise-text">Filter</span>
+              <span className="font-semibold text-xs text-enterprise-text">Submit</span>
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button

@@ -8,16 +8,17 @@ import { motion } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { MetricCard } from '@/components/ui/metric-card';
 import { Boxes, Package, Box, ChevronDown, Check, Calendar, ArrowRightLeft, Search, RefreshCw, TrendingUp, Download, Info, X } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import {
+  ResponsiveContainer,
   BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer,
-  LabelList,
   Legend,
+  LabelList,
 } from 'recharts';
 
 interface InventoryCardMetrics {
@@ -28,11 +29,11 @@ interface InventoryCardMetrics {
 
 interface InventoryFilters {
   availableItemGroups: string[];
-  availableDateRange: {
+  availableProductCategories?: string[];
+  availableDateRange?: {
     minDate: string | null;
     maxDate: string | null;
   };
-  availableProductCategories?: string[];
 }
 
 interface InventoryTimeSeriesPoint {
@@ -87,7 +88,6 @@ interface FastMovingSkusResponse {
   latestInventoryMonth?: string;
 }
 
-
 interface ZeroOrderProduct {
   item: string;
   warehouse: string;
@@ -99,7 +99,8 @@ interface ZeroOrderProduct {
   totalCbm: number;
   daysInStock: number;
   stockValue: string;
-  dnCount: number;
+  dnCount?: number;
+  deliveryNoteCount?: number;
 }
 
 interface ZeroOrderProductsResponse {
@@ -150,23 +151,46 @@ function InventoryPageContent() {
   const [showZeroOrderSection, setShowZeroOrderSection] = useState(true);
   const [zeroOrderPage, setZeroOrderPage] = useState(0);
 
+  // Derived totals for slow-moving table
+  const zeroOrderTotals = useMemo(() => {
+    if (!zeroOrderData?.products?.length) {
+      return { stock: 0, cbm: 0 };
+    }
+    return zeroOrderData.products.reduce(
+      (acc, p) => ({
+        stock: acc.stock + (p.latestStockQty || 0),
+        cbm: acc.cbm + (p.totalCbm || 0),
+      }),
+      { stock: 0, cbm: 0 }
+    );
+  }, [zeroOrderData]);
+
   // Info tooltip states
   const [showFastMovingInfo, setShowFastMovingInfo] = useState(false);
   const [showZeroOrderInfo, setShowZeroOrderInfo] = useState(false);
 
-  // Filter states
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('ALL');
+  // Use shared filter context
+  const { 
+    fromDate, 
+    toDate, 
+    selectedMonth, 
+    selectedProductCategories,
+    selectedWarehouse,
+    setFromDate,
+    setToDate,
+    setSelectedMonth,
+    setMonthWithDates,
+    setSelectedProductCategories,
+    setSelectedWarehouse,
+    resetFilters
+  } = useDateFilter();
+  
   const [selectedItemGroup, setSelectedItemGroup] = useState('ALL');
-  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartDisplayMode, setChartDisplayMode] = useState<'value' | 'percentage'>('value');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
   const [filtersDirty, setFiltersDirty] = useState(false);
-  const { setLabel: setDateFilterLabel } = useDateFilter();
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
@@ -188,32 +212,9 @@ function InventoryPageContent() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const selectedDateRangeLabel = useMemo(() => {
-    if (selectedMonth && selectedMonth !== 'ALL') {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      if (year && month) {
-        const start = new Date(Date.UTC(year, month - 1, 1));
-        const end = new Date(Date.UTC(year, month, 0));
-        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
-      }
-      return selectedMonth;
-    }
-    if (fromDate && toDate) {
-      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
-    }
-    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
-    if (data?.filters?.availableDateRange) return `${formatHeaderDateShort(data.filters.availableDateRange.minDate)} - ${formatHeaderDateShort(data.filters.availableDateRange.maxDate)}`;
-    return 'All Dates';
-  }, [fromDate, toDate, selectedMonth, data?.filters?.availableDateRange]);
-
   useEffect(() => {
-    setDateFilterLabel(selectedDateRangeLabel);
-  }, [selectedDateRangeLabel, setDateFilterLabel]);
-
-  useEffect(() => {
-    fetchSummary();
+    // Apply default month filter on initial load
+    fetchSummary(true);
   }, []);
 
   // Close dropdown when clicking outside
@@ -345,13 +346,110 @@ function InventoryPageContent() {
         params.append('warehouse', selectedWarehouse);
       }
 
-      const response = await authenticatedFetch(`/inventory/download-summary?${params.toString()}`);
+      // Fetch all data in parallel: summary + fast-moving + slow-moving
+      const fastMovingParams = new URLSearchParams();
+      fastMovingParams.append('limit', '1000'); // Get all for export
+      if (fastMovingWarehouse && fastMovingWarehouse !== 'ALL') {
+        fastMovingParams.append('warehouse', fastMovingWarehouse);
+      }
+      if (fastMovingCategory && fastMovingCategory !== 'ALL') {
+        fastMovingParams.append('productCategory', fastMovingCategory);
+      }
 
-      if (!response.ok) {
+      const zeroOrderParams = new URLSearchParams();
+      zeroOrderParams.append('limit', '1000'); // Get all for export
+      if (zeroOrderWarehouse && zeroOrderWarehouse !== 'ALL') {
+        zeroOrderParams.append('warehouse', zeroOrderWarehouse);
+      }
+      if (zeroOrderCategory && zeroOrderCategory !== 'ALL') {
+        zeroOrderParams.append('productCategory', zeroOrderCategory);
+      }
+      zeroOrderParams.append('minDaysInStock', minDaysInStock.toString());
+
+      const [summaryResponse, fastMovingResponse, zeroOrderResponse] = await Promise.all([
+        authenticatedFetch(`/inventory/download-summary?${params.toString()}`),
+        authenticatedFetch(`/inventory/fast-moving-skus?${fastMovingParams.toString()}`),
+        authenticatedFetch(`/inventory/zero-order-products?${zeroOrderParams.toString()}`),
+      ]);
+
+      if (!summaryResponse.ok) {
         throw new Error('Failed to download inventory summary');
       }
 
-      const blob = await response.blob();
+      // Get the original workbook from backend
+      const arrayBuffer = await summaryResponse.arrayBuffer();
+      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+
+      // Add Fast Moving SKUs sheet
+      let fastMovingExportData = fastMovingData;
+      if (fastMovingResponse.ok) {
+        try {
+          fastMovingExportData = await fastMovingResponse.json();
+        } catch (e) {
+          console.error('Failed to parse fast-moving data:', e);
+        }
+      }
+      
+      if (fastMovingExportData?.skus?.length) {
+        const fastMovingRows = [
+          ['Fast Moving SKUs Report'],
+          ['Generated on: ' + new Date().toLocaleString()],
+          [],
+          ['Item (SKU)', 'Warehouse', 'Item Group', 'Avg Inventory Qty', 'Current Inventory Qty', 'Sales/Day', 'DN Qty', 'DN CBM', 'CBM'],
+          ...fastMovingExportData.skus.map(sku => [
+            sku.item,
+            sku.warehouse,
+            sku.itemGroup,
+            sku.avgQty,
+            sku.currentQty,
+            sku.salesPerDay?.toFixed(2) || 0,
+            sku.dnQty,
+            sku.dnCbm?.toFixed(2) || 0,
+            sku.cbm?.toFixed(2) || 0,
+          ])
+        ];
+        const fastMovingSheet = XLSX.utils.aoa_to_sheet(fastMovingRows);
+        fastMovingSheet['!cols'] = [
+          { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, fastMovingSheet, 'Fast Moving SKUs');
+      }
+
+      // Add Slow Moving SKUs sheet
+      let zeroOrderExportData = zeroOrderData;
+      if (zeroOrderResponse.ok) {
+        try {
+          zeroOrderExportData = await zeroOrderResponse.json();
+        } catch (e) {
+          console.error('Failed to parse slow-moving data:', e);
+        }
+      }
+
+      if (zeroOrderExportData?.products?.length) {
+        const slowMovingRows = [
+          ['Non-Moving / Slow Moving SKUs Report'],
+          ['Generated on: ' + new Date().toLocaleString()],
+          [],
+          ['Item', 'Warehouse', 'Item Group', 'Latest Stock Qty', 'CBM Blocked', 'DN Count'],
+          ...zeroOrderExportData.products.map(product => [
+            product.item,
+            product.warehouse,
+            product.itemGroup,
+            product.latestStockQty,
+            product.totalCbm?.toFixed(2) || 0,
+            product.dnCount ?? product.deliveryNoteCount ?? 0,
+          ])
+        ];
+        const slowMovingSheet = XLSX.utils.aoa_to_sheet(slowMovingRows);
+        slowMovingSheet['!cols'] = [
+          { wch: 30 }, { wch: 15 }, { wch: 20 }, { wch: 18 }, { wch: 15 }, { wch: 12 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, slowMovingSheet, 'Slow Moving SKUs');
+      }
+
+      // Write the modified workbook to a blob and download
+      const wbOut = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+      const blob = new Blob([wbOut], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -367,11 +465,7 @@ function InventoryPageContent() {
   };
 
   const handleReset = () => {
-    setFromDate('');
-    setToDate('');
-    setSelectedMonth('ALL');
-    setSelectedProductCategories([]);
-    setSelectedWarehouse('ALL');
+    resetFilters();
     setSelectedItemGroup('ALL');
     setFiltersDirty(false);
     fetchSummary(false);
@@ -526,17 +620,11 @@ function InventoryPageContent() {
   };
 
   const toggleProductCategory = (category: string) => {
-    setSelectedProductCategories(prev => {
-      if (prev.includes(category)) {
-        const next = prev.filter(c => c !== category);
-        setFiltersDirty(true);
-        return next;
-      } else {
-        const next = [...prev, category];
-        setFiltersDirty(true);
-        return next;
-      }
-    });
+    const newCategories = selectedProductCategories.includes(category)
+      ? selectedProductCategories.filter(c => c !== category)
+      : [...selectedProductCategories, category];
+    setSelectedProductCategories(newCategories);
+    setFiltersDirty(true);
   };
 
   const clearAllCategories = () => {
@@ -862,7 +950,6 @@ function InventoryPageContent() {
                   value={fromDate}
                   onChange={(e) => {
                     setFromDate(e.target.value);
-                    setSelectedMonth('ALL');
                     setFiltersDirty(true);
                   }}
                   min={data?.filters.availableDateRange?.minDate || ''}
@@ -880,7 +967,6 @@ function InventoryPageContent() {
                   value={toDate}
                   onChange={(e) => {
                     setToDate(e.target.value);
-                    setSelectedMonth('ALL');
                     setFiltersDirty(true);
                   }}
                   min={data?.filters.availableDateRange?.minDate || ''}
@@ -895,31 +981,13 @@ function InventoryPageContent() {
           {/* Month Selector */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
-              <Calendar className="w-3.5 h-3.5" /> Quick Select
+              <Calendar className="w-3.5 h-3.5" /> Select Month
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => {
-                    setSelectedMonth(e.target.value);
-                    if (e.target.value !== 'ALL') {
-                      const [year, month] = e.target.value.split('-').map(Number);
-                      if (year && month) {
-                        // Format dates in local timezone to avoid timezone shift issues
-                        const formatLocalDate = (d: Date) => {
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          const day = String(d.getDate()).padStart(2, '0');
-                          return `${y}-${m}-${day}`;
-                        };
-                        const startDate = new Date(year, month - 1, 1);
-                        const endDate = new Date(year, month, 0);
-                        setFromDate(formatLocalDate(startDate));
-                        setToDate(formatLocalDate(endDate));
-                      }
-                    }
-                  }}
+                  onChange={(e) => setMonthWithDates(e.target.value)}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
@@ -1076,7 +1144,7 @@ function InventoryPageContent() {
               ) : (
                 <Search className="w-4 h-4 stroke-[2.5]" />
               )}
-              <span className="font-semibold text-xs">Filter</span>
+              <span className="font-semibold text-xs">Submit</span>
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL') || (selectedItemGroup && selectedItemGroup !== 'ALL')) && (
               <motion.button
@@ -1217,7 +1285,7 @@ function InventoryPageContent() {
                 <TrendingUp className="w-5 h-5 text-brandRed" />
               </motion.div>
               <div>
-                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Time Series Analysis</h3>
+                <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">Total VS Edel</h3>
                 <p className="text-xs text-enterprise-textSecondary font-medium">View by granularity and mode</p>
               </div>
             </div>
@@ -1590,7 +1658,7 @@ function InventoryPageContent() {
                           <ul className="list-disc list-inside space-y-1 ml-2">
                             <li>Sales/Day = Total DN QTY ÷ days in last 3 months</li>
                             <li>AVG QTY: Average inventory quantity for the latest month</li>
-                            <li>Current QTY: Latest inventory stock quantity</li>
+                            <li>Current Inventory Qty: Latest inventory stock quantity</li>
                             <li>DN QTY/CBM: Total from last 3 months</li>
                             <li>Sorted by highest Sales/Day first</li>
                           </ul>
@@ -1621,11 +1689,11 @@ function InventoryPageContent() {
                       <table className="w-full text-sm">
                         <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Item (SKU)</th>
-                            <th className="px-4 py-3 text-left text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Avg Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Current Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Sales per Day (last 90 days)${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Item (SKU)</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Avg Inventory Qty</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">Current Inventory Qty</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title={`Sales per Day (last 90 days)${fastMovingData?.salesDateRange ? ` (${fastMovingData.salesDateRange.minDate} to ${fastMovingData.salesDateRange.maxDate})` : ''}`}>
                               Sales/Day
                               {fastMovingData?.salesDateRange && (
                                 <div className="text-[9px] font-normal normal-case text-blue-500 dark:text-blue-300 mt-0.5">
@@ -1633,9 +1701,9 @@ function InventoryPageContent() {
                                 </div>
                               )}
                             </th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty (last 90 days)">DN Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM (last 90 days)">DN CBM</th>
-                            <th className="px-4 py-3 text-right text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">CBM</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN Qty (last 90 days)">DN Qty</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider bg-blue-50/50 dark:bg-blue-900/20" title="Total DN CBM (last 90 days)">DN CBM</th>
+                            <th className="px-4 py-3 text-center text-sm font-bold text-gray-700 dark:text-white uppercase tracking-wider">CBM</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -1643,26 +1711,26 @@ function InventoryPageContent() {
                             .slice(fastMovingPage * ITEMS_PER_PAGE, (fastMovingPage + 1) * ITEMS_PER_PAGE)
                             .map((sku, idx) => (
                               <tr key={`${sku.item}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                                <td className="px-4 py-3">
-                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={sku.item}>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px] mx-auto" title={sku.item}>
                                     {sku.item}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-slate-400">{sku.itemGroup}</div>
                                 </td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs" title={sku.warehouse}>{sku.warehouse}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgQty)}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(sku.currentQty)}</td>
+                                <td className="px-4 py-3 text-center text-gray-600 dark:text-slate-300 text-xs" title={sku.warehouse}>{sku.warehouse}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">{formatNumber(sku.avgQty)}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">{formatNumber(sku.currentQty)}</td>
                                 {/* Sales columns from outbound data */}
-                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                <td className="px-4 py-3 text-center font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                   {formatNumber(sku.salesPerDay, 2)}
                                 </td>
-                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                <td className="px-4 py-3 text-center font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                   {formatNumber(sku.dnQty)}
                                 </td>
-                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
+                                <td className="px-4 py-3 text-center font-semibold text-blue-600 dark:text-blue-400 bg-blue-50/30 dark:bg-blue-900/10">
                                   {formatNumber(sku.dnCbm, 2)}
                                 </td>
-                                <td className="px-4 py-3 text-right text-gray-600 dark:text-slate-300">{formatNumber(sku.cbm, 2)}</td>
+                                <td className="px-4 py-3 text-center text-gray-600 dark:text-slate-300">{formatNumber(sku.cbm, 2)}</td>
                               </tr>
                             ))}
                         </tbody>
@@ -1882,11 +1950,18 @@ function InventoryPageContent() {
                       <table className="w-full text-sm">
                         <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
                           <tr>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock Qty</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">CBM Blocked</th>
-                            <th className="px-4 py-3 text-right text-sm font-semibold text-gray-700 dark:text-white uppercase tracking-wider">DN Count</th>
+                            <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Item</th>
+                            <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Warehouse</th>
+                            <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Latest Stock Qty</th>
+                            <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">CBM Blocked</th>
+                            <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">DN Count</th>
+                          </tr>
+                          <tr className="bg-gray-50/60 dark:bg-slate-800/50">
+                            <th className="px-4 pb-2 text-center text-[11px] font-semibold text-gray-600 dark:text-slate-300"></th>
+                            <th className="px-4 pb-2 text-center text-[11px] font-semibold text-gray-600 dark:text-slate-300"></th>
+                            <th className="px-4 pb-2 text-center text-sm font-bold text-gray-900 dark:text-white">({formatNumber(zeroOrderTotals.stock)})</th>
+                            <th className="px-4 pb-2 text-center text-sm font-bold text-purple-700 dark:text-purple-300">({formatNumber(zeroOrderTotals.cbm, 2)})</th>
+                            <th className="px-4 pb-2 text-center text-[11px] font-semibold text-gray-600 dark:text-slate-300"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
@@ -1894,16 +1969,16 @@ function InventoryPageContent() {
                             .slice(zeroOrderPage * ITEMS_PER_PAGE, (zeroOrderPage + 1) * ITEMS_PER_PAGE)
                             .map((product, idx) => (
                               <tr key={`${product.item}-${product.warehouse}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
-                                <td className="px-4 py-3">
-                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px]" title={product.item}>
+                                <td className="px-4 py-3 text-center">
+                                  <div className="font-medium text-gray-900 dark:text-white truncate max-w-[200px] mx-auto" title={product.item}>
                                     {product.item}
                                   </div>
                                   <div className="text-xs text-gray-500 dark:text-slate-400">{product.itemGroup}</div>
                                 </td>
-                                <td className="px-4 py-3 text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
-                                <td className="px-4 py-3 text-right font-semibold text-blue-600 dark:text-blue-400">{product.dnCount}</td>
+                                <td className="px-4 py-3 text-center text-gray-600 dark:text-slate-300 text-xs">{product.warehouse}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-gray-900 dark:text-white">{formatNumber(product.latestStockQty)}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-purple-600 dark:text-purple-400">{formatNumber(product.totalCbm, 2)}</td>
+                                <td className="px-4 py-3 text-center font-semibold text-blue-600 dark:text-blue-400">{product.dnCount ?? product.deliveryNoteCount ?? 0}</td>
                               </tr>
                             ))}
                         </tbody>

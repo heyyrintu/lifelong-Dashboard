@@ -142,6 +142,27 @@ export default function OutboundPage() {
   const [topProductsRankBy, setTopProductsRankBy] = useState<'cbm' | 'qty'>('cbm');
   const [topProductsSortOrder, setTopProductsSortOrder] = useState<'top' | 'bottom'>('top');
 
+  // Use shared filter context
+  const { 
+    fromDate, 
+    toDate, 
+    selectedMonth, 
+    selectedProductCategories,
+    selectedWarehouse,
+    setFromDate,
+    setToDate,
+    setSelectedMonth,
+    setMonthWithDates,
+    setSelectedProductCategories,
+    setSelectedWarehouse,
+    resetFilters
+  } = useDateFilter();
+  
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
+  const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
+  const [filtersDirty, setFiltersDirty] = useState(false);
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -153,18 +174,6 @@ export default function OutboundPage() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Filter states
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('ALL');
-  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
-  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
-  const categoryDropdownRef = useRef<HTMLDivElement>(null);
-  const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
-  const [selectedWarehouse, setSelectedWarehouse] = useState('ALL');
-  const [filtersDirty, setFiltersDirty] = useState(false);
-  const { setLabel: setDateFilterLabel } = useDateFilter();
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
@@ -185,30 +194,6 @@ export default function OutboundPage() {
     const dd = String(date.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
   };
-
-  const selectedDateRangeLabel = useMemo(() => {
-    if (selectedMonth && selectedMonth !== 'ALL') {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      if (year && month) {
-        const start = new Date(Date.UTC(year, month - 1, 1));
-        const end = new Date(Date.UTC(year, month, 0));
-        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
-      }
-      return selectedMonth;
-    }
-    if (fromDate && toDate) {
-      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
-    }
-    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
-    if (data?.availableDateRange) return `${formatHeaderDateShort(data.availableDateRange.minDate)} - ${formatHeaderDateShort(data.availableDateRange.maxDate)}`;
-    return 'All Dates';
-  }, [fromDate, toDate, selectedMonth, data?.availableDateRange]);
-
-  useEffect(() => {
-    setDateFilterLabel(selectedDateRangeLabel);
-  }, [selectedDateRangeLabel, setDateFilterLabel]);
 
   const categoryRows = useMemo(() => {
     return (data?.categoryTable || []).filter(row => row.categoryLabel !== 'TOTAL');
@@ -306,6 +291,17 @@ export default function OutboundPage() {
 
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
+
+        // Apply default month filter on initial load
+        if (selectedMonth && selectedMonth !== 'ALL') {
+          const [year, month] = selectedMonth.split('-').map(Number);
+          if (year && month) {
+            const startDate = new Date(Date.UTC(year, month - 1, 1));
+            const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+            params.append('fromDate', startDate.toISOString().split('T')[0]);
+            params.append('toDate', endDate.toISOString().split('T')[0]);
+          }
+        }
 
         const [summaryResponse, topProductsResponse] = await Promise.all([
           authenticatedFetch(`/outbound/summary?${params.toString()}`),
@@ -448,11 +444,7 @@ export default function OutboundPage() {
   };
 
   const handleReset = () => {
-    setFromDate('');
-    setToDate('');
-    setSelectedMonth('ALL');
-    setSelectedProductCategories([]);
-    setSelectedWarehouse('ALL');
+    resetFilters();
     setFiltersDirty(false);
     fetchSummary(false);
   };
@@ -514,13 +506,10 @@ export default function OutboundPage() {
   };
 
   const toggleProductCategory = (category: string) => {
-    setSelectedProductCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(c => c !== category);
-      } else {
-        return [...prev, category];
-      }
-    });
+    const newCategories = selectedProductCategories.includes(category)
+      ? selectedProductCategories.filter(c => c !== category)
+      : [...selectedProductCategories, category];
+    setSelectedProductCategories(newCategories);
     setFiltersDirty(true);
   };
 
@@ -783,7 +772,6 @@ export default function OutboundPage() {
                   value={fromDate}
                   onChange={(e) => {
                     setFromDate(e.target.value);
-                    setSelectedMonth('ALL');
                     setFiltersDirty(true);
                   }}
                   min={availableDateRange?.minDate || ''}
@@ -801,7 +789,6 @@ export default function OutboundPage() {
                   value={toDate}
                   onChange={(e) => {
                     setToDate(e.target.value);
-                    setSelectedMonth('ALL');
                     setFiltersDirty(true);
                   }}
                   min={availableDateRange?.minDate || ''}
@@ -816,30 +803,15 @@ export default function OutboundPage() {
           {/* Month Selector */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
-              <Calendar className="w-3.5 h-3.5" /> Quick Select
+              <Calendar className="w-3.5 h-3.5" /> Select Month
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandYellow/50 hover:shadow-md focus-within:border-brandYellow focus-within:ring-4 focus-within:ring-brandYellow/10">
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
                   onChange={(e) => {
-                    setSelectedMonth(e.target.value);
+                    setMonthWithDates(e.target.value);
                     setFiltersDirty(true);
-                    if (e.target.value !== 'ALL') {
-                      const [year, month] = e.target.value.split('-').map(Number);
-                      if (year && month) {
-                        const formatLocalDate = (d: Date) => {
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          const day = String(d.getDate()).padStart(2, '0');
-                          return `${y}-${m}-${day}`;
-                        };
-                        const startDate = new Date(year, month - 1, 1);
-                        const endDate = new Date(year, month, 0);
-                        setFromDate(formatLocalDate(startDate));
-                        setToDate(formatLocalDate(endDate));
-                      }
-                    }
                   }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
@@ -994,7 +966,7 @@ export default function OutboundPage() {
               ) : (
                 <Search className="w-4 h-4 stroke-[2.5] text-enterprise-text" />
               )}
-              <span className="font-semibold text-xs text-enterprise-text">Filter</span>
+              <span className="font-semibold text-xs text-enterprise-text">Submit</span>
             </motion.button>
             {filtersDirty && (fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0 || (selectedWarehouse && selectedWarehouse !== 'ALL')) && (
               <motion.button

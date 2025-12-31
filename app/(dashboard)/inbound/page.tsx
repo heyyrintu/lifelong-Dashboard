@@ -86,16 +86,26 @@ interface InboundSummaryResponse {
 export default function InboundPage() {
   const [summaryData, setSummaryData] = useState<InboundSummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
-  const [selectedMonth, setSelectedMonth] = useState('ALL');
-  const [selectedProductCategories, setSelectedProductCategories] = useState<string[]>([]);
+  
+  // Use shared filter context
+  const { 
+    fromDate, 
+    toDate, 
+    selectedMonth, 
+    selectedProductCategories,
+    setFromDate,
+    setToDate,
+    setSelectedMonth,
+    setMonthWithDates,
+    setSelectedProductCategories,
+    resetFilters
+  } = useDateFilter();
+  
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
   const [timeGranularity, setTimeGranularity] = useState<'month' | 'week' | 'day'>('month');
   const [chartData, setChartData] = useState<TimeSeriesData | null>(null);
   const [chartLoading, setChartLoading] = useState(true);
-  const { setLabel: setDateFilterLabel } = useDateFilter();
 
   const formatToDDMMYYYY = (dateStr?: string | null): string => {
     if (!dateStr) return '';
@@ -117,52 +127,28 @@ export default function InboundPage() {
     return `${yyyy}-${mm}-${dd}`;
   };
 
-  const selectedDateRangeLabel = useMemo(() => {
-    if (selectedMonth && selectedMonth !== 'ALL') {
-      const [year, month] = selectedMonth.split('-').map(Number);
-      if (year && month) {
-        const start = new Date(Date.UTC(year, month - 1, 1));
-        const end = new Date(Date.UTC(year, month, 0));
-        return `${formatHeaderDateShort(formatDateUTC(start))} - ${formatHeaderDateShort(formatDateUTC(end))}`;
-      }
-      return selectedMonth;
-    }
-    if (fromDate && toDate) {
-      if (fromDate === toDate) return formatHeaderDateShort(fromDate);
-      return `${formatHeaderDateShort(fromDate)} - ${formatHeaderDateShort(toDate)}`;
-    }
-    if (fromDate) return `From ${formatHeaderDateShort(fromDate)}`;
-    if (toDate) return `Up to ${formatHeaderDateShort(toDate)}`;
-    if (summaryData?.availableDates) return `${formatHeaderDateShort(summaryData.availableDates.minDate)} - ${formatHeaderDateShort(summaryData.availableDates.maxDate)}`;
-    return 'All Dates';
-  }, [fromDate, toDate, selectedMonth, summaryData?.availableDates]);
-
-  useEffect(() => {
-    setDateFilterLabel(selectedDateRangeLabel);
-  }, [selectedDateRangeLabel, setDateFilterLabel]);
-
   // Helper function to check if date range matches a specific month
   const getMonthFromDateRange = (from: string, to: string): string | null => {
     if (!from || !to) return null;
 
     try {
-      const fromDate = new Date(from);
-      const toDate = new Date(to);
+      const fromDateParsed = new Date(from);
+      const toDateParsed = new Date(to);
 
       // Check if both dates are in the same month and year
-      if (fromDate.getFullYear() === toDate.getFullYear() &&
-        fromDate.getMonth() === toDate.getMonth()) {
+      if (fromDateParsed.getFullYear() === toDateParsed.getFullYear() &&
+        fromDateParsed.getMonth() === toDateParsed.getMonth()) {
 
-        // Check if fromDate is the 1st of the month
-        const isFirstDay = fromDate.getDate() === 1;
+        // Check if fromDateParsed is the 1st of the month
+        const isFirstDay = fromDateParsed.getDate() === 1;
 
-        // Check if toDate is the last day of the month
-        const lastDay = new Date(toDate.getFullYear(), toDate.getMonth() + 1, 0).getDate();
-        const isLastDay = toDate.getDate() === lastDay;
+        // Check if toDateParsed is the last day of the month
+        const lastDay = new Date(toDateParsed.getFullYear(), toDateParsed.getMonth() + 1, 0).getDate();
+        const isLastDay = toDateParsed.getDate() === lastDay;
 
         if (isFirstDay && isLastDay) {
-          const year = fromDate.getFullYear();
-          const month = String(fromDate.getMonth() + 1).padStart(2, '0');
+          const year = fromDateParsed.getFullYear();
+          const month = String(fromDateParsed.getMonth() + 1).padStart(2, '0');
           return `${year}-${month}`;
         }
       }
@@ -183,6 +169,17 @@ export default function InboundPage() {
 
         const params = new URLSearchParams();
         params.append('timeGranularity', timeGranularity);
+
+        // Apply default month filter on initial load
+        if (selectedMonth && selectedMonth !== 'ALL') {
+          const [year, month] = selectedMonth.split('-').map(Number);
+          if (year && month) {
+            const startDate = new Date(Date.UTC(year, month - 1, 1));
+            const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+            params.append('fromDate', startDate.toISOString().split('T')[0]);
+            params.append('toDate', endDate.toISOString().split('T')[0]);
+          }
+        }
 
         const response = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
 
@@ -306,23 +303,18 @@ export default function InboundPage() {
   };
 
   const handleReset = () => {
-    setFromDate('');
-    setToDate('');
-    setSelectedMonth('ALL');
-    setSelectedProductCategories([]);
+    resetFilters();
     fetchSummary();
     // Refresh chart data with current granularity (will show all data for month, filtered for week/day)
     fetchChartData(timeGranularity);
   };
 
   const toggleProductCategory = (category: string) => {
-    setSelectedProductCategories(prev => {
-      if (prev.includes(category)) {
-        return prev.filter(c => c !== category);
-      } else {
-        return [...prev, category];
-      }
-    });
+    setSelectedProductCategories(
+      selectedProductCategories.includes(category)
+        ? selectedProductCategories.filter(c => c !== category)
+        : [...selectedProductCategories, category]
+    );
   };
 
   const clearAllCategories = () => {
@@ -537,19 +529,10 @@ export default function InboundPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => {
-                    const newFromDate = e.target.value;
-                    setFromDate(newFromDate);
-
-                    // Check if the new date range matches a specific month
-                    const matchedMonth = getMonthFromDateRange(newFromDate, toDate);
-                    if (matchedMonth && summaryData?.availableMonths?.includes(matchedMonth)) {
-                      setSelectedMonth(matchedMonth);
-                    } else {
-                      setSelectedMonth('ALL');
-                    }
+                    setFromDate(e.target.value);
 
                     // If in week or day mode, refresh chart data immediately
-                    if (timeGranularity !== 'month' && newFromDate && toDate) {
+                    if (timeGranularity !== 'month' && e.target.value && toDate) {
                       setTimeout(() => fetchChartData(timeGranularity), 0);
                     }
                   }}
@@ -567,19 +550,10 @@ export default function InboundPage() {
                   type="date"
                   value={toDate}
                   onChange={(e) => {
-                    const newToDate = e.target.value;
-                    setToDate(newToDate);
-
-                    // Check if the new date range matches a specific month
-                    const matchedMonth = getMonthFromDateRange(fromDate, newToDate);
-                    if (matchedMonth && summaryData?.availableMonths?.includes(matchedMonth)) {
-                      setSelectedMonth(matchedMonth);
-                    } else {
-                      setSelectedMonth('ALL');
-                    }
+                    setToDate(e.target.value);
 
                     // If in week or day mode, refresh chart data immediately
-                    if (timeGranularity !== 'month' && fromDate && newToDate) {
+                    if (timeGranularity !== 'month' && fromDate && e.target.value) {
                       setTimeout(() => fetchChartData(timeGranularity), 0);
                     }
                   }}
@@ -595,7 +569,7 @@ export default function InboundPage() {
           {/* Month Selector */}
           <div className="space-y-2">
             <label className="flex items-center gap-2 text-sm font-bold text-gray-500 dark:text-slate-400 uppercase tracking-wider ml-1">
-              <Calendar className="w-3.5 h-3.5" /> Quick Select
+              <Calendar className="w-3.5 h-3.5" /> Select Month
             </label>
             <div className="group relative flex items-center bg-white dark:bg-slate-800/50 border border-gray-200 dark:border-slate-700 rounded-xl p-1 shadow-sm transition-all hover:border-brandRed/30 hover:shadow-md focus-within:border-brandRed focus-within:ring-4 focus-within:ring-brandRed/5">
               <div className="relative flex-1">
@@ -603,37 +577,11 @@ export default function InboundPage() {
                   value={selectedMonth}
                   onChange={(e) => {
                     const newMonth = e.target.value;
-                    setSelectedMonth(newMonth);
+                    setMonthWithDates(newMonth);
 
-                    // If a specific month is selected, update the date range
-                    if (newMonth !== 'ALL') {
-                      const [year, month] = newMonth.split('-').map(Number);
-                      if (year && month) {
-                        const formatLocalDate = (d: Date) => {
-                          const y = d.getFullYear();
-                          const m = String(d.getMonth() + 1).padStart(2, '0');
-                          const day = String(d.getDate()).padStart(2, '0');
-                          return `${y}-${m}-${day}`;
-                        };
-                        const startDate = new Date(year, month - 1, 1);
-                        const endDate = new Date(year, month, 0);
-                        setFromDate(formatLocalDate(startDate));
-                        setToDate(formatLocalDate(endDate));
-
-                        // If in week or day mode, refresh chart data immediately
-                        if (timeGranularity !== 'month') {
-                          setTimeout(() => fetchChartData(timeGranularity), 0);
-                        }
-                      }
-                    } else {
-                      // If "All Months" is selected, clear the date range
-                      setFromDate('');
-                      setToDate('');
-
-                      // If in week or day mode, refresh chart data immediately
-                      if (timeGranularity !== 'month') {
-                        setTimeout(() => fetchChartData(timeGranularity), 0);
-                      }
+                    // If in week or day mode, refresh chart data immediately
+                    if (timeGranularity !== 'month') {
+                      setTimeout(() => fetchChartData(timeGranularity), 0);
                     }
                   }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
@@ -761,7 +709,7 @@ export default function InboundPage() {
               ) : (
                 <Search className="w-4 h-4 stroke-[2.5]" />
               )}
-              <span className="font-semibold text-xs">Filter</span>
+              <span className="font-semibold text-xs">Submit</span>
             </motion.button>
             {(fromDate || toDate || (selectedMonth && selectedMonth !== 'ALL') || selectedProductCategories.length > 0) && (
               <motion.button
