@@ -289,39 +289,102 @@ export default function OutboundPage() {
         setChartLoading(true);
         setTopProductsLoading(true);
 
-        const params = new URLSearchParams();
-        params.append('timeGranularity', timeGranularity);
-
-        // Apply default month filter on initial load
-        if (selectedMonth && selectedMonth !== 'ALL') {
-          const [year, month] = selectedMonth.split('-').map(Number);
-          if (year && month) {
-            const startDate = new Date(Date.UTC(year, month - 1, 1));
-            const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-            params.append('fromDate', startDate.toISOString().split('T')[0]);
-            params.append('toDate', endDate.toISOString().split('T')[0]);
-          }
-        }
-
-        const [summaryResponse, topProductsResponse] = await Promise.all([
-          authenticatedFetch(`/outbound/summary?${params.toString()}`),
-          authenticatedFetch(`/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
-        ]);
-
-        if (!summaryResponse.ok) {
-          if (summaryResponse.status === 404) {
+        // First fetch without date filters to get available date range
+        const unfilteredResponse = await authenticatedFetch('/outbound/summary');
+        if (!unfilteredResponse.ok) {
+          if (unfilteredResponse.status === 404) {
             throw new Error('No data available. Please upload an Outbound Excel file first.');
           }
           throw new Error('Failed to fetch data from backend');
         }
 
-        const result: SummaryResponse = await summaryResponse.json();
-        setData(result);
-        setChartData(result.timeSeries);
+        const unfilteredResult: SummaryResponse = await unfilteredResponse.json();
+        
+        // Check if current month has data
+        const availableMaxDate = unfilteredResult.availableDateRange?.maxDate;
+        const availableMinDate = unfilteredResult.availableDateRange?.minDate;
+        
+        if (availableMaxDate && availableMinDate) {
+          const maxDate = new Date(availableMaxDate);
+          const minDateObj = new Date(availableMinDate);
+          
+          // Get current month boundaries
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          const currentMonthStart = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+          const currentMonthEnd = new Date(Date.UTC(currentYear, currentMonth, 0));
+          
+          // If current month is outside available data range, use latest available month
+          if (currentMonthStart > maxDate || currentMonthEnd < minDateObj) {
+            const maxYear = maxDate.getUTCFullYear();
+            const maxMonthNum = maxDate.getUTCMonth() + 1;
+            const latestAvailableMonth = `${maxYear}-${String(maxMonthNum).padStart(2, '0')}`;
+            
+            // Update the selected month to the latest available month
+            setMonthWithDates(latestAvailableMonth);
+            
+            // Fetch with the latest available month filter
+            const startDate = new Date(Date.UTC(maxYear, maxMonthNum - 1, 1));
+            const endDate = new Date(Date.UTC(maxYear, maxMonthNum, 0));
+            const params = new URLSearchParams();
+            params.append('fromDate', startDate.toISOString().split('T')[0]);
+            params.append('toDate', endDate.toISOString().split('T')[0]);
+            params.append('timeGranularity', timeGranularity);
+            
+            const [filteredResponse, topProductsResponse] = await Promise.all([
+              authenticatedFetch(`/outbound/summary?${params.toString()}`),
+              authenticatedFetch(`/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
+            ]);
+            
+            if (filteredResponse.ok) {
+              const filteredResult: SummaryResponse = await filteredResponse.json();
+              setData(filteredResult);
+              setChartData(unfilteredResult.timeSeries); // Use unfiltered for chart
+            } else {
+              setData(unfilteredResult);
+              setChartData(unfilteredResult.timeSeries);
+            }
+            
+            if (topProductsResponse.ok) {
+              const topProductsResult: TopProduct[] = await topProductsResponse.json();
+              setTopProducts(topProductsResult);
+            }
+          } else {
+            // Current month is within range, use original flow
+            const params = new URLSearchParams();
+            params.append('timeGranularity', timeGranularity);
 
-        if (topProductsResponse.ok) {
-          const topProductsResult: TopProduct[] = await topProductsResponse.json();
-          setTopProducts(topProductsResult);
+            if (selectedMonth && selectedMonth !== 'ALL') {
+              const [year, month] = selectedMonth.split('-').map(Number);
+              if (year && month) {
+                const startDate = new Date(Date.UTC(year, month - 1, 1));
+                const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+                params.append('fromDate', startDate.toISOString().split('T')[0]);
+                params.append('toDate', endDate.toISOString().split('T')[0]);
+              }
+            }
+
+            const [summaryResponse, topProductsResponse] = await Promise.all([
+              authenticatedFetch(`/outbound/summary?${params.toString()}`),
+              authenticatedFetch(`/outbound/top-products?limit=10&rankBy=cbm&sortOrder=top`),
+            ]);
+
+            if (summaryResponse.ok) {
+              const result: SummaryResponse = await summaryResponse.json();
+              setData(result);
+              setChartData(result.timeSeries);
+            }
+
+            if (topProductsResponse.ok) {
+              const topProductsResult: TopProduct[] = await topProductsResponse.json();
+              setTopProducts(topProductsResult);
+            }
+          }
+        } else {
+          // No date range info, use unfiltered data
+          setData(unfilteredResult);
+          setChartData(unfilteredResult.timeSeries);
         }
       } catch (err: any) {
         setError(err.message || 'An error occurred while fetching data');
@@ -335,7 +398,8 @@ export default function OutboundPage() {
     };
 
     fetchInitialData();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchChartData = async (granularity: 'month' | 'week' | 'day') => {
     try {

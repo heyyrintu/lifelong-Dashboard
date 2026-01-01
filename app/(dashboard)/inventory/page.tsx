@@ -213,8 +213,101 @@ function InventoryPageContent() {
   };
 
   useEffect(() => {
-    // Apply default month filter on initial load
-    fetchSummary(true);
+    // On initial load, fetch without filters first to get available date range
+    // Then auto-select the latest available month if current month has no data
+    const initializeWithLatestMonth = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // First fetch without date filters to get available data range
+        const response = await authenticatedFetch('/inventory/summary');
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('No inventory data available. Please upload a Daily Stock Analytics Excel file first.');
+          }
+          throw new Error('Failed to fetch inventory data from backend');
+        }
+
+        const result: InventorySummaryResponse = await response.json();
+        
+        // Check if there's data in the current month or if we need to use the latest available month
+        const availableMaxDate = result.filters.availableDateRange?.maxDate;
+        const availableMinDate = result.filters.availableDateRange?.minDate;
+        
+        if (availableMaxDate && availableMinDate) {
+          const maxDate = new Date(availableMaxDate);
+          const minDateObj = new Date(availableMinDate);
+          const maxYear = maxDate.getUTCFullYear();
+          const maxMonth = maxDate.getUTCMonth() + 1;
+          const latestAvailableMonth = `${maxYear}-${String(maxMonth).padStart(2, '0')}`;
+          
+          // Get current month (what the filter defaults to)
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          const currentMonthStart = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+          const currentMonthEnd = new Date(Date.UTC(currentYear, currentMonth, 0));
+          
+          // If current month is outside available data range, use latest available month
+          if (currentMonthStart > maxDate || currentMonthEnd < minDateObj) {
+            // Update the selected month to the latest available month
+            setMonthWithDates(latestAvailableMonth);
+            
+            // Fetch with the new month filter
+            const startDate = new Date(Date.UTC(maxYear, maxMonth - 1, 1));
+            const endDate = new Date(Date.UTC(maxYear, maxMonth, 0));
+            const params = new URLSearchParams();
+            params.append('fromDate', formatDateUTC(startDate));
+            params.append('toDate', formatDateUTC(endDate));
+            
+            const filteredResponse = await authenticatedFetch(`/inventory/summary?${params.toString()}`);
+            if (filteredResponse.ok) {
+              const filteredResult: InventorySummaryResponse = await filteredResponse.json();
+              setData(filteredResult);
+              setChartData(filteredResult.timeSeries);
+              setFullChartData(result.timeSeries); // Keep unfiltered for charts
+            } else {
+              // Fallback to unfiltered data
+              setData(result);
+              setChartData(result.timeSeries);
+              setFullChartData(result.timeSeries);
+            }
+          } else {
+            // Current month is within available range, use default fetch with filters
+            setData(result);
+            setFullChartData(result.timeSeries);
+            // Now fetch with current month filter
+            const params = new URLSearchParams();
+            params.append('fromDate', formatDateUTC(currentMonthStart));
+            params.append('toDate', formatDateUTC(currentMonthEnd));
+            
+            const filteredResponse = await authenticatedFetch(`/inventory/summary?${params.toString()}`);
+            if (filteredResponse.ok) {
+              const filteredResult: InventorySummaryResponse = await filteredResponse.json();
+              setData(filteredResult);
+              setChartData(filteredResult.timeSeries);
+            } else {
+              setChartData(result.timeSeries);
+            }
+          }
+        } else {
+          // No date range info, just use unfiltered data
+          setData(result);
+          setChartData(result.timeSeries);
+          setFullChartData(result.timeSeries);
+        }
+      } catch (err: unknown) {
+        const errorMessage = err instanceof Error ? err.message : 'An error occurred while fetching inventory data';
+        setError(errorMessage);
+        setData(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeWithLatestMonth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close dropdown when clicking outside

@@ -253,8 +253,70 @@ export default function SummaryPage() {
 
 
   useEffect(() => {
-    // Apply default month filter on initial load
-    fetchSummary(true);
+    // On initial load, fetch without filters first to determine available date range
+    // Then auto-select the latest available month if current month has no data
+    const initializeWithLatestMonth = async () => {
+      try {
+        setLoading(true);
+        
+        // First fetch all data sources without date filters to get available date range
+        const [inventoryRes, outboundRes] = await Promise.all([
+          authenticatedFetch('/inventory/summary').catch(() => null),
+          authenticatedFetch('/outbound/summary').catch(() => null),
+        ]);
+        
+        const inventoryData = inventoryRes?.ok ? await inventoryRes.json() : null;
+        const outboundData = outboundRes?.ok ? await outboundRes.json() : null;
+        
+        // Find the latest available date across all data sources
+        const allMaxDates: Date[] = [];
+        const allMinDates: Date[] = [];
+        
+        if (inventoryData?.filters?.availableDateRange?.maxDate) {
+          allMaxDates.push(new Date(inventoryData.filters.availableDateRange.maxDate));
+        }
+        if (inventoryData?.filters?.availableDateRange?.minDate) {
+          allMinDates.push(new Date(inventoryData.filters.availableDateRange.minDate));
+        }
+        if (outboundData?.dateRange?.maxDate) {
+          allMaxDates.push(new Date(outboundData.dateRange.maxDate));
+        }
+        if (outboundData?.dateRange?.minDate) {
+          allMinDates.push(new Date(outboundData.dateRange.minDate));
+        }
+        
+        if (allMaxDates.length > 0 && allMinDates.length > 0) {
+          const latestDate = new Date(Math.max(...allMaxDates.map(d => d.getTime())));
+          const earliestDate = new Date(Math.min(...allMinDates.map(d => d.getTime())));
+          
+          // Get current month boundaries
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          const currentMonthStart = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+          const currentMonthEnd = new Date(Date.UTC(currentYear, currentMonth, 0));
+          
+          // If current month is outside available data range, use latest available month
+          if (currentMonthStart > latestDate || currentMonthEnd < earliestDate) {
+            const maxYear = latestDate.getUTCFullYear();
+            const maxMonth = latestDate.getUTCMonth() + 1;
+            const latestAvailableMonth = `${maxYear}-${String(maxMonth).padStart(2, '0')}`;
+            
+            // Update the selected month to the latest available month
+            setMonthWithDates(latestAvailableMonth);
+          }
+        }
+        
+        // Now fetch with the (possibly updated) filters
+        fetchSummary(true);
+      } catch (err) {
+        console.error('Error during initialization:', err);
+        fetchSummary(true);
+      }
+    };
+
+    initializeWithLatestMonth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Label is now computed automatically in the context

@@ -167,24 +167,11 @@ export default function InboundPage() {
         setLoading(true);
         setChartLoading(true);
 
-        const params = new URLSearchParams();
-        params.append('timeGranularity', timeGranularity);
-
-        // Apply default month filter on initial load
-        if (selectedMonth && selectedMonth !== 'ALL') {
-          const [year, month] = selectedMonth.split('-').map(Number);
-          if (year && month) {
-            const startDate = new Date(Date.UTC(year, month - 1, 1));
-            const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
-            params.append('fromDate', startDate.toISOString().split('T')[0]);
-            params.append('toDate', endDate.toISOString().split('T')[0]);
-          }
-        }
-
-        const response = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
-
-        if (!response.ok) {
-          if (response.status === 404) {
+        // First fetch without date filters to get available date range
+        const unfilteredResponse = await authenticatedFetch('/inbound/summary');
+        
+        if (!unfilteredResponse.ok) {
+          if (unfilteredResponse.status === 404) {
             setSummaryData(null);
             setChartData(null);
             return;
@@ -192,9 +179,78 @@ export default function InboundPage() {
           throw new Error('Failed to fetch data');
         }
 
-        const result: InboundSummaryResponse = await response.json();
-        setSummaryData(result);
-        setChartData(result.timeSeries);
+        const unfilteredResult: InboundSummaryResponse = await unfilteredResponse.json();
+        
+        // Check if current month has data
+        const availableMaxDate = unfilteredResult.availableDates?.maxDate;
+        const availableMinDate = unfilteredResult.availableDates?.minDate;
+        
+        if (availableMaxDate && availableMinDate) {
+          const maxDate = new Date(availableMaxDate);
+          const minDateObj = new Date(availableMinDate);
+          
+          // Get current month boundaries
+          const now = new Date();
+          const currentYear = now.getFullYear();
+          const currentMonth = now.getMonth() + 1;
+          const currentMonthStart = new Date(Date.UTC(currentYear, currentMonth - 1, 1));
+          const currentMonthEnd = new Date(Date.UTC(currentYear, currentMonth, 0));
+          
+          // If current month is outside available data range, use latest available month
+          if (currentMonthStart > maxDate || currentMonthEnd < minDateObj) {
+            const maxYear = maxDate.getUTCFullYear();
+            const maxMonthNum = maxDate.getUTCMonth() + 1;
+            const latestAvailableMonth = `${maxYear}-${String(maxMonthNum).padStart(2, '0')}`;
+            
+            // Update the selected month to the latest available month
+            setMonthWithDates(latestAvailableMonth);
+            
+            // Fetch with the latest available month filter
+            const startDate = new Date(Date.UTC(maxYear, maxMonthNum - 1, 1));
+            const endDate = new Date(Date.UTC(maxYear, maxMonthNum, 0));
+            const params = new URLSearchParams();
+            params.append('fromDate', startDate.toISOString().split('T')[0]);
+            params.append('toDate', endDate.toISOString().split('T')[0]);
+            params.append('timeGranularity', timeGranularity);
+            
+            const filteredResponse = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
+            
+            if (filteredResponse.ok) {
+              const filteredResult: InboundSummaryResponse = await filteredResponse.json();
+              setSummaryData(filteredResult);
+              setChartData(unfilteredResult.timeSeries); // Use unfiltered for chart
+            } else {
+              setSummaryData(unfilteredResult);
+              setChartData(unfilteredResult.timeSeries);
+            }
+          } else {
+            // Current month is within range, use original flow
+            const params = new URLSearchParams();
+            params.append('timeGranularity', timeGranularity);
+
+            if (selectedMonth && selectedMonth !== 'ALL') {
+              const [year, month] = selectedMonth.split('-').map(Number);
+              if (year && month) {
+                const startDate = new Date(Date.UTC(year, month - 1, 1));
+                const endDate = new Date(Date.UTC(year, month, 0, 23, 59, 59));
+                params.append('fromDate', startDate.toISOString().split('T')[0]);
+                params.append('toDate', endDate.toISOString().split('T')[0]);
+              }
+            }
+
+            const response = await authenticatedFetch(`/inbound/summary?${params.toString()}`);
+
+            if (response.ok) {
+              const result: InboundSummaryResponse = await response.json();
+              setSummaryData(result);
+              setChartData(result.timeSeries);
+            }
+          }
+        } else {
+          // No date range info, use unfiltered data
+          setSummaryData(unfilteredResult);
+          setChartData(unfilteredResult.timeSeries);
+        }
       } catch (err: any) {
         console.error('Initial data fetch error:', err.message);
         setSummaryData(null);
@@ -206,6 +262,7 @@ export default function InboundPage() {
     };
 
     fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Close dropdown when clicking outside
