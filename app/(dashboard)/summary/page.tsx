@@ -186,6 +186,12 @@ interface MonthlyQtyTrendPoint {
   receivedCbm: number;
   inventoryCbm: number;
   dnCbm: number;
+  edelReceivedQty: number;
+  edelInventoryQty: number;
+  edelDnQty: number;
+  edelReceivedCbm: number;
+  edelInventoryCbm: number;
+  edelDnCbm: number;
 }
 
 export default function SummaryPage() {
@@ -194,6 +200,7 @@ export default function SummaryPage() {
   const [fullFulfillmentTable, setFullFulfillmentTable] = useState<FulfillmentRow[]>([]);
   const [monthlyQtyTrendData, setMonthlyQtyTrendData] = useState<MonthlyQtyTrendPoint[]>([]);
   const [trendChartMode, setTrendChartMode] = useState<'qty' | 'cbm'>('qty');
+  const [trendValueMode, setTrendValueMode] = useState<'total' | 'edel'>('total');
   
   // Derived array with month-over-month deltas for the active mode
   const monthlyTrendWithChange = useMemo(() => {
@@ -441,29 +448,39 @@ export default function SummaryPage() {
 
       // Build monthly qty trend data from time series
       const buildMonthlyQtyTrend = () => {
-        const monthlyData: Record<string, { receivedQty: number; inventoryQty: number; dnQty: number; receivedCbm: number; inventoryCbm: number; dnCbm: number; inventoryDayCount: number }> = {};
+        const monthlyData: Record<string, { 
+          receivedQty: number; inventoryQty: number; dnQty: number; 
+          receivedCbm: number; inventoryCbm: number; dnCbm: number; 
+          edelReceivedQty: number; edelInventoryQty: number; edelDnQty: number;
+          edelReceivedCbm: number; edelInventoryCbm: number; edelDnCbm: number;
+          inventoryDayCount: number 
+        }> = {};
         
         // Process inbound time series (receivedQty and totalCbm from summaryTotals.dayData)
         if (inboundFullData?.summaryTotals?.dayData) {
-          inboundFullData.summaryTotals.dayData.forEach((day: { date: string; receivedQty: number; totalCbm?: number }) => {
+          inboundFullData.summaryTotals.dayData.forEach((day: { date: string; receivedQty: number; totalCbm?: number; edelReceivedQty?: number; edelTotalCbm?: number }) => {
             const monthKey = extractMonthKey(day.date);
             if (monthKey) {
-              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0, edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0, inventoryDayCount: 0 };
               monthlyData[monthKey].receivedQty += day.receivedQty || 0;
               monthlyData[monthKey].receivedCbm += day.totalCbm || 0;
+              monthlyData[monthKey].edelReceivedQty += day.edelReceivedQty || 0;
+              monthlyData[monthKey].edelReceivedCbm += day.edelTotalCbm || 0;
             }
           });
         }
         
         // Process inventory time series - accumulate for averaging
         if (inventoryFullData?.timeSeries?.points) {
-          inventoryFullData.timeSeries.points.forEach((point: { date: string; inventoryQty: number; totalCbm?: number }) => {
+          inventoryFullData.timeSeries.points.forEach((point: { date: string; inventoryQty: number; totalCbm?: number; edelInventoryQty?: number; edelTotalCbm?: number }) => {
             const monthKey = extractMonthKey(point.date);
             if (monthKey) {
-              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0, edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0, inventoryDayCount: 0 };
               // For inventory, accumulate daily values to calculate average
               monthlyData[monthKey].inventoryQty += point.inventoryQty || 0;
               monthlyData[monthKey].inventoryCbm += point.totalCbm || 0;
+              monthlyData[monthKey].edelInventoryQty += point.edelInventoryQty || 0;
+              monthlyData[monthKey].edelInventoryCbm += point.edelTotalCbm || 0;
               monthlyData[monthKey].inventoryDayCount += 1;
             }
           });
@@ -471,12 +488,14 @@ export default function SummaryPage() {
         
         // Process outbound time series (dnQty and dnCbm from summaryTotals.dayData)
         if (outboundFullData?.summaryTotals?.dayData) {
-          outboundFullData.summaryTotals.dayData.forEach((day: { date: string; dnQty: number; dnCbm?: number }) => {
+          outboundFullData.summaryTotals.dayData.forEach((day: { date: string; dnQty: number; dnCbm?: number; edelDnQty?: number; edelDnCbm?: number }) => {
             const monthKey = extractMonthKey(day.date);
             if (monthKey) {
-              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0, edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0, inventoryDayCount: 0 };
               monthlyData[monthKey].dnQty += day.dnQty || 0;
               monthlyData[monthKey].dnCbm += day.dnCbm || 0;
+              monthlyData[monthKey].edelDnQty += day.edelDnQty || 0;
+              monthlyData[monthKey].edelDnCbm += day.edelDnCbm || 0;
             }
           });
         }
@@ -494,6 +513,12 @@ export default function SummaryPage() {
               receivedCbm: data.receivedCbm,
               inventoryCbm: data.inventoryCbm / inventoryDayCount, // Average inventory CBM for the month
               dnCbm: data.dnCbm,
+              edelReceivedQty: data.edelReceivedQty,
+              edelInventoryQty: data.edelInventoryQty / inventoryDayCount, // Average EDEL inventory for the month
+              edelDnQty: data.edelDnQty,
+              edelReceivedCbm: data.edelReceivedCbm,
+              edelInventoryCbm: data.edelInventoryCbm / inventoryDayCount, // Average EDEL inventory CBM for the month
+              edelDnCbm: data.edelDnCbm,
             };
           })
           .sort((a, b) => a.month.localeCompare(b.month));
@@ -1923,26 +1948,50 @@ export default function SummaryPage() {
                   </p>
                 </div>
               </div>
-              {/* Toggle Button */}
-              <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                <button
-                  onClick={() => setTrendChartMode('qty')}
-                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'qty'
-                    ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                    }`}
-                >
-                  QTY
-                </button>
-                <button
-                  onClick={() => setTrendChartMode('cbm')}
-                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'cbm'
-                    ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                    }`}
-                >
-                  CBM
-                </button>
+              {/* Toggle Buttons */}
+              <div className="flex items-center gap-2">
+                {/* QTY/CBM Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setTrendChartMode('qty')}
+                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'qty'
+                      ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                  >
+                    QTY
+                  </button>
+                  <button
+                    onClick={() => setTrendChartMode('cbm')}
+                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'cbm'
+                      ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                  >
+                    CBM
+                  </button>
+                </div>
+                {/* Total/EDEL Toggle */}
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setTrendValueMode('total')}
+                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'total'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                  >
+                    Total
+                  </button>
+                  <button
+                    onClick={() => setTrendValueMode('edel')}
+                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'edel'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                  >
+                    EDEL
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -1951,10 +2000,32 @@ export default function SummaryPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 pl-2">
               {(() => {
                 const latest = selectedTrendRow;
+                
+                // Determine which values to use based on mode
+                const getValue = (type: 'received' | 'inventory' | 'dn') => {
+                  if (trendValueMode === 'edel') {
+                    if (trendChartMode === 'qty') {
+                      return type === 'received' ? latest?.edelReceivedQty : 
+                             type === 'inventory' ? latest?.edelInventoryQty : latest?.edelDnQty;
+                    } else {
+                      return type === 'received' ? latest?.edelReceivedCbm : 
+                             type === 'inventory' ? latest?.edelInventoryCbm : latest?.edelDnCbm;
+                    }
+                  } else {
+                    if (trendChartMode === 'qty') {
+                      return type === 'received' ? latest?.receivedQty : 
+                             type === 'inventory' ? latest?.inventoryQty : latest?.dnQty;
+                    } else {
+                      return type === 'received' ? latest?.receivedCbm : 
+                             type === 'inventory' ? latest?.inventoryCbm : latest?.dnCbm;
+                    }
+                  }
+                };
+                
                 const cards = [
-                  { label: 'Received', value: trendChartMode === 'qty' ? latest?.receivedQty : latest?.receivedCbm, change: latest?.receivedChange, color: 'green' },
-                  { label: 'Inventory', value: trendChartMode === 'qty' ? latest?.inventoryQty : latest?.inventoryCbm, change: latest?.inventoryChange, color: 'yellow' },
-                  { label: 'DN', value: trendChartMode === 'qty' ? latest?.dnQty : latest?.dnCbm, change: latest?.dnChange, color: 'red' },
+                  { label: 'Received', value: getValue('received'), change: latest?.receivedChange, color: 'green' },
+                  { label: 'Inventory', value: getValue('inventory'), change: latest?.inventoryChange, color: 'yellow' },
+                  { label: 'DN', value: getValue('dn'), change: latest?.dnChange, color: 'red' },
                 ];
 
                 const formatVal = (val: number | undefined) => {
@@ -2037,38 +2108,72 @@ export default function SummaryPage() {
                       const formattedValue = trendChartMode === 'cbm'
                         ? `${(value / 1000).toFixed(2)}K`
                         : `${(value / 100000).toFixed(2)}L`;
-                      const labels: Record<string, string> = trendChartMode === 'qty' 
-                        ? { receivedQty: 'Received Qty', inventoryQty: 'Inventory Qty', dnQty: 'DN Qty' }
-                        : { receivedCbm: 'Received CBM', inventoryCbm: 'Inventory CBM', dnCbm: 'DN CBM' };
+                      
+                      // Labels based on value mode and chart mode
+                      let labels: Record<string, string> = {};
+                      if (trendValueMode === 'edel') {
+                        labels = trendChartMode === 'qty'
+                          ? { edelReceivedQty: 'Received Qty (EDEL)', edelInventoryQty: 'Inventory Qty (EDEL)', edelDnQty: 'DN Qty (EDEL)' }
+                          : { edelReceivedCbm: 'Received CBM (EDEL)', edelInventoryCbm: 'Inventory CBM (EDEL)', edelDnCbm: 'DN CBM (EDEL)' };
+                      } else {
+                        labels = trendChartMode === 'qty' 
+                          ? { receivedQty: 'Received Qty', inventoryQty: 'Inventory Qty', dnQty: 'DN Qty' }
+                          : { receivedCbm: 'Received CBM', inventoryCbm: 'Inventory CBM', dnCbm: 'DN CBM' };
+                      }
+                      
                       return [formattedValue, labels[name] || name];
                     }}
                   />
                   <Line
                     type="monotone"
-                    dataKey={trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm'}
+                    dataKey={
+                      trendValueMode === 'edel' 
+                        ? (trendChartMode === 'qty' ? 'edelReceivedQty' : 'edelReceivedCbm')
+                        : (trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm')
+                    }
                     stroke="url(#receivedQtyGradient)"
                     strokeWidth={3}
                     dot={{ fill: '#22C55E', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
                     activeDot={{ fill: '#22C55E', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
-                    name={trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm'}
+                    name={
+                      trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? 'edelReceivedQty' : 'edelReceivedCbm')
+                        : (trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm')
+                    }
                   />
                   <Line
                     type="monotone"
-                    dataKey={trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm'}
+                    dataKey={
+                      trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? 'edelInventoryQty' : 'edelInventoryCbm')
+                        : (trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm')
+                    }
                     stroke="url(#inventoryQtyGradient)"
                     strokeWidth={3}
                     dot={{ fill: '#FEA418', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
                     activeDot={{ fill: '#FEA418', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
-                    name={trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm'}
+                    name={
+                      trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? 'edelInventoryQty' : 'edelInventoryCbm')
+                        : (trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm')
+                    }
                   />
                   <Line
                     type="monotone"
-                    dataKey={trendChartMode === 'qty' ? 'dnQty' : 'dnCbm'}
+                    dataKey={
+                      trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? 'edelDnQty' : 'edelDnCbm')
+                        : (trendChartMode === 'qty' ? 'dnQty' : 'dnCbm')
+                    }
                     stroke="url(#dnQtyGradient)"
                     strokeWidth={3}
                     dot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
                     activeDot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
-                    name={trendChartMode === 'qty' ? 'dnQty' : 'dnCbm'}
+                    name={
+                      trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? 'edelDnQty' : 'edelDnCbm')
+                        : (trendChartMode === 'qty' ? 'dnQty' : 'dnCbm')
+                    }
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -2078,15 +2183,21 @@ export default function SummaryPage() {
             <div className="flex justify-center gap-6 mt-4 pl-2">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-200">
                 <div className="w-3 h-3 rounded bg-green-500 shadow-sm" />
-                <span className="text-xs font-semibold text-gray-700">Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+                <span className="text-xs font-semibold text-gray-700">
+                  Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-yellowTint rounded-lg border border-enterprise-border">
                 <div className="w-3 h-3 rounded bg-brandYellow shadow-sm" />
-                <span className="text-xs font-semibold text-gray-700">Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+                <span className="text-xs font-semibold text-gray-700">
+                  Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-redTint rounded-lg border border-enterprise-border">
                 <div className="w-3 h-3 rounded bg-brandRed shadow-sm" />
-                <span className="text-xs font-semibold text-gray-700">DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+                <span className="text-xs font-semibold text-gray-700">
+                  DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                </span>
               </div>
             </div>
 
@@ -2096,9 +2207,15 @@ export default function SummaryPage() {
                 <thead className="bg-enterprise-yellowTint/40 text-enterprise-textSecondary uppercase text-[11px] font-bold tracking-wide">
                   <tr>
                     <th className="px-4 py-3 border-b border-enterprise-border">Month</th>
-                    <th className="px-4 py-3 border-b border-enterprise-border">Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
-                    <th className="px-4 py-3 border-b border-enterprise-border">Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
-                    <th className="px-4 py-3 border-b border-enterprise-border">DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">
+                      Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                    </th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">
+                      Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                    </th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">
+                      DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                    </th>
                     <th className="px-4 py-3 border-b border-enterprise-border">Received Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">Inventory Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">DN Δ</th>
@@ -2106,9 +2223,16 @@ export default function SummaryPage() {
                 </thead>
                 <tbody className="divide-y divide-enterprise-border bg-white">
                   {monthlyTrendWithChange.map((row) => {
-                    const receivedVal = trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm;
-                    const inventoryVal = trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm;
-                    const dnVal = trendChartMode === 'qty' ? row.dnQty : row.dnCbm;
+                    // Get values based on value mode (Total/EDEL)
+                    const receivedVal = trendValueMode === 'edel'
+                      ? (trendChartMode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
+                      : (trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm);
+                    const inventoryVal = trendValueMode === 'edel'
+                      ? (trendChartMode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
+                      : (trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm);
+                    const dnVal = trendValueMode === 'edel'
+                      ? (trendChartMode === 'qty' ? row.edelDnQty : row.edelDnCbm)
+                      : (trendChartMode === 'qty' ? row.dnQty : row.dnCbm);
 
                     const formatTrendValue = (val: number) => {
                       if (trendChartMode === 'cbm') {
