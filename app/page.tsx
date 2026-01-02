@@ -18,14 +18,6 @@ export default function HomePage() {
     }
   }, [isAuthenticated, loading, router]);
 
-  // Also redirect immediately on mount if authenticated
-  useEffect(() => {
-    if (isAuthenticated && !loading) {
-      router.replace('/summary');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900">
       <div className="text-center">

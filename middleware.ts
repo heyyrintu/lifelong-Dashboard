@@ -4,6 +4,16 @@ import type { NextRequest } from 'next/server';
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Skip middleware for static files, API routes, and Next.js internals
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/api/') ||
+    pathname.includes('.') ||
+    pathname === '/favicon.ico'
+  ) {
+    return NextResponse.next();
+  }
+
   // Define valid routes
   const validRoutes = [
     '/',
@@ -16,22 +26,16 @@ export function middleware(request: NextRequest) {
     '/upload',
     '/health',
     '/dashboard',
-    '/attendance/take',
-    '/attendance/view',
-    '/api/health',
+    '/attendance',
   ];
 
-  // Check if the pathname starts with any valid route
+  // Check if the pathname is valid or starts with a valid route
   const isValidRoute = validRoutes.some(route => 
-    pathname === route || 
-    pathname.startsWith(route + '/') ||
-    pathname.startsWith('/api/') ||
-    pathname.startsWith('/_next/') ||
-    pathname.includes('.')
+    pathname === route || pathname.startsWith(route + '/')
   );
 
-  // If route is not valid and not an asset, redirect to summary
-  if (!isValidRoute && !pathname.includes('.') && !pathname.startsWith('/_next/')) {
+  // If route is not valid, redirect to summary
+  if (!isValidRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/summary';
     return NextResponse.redirect(url);
@@ -43,7 +47,7 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except:
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
