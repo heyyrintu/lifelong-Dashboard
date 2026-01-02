@@ -176,11 +176,53 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
   XLSX.writeFile(wb, fileName);
 };
 
+// Interface for monthly quantity trend data
+interface MonthlyQtyTrendPoint {
+  month: string;
+  label: string;
+  receivedQty: number;
+  inventoryQty: number;
+  dnQty: number;
+  receivedCbm: number;
+  inventoryCbm: number;
+  dnCbm: number;
+}
+
 export default function SummaryPage() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<QuickSummaryData | null>(null);
   const [fullFulfillmentTable, setFullFulfillmentTable] = useState<FulfillmentRow[]>([]);
+  const [monthlyQtyTrendData, setMonthlyQtyTrendData] = useState<MonthlyQtyTrendPoint[]>([]);
+  const [trendChartMode, setTrendChartMode] = useState<'qty' | 'cbm'>('qty');
   
+  // Derived array with month-over-month deltas for the active mode
+  const monthlyTrendWithChange = useMemo(() => {
+    const keyMap = trendChartMode === 'qty'
+      ? { received: 'receivedQty' as const, inventory: 'inventoryQty' as const, dn: 'dnQty' as const }
+      : { received: 'receivedCbm' as const, inventory: 'inventoryCbm' as const, dn: 'dnCbm' as const };
+
+    const getChangePct = (current: number, prev: number | undefined): number | null => {
+      if (prev === undefined || prev === null) return null;
+      if (prev === 0) return null; // avoid divide-by-zero/no baseline
+      const delta = current - prev;
+      return (delta / Math.abs(prev)) * 100;
+    };
+
+    return monthlyQtyTrendData.map((row, idx) => {
+      const prev = idx > 0 ? monthlyQtyTrendData[idx - 1] : undefined;
+      const receivedChange = prev ? getChangePct(row[keyMap.received], prev[keyMap.received]) : null;
+      const inventoryChange = prev ? getChangePct(row[keyMap.inventory], prev[keyMap.inventory]) : null;
+      const dnChange = prev ? getChangePct(row[keyMap.dn], prev[keyMap.dn]) : null;
+
+      return {
+        ...row,
+        receivedChange,
+        inventoryChange,
+        dnChange,
+      } as MonthlyQtyTrendPoint & { receivedChange: number | null; inventoryChange: number | null; dnChange: number | null };
+    });
+  }, [monthlyQtyTrendData, trendChartMode]);
+
   // Use shared filter context
   const { 
     fromDate, 
@@ -195,6 +237,16 @@ export default function SummaryPage() {
     setSelectedProductCategories,
     resetFilters
   } = useDateFilter();
+  
+  // Pick the trend row that matches the selected month; fallback to latest when "ALL"
+  const selectedTrendRow = useMemo(() => {
+    if (!monthlyTrendWithChange.length) return null;
+    if (selectedMonth && selectedMonth !== 'ALL') {
+      const matchIndex = monthlyTrendWithChange.findIndex((row) => row.month === selectedMonth);
+      if (matchIndex >= 0) return monthlyTrendWithChange[matchIndex];
+    }
+    return monthlyTrendWithChange[monthlyTrendWithChange.length - 1];
+  }, [monthlyTrendWithChange, selectedMonth]);
   
   const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
@@ -369,12 +421,14 @@ export default function SummaryPage() {
 
       const queryString = buildParams();
 
-      // Fetch endpoints in parallel (filtered + unfiltered outbound for full monthly trend)
-      const [inboundRes, inventoryRes, outboundRes, outboundFullRes] = await Promise.all([
+      // Fetch endpoints in parallel (filtered + unfiltered for full monthly trend)
+      const [inboundRes, inventoryRes, outboundRes, outboundFullRes, inboundFullRes, inventoryFullRes] = await Promise.all([
         authenticatedFetch(`/inbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
         authenticatedFetch(`/inventory/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
         authenticatedFetch(`/outbound/summary${queryString ? '?' + queryString : ''}`).catch(() => null),
         authenticatedFetch(`/outbound/summary`).catch(() => null),
+        authenticatedFetch(`/inbound/summary`).catch(() => null),
+        authenticatedFetch(`/inventory/summary`).catch(() => null),
       ]);
 
       // Parse responses
@@ -382,6 +436,85 @@ export default function SummaryPage() {
       const inventoryData = inventoryRes?.ok ? await inventoryRes.json() : null;
       const outboundData = outboundRes?.ok ? await outboundRes.json() : null;
       const outboundFullData = outboundFullRes?.ok ? await outboundFullRes.json() : null;
+      const inboundFullData = inboundFullRes?.ok ? await inboundFullRes.json() : null;
+      const inventoryFullData = inventoryFullRes?.ok ? await inventoryFullRes.json() : null;
+
+      // Build monthly qty trend data from time series
+      const buildMonthlyQtyTrend = () => {
+        const monthlyData: Record<string, { receivedQty: number; inventoryQty: number; dnQty: number; receivedCbm: number; inventoryCbm: number; dnCbm: number; inventoryDayCount: number }> = {};
+        
+        // Process inbound time series (receivedQty and totalCbm from summaryTotals.dayData)
+        if (inboundFullData?.summaryTotals?.dayData) {
+          inboundFullData.summaryTotals.dayData.forEach((day: { date: string; receivedQty: number; totalCbm?: number }) => {
+            const monthKey = extractMonthKey(day.date);
+            if (monthKey) {
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              monthlyData[monthKey].receivedQty += day.receivedQty || 0;
+              monthlyData[monthKey].receivedCbm += day.totalCbm || 0;
+            }
+          });
+        }
+        
+        // Process inventory time series - accumulate for averaging
+        if (inventoryFullData?.timeSeries?.points) {
+          inventoryFullData.timeSeries.points.forEach((point: { date: string; inventoryQty: number; totalCbm?: number }) => {
+            const monthKey = extractMonthKey(point.date);
+            if (monthKey) {
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              // For inventory, accumulate daily values to calculate average
+              monthlyData[monthKey].inventoryQty += point.inventoryQty || 0;
+              monthlyData[monthKey].inventoryCbm += point.totalCbm || 0;
+              monthlyData[monthKey].inventoryDayCount += 1;
+            }
+          });
+        }
+        
+        // Process outbound time series (dnQty and dnCbm from summaryTotals.dayData)
+        if (outboundFullData?.summaryTotals?.dayData) {
+          outboundFullData.summaryTotals.dayData.forEach((day: { date: string; dnQty: number; dnCbm?: number }) => {
+            const monthKey = extractMonthKey(day.date);
+            if (monthKey) {
+              if (!monthlyData[monthKey]) monthlyData[monthKey] = { receivedQty: 0, inventoryQty: 0, dnQty: 0, receivedCbm: 0, inventoryCbm: 0, dnCbm: 0, inventoryDayCount: 0 };
+              monthlyData[monthKey].dnQty += day.dnQty || 0;
+              monthlyData[monthKey].dnCbm += day.dnCbm || 0;
+            }
+          });
+        }
+        
+        // Convert to array, calculate inventory averages, and sort
+        return Object.entries(monthlyData)
+          .map(([month, data]) => {
+            const inventoryDayCount = data.inventoryDayCount || 1; // Avoid division by zero
+            return {
+              month,
+              label: formatMonthLabel(month),
+              receivedQty: data.receivedQty,
+              inventoryQty: data.inventoryQty / inventoryDayCount, // Average inventory for the month
+              dnQty: data.dnQty,
+              receivedCbm: data.receivedCbm,
+              inventoryCbm: data.inventoryCbm / inventoryDayCount, // Average inventory CBM for the month
+              dnCbm: data.dnCbm,
+            };
+          })
+          .sort((a, b) => a.month.localeCompare(b.month));
+      };
+      
+      // Helper to extract month key from various date formats
+      const extractMonthKey = (dateStr: string): string | null => {
+        if (!dateStr) return null;
+        // DD-MM-YYYY format
+        const ddmmyyyy = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+        if (ddmmyyyy) return `${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}`;
+        // YYYY-MM-DD format
+        const yyyymmdd = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (yyyymmdd) return `${yyyymmdd[1]}-${yyyymmdd[2]}`;
+        // ISO format
+        const iso = dateStr.match(/^(\d{4})-(\d{2})/);
+        if (iso) return `${iso[1]}-${iso[2]}`;
+        return null;
+      };
+      
+      setMonthlyQtyTrendData(buildMonthlyQtyTrend());
 
       // Collect product categories, warehouses, and months from all sources
       const categories = new Set<string>();
@@ -1756,6 +1889,264 @@ export default function SummaryPage() {
               </div>
             )}
           </motion.div>
+        </motion.div>
+      )}
+
+      {/* Monthly Quantity Trend Chart */}
+      {!loading && monthlyQtyTrendData.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.35 }}
+          className="w-full mb-8"
+        >
+          <div className="relative bg-gradient-to-br from-white via-white to-enterprise-yellowTint/30 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:shadow-brandYellow/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+            {/* Left accent bar with gradient */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-brandYellow via-brandRed to-brandRed/70 rounded-l-2xl" />
+
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pl-2">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  whileHover={{ rotate: 5, scale: 1.1 }}
+                  transition={{ type: "spring", stiffness: 400 }}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-enterprise-yellowTint to-enterprise-redTint/50 flex items-center justify-center shadow-sm"
+                >
+                  <TrendingUp className="w-5 h-5 text-brandYellow" />
+                </motion.div>
+                <div>
+                  <h3 className="text-xl font-extrabold text-enterprise-text tracking-tight">
+                    {trendChartMode === 'qty' ? 'Quantity' : 'CBM'} Trend - Month on Month
+                  </h3>
+                  <p className="text-xs text-enterprise-textSecondary font-medium">
+                    Received, Inventory & DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} comparison
+                  </p>
+                </div>
+              </div>
+              {/* Toggle Button */}
+              <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setTrendChartMode('qty')}
+                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'qty'
+                    ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                >
+                  QTY
+                </button>
+                <button
+                  onClick={() => setTrendChartMode('cbm')}
+                  className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendChartMode === 'cbm'
+                    ? 'bg-gradient-to-r from-brandYellow to-brandRed text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                >
+                  CBM
+                </button>
+              </div>
+            </div>
+
+            {/* Chart */}
+            {/* MoM summary badges */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 pl-2">
+              {(() => {
+                const latest = selectedTrendRow;
+                const cards = [
+                  { label: 'Received', value: trendChartMode === 'qty' ? latest?.receivedQty : latest?.receivedCbm, change: latest?.receivedChange, color: 'green' },
+                  { label: 'Inventory', value: trendChartMode === 'qty' ? latest?.inventoryQty : latest?.inventoryCbm, change: latest?.inventoryChange, color: 'yellow' },
+                  { label: 'DN', value: trendChartMode === 'qty' ? latest?.dnQty : latest?.dnCbm, change: latest?.dnChange, color: 'red' },
+                ];
+
+                const formatVal = (val: number | undefined) => {
+                  if (val === undefined || val === null) return '-';
+                  if (trendChartMode === 'cbm') {
+                    // CBM in thousands with K suffix
+                    return `${(val / 1000).toFixed(2)}K`;
+                  }
+                  // QTY in lakhs with L suffix
+                  return `${(val / 100000).toFixed(2)}L`;
+                };
+
+                const renderChange = (change: number | null | undefined) => {
+                  if (change === null || change === undefined) return <span className="text-gray-400 text-xs">No prior month</span>;
+                  const up = change >= 0;
+                  const color = up ? 'text-green-600' : 'text-red-600';
+                  const arrow = up ? '▲' : '▼';
+                  return <span className={`text-xs font-semibold ${color}`}>{arrow} {Math.abs(change).toFixed(1)}%</span>;
+                };
+
+                return cards.map((card) => (
+                  <div key={card.label} className="flex items-center justify-between rounded-xl border border-enterprise-border bg-white/80 px-4 py-3 shadow-sm">
+                    <div>
+                      <div className="text-[11px] uppercase tracking-wide text-enterprise-textSecondary font-bold">{card.label}</div>
+                      <div className="text-sm font-semibold text-enterprise-text">{formatVal(card.value)}</div>
+                    </div>
+                    {renderChange(card.change)}
+                  </div>
+                ));
+              })()}
+            </div>
+
+            <div className="h-80 pl-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={monthlyQtyTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <defs>
+                    <linearGradient id="receivedQtyGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#22C55E" />
+                      <stop offset="100%" stopColor="#16A34A" />
+                    </linearGradient>
+                    <linearGradient id="inventoryQtyGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#FEA418" />
+                      <stop offset="100%" stopColor="#F59E0B" />
+                    </linearGradient>
+                    <linearGradient id="dnQtyGradient" x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor="#DE1C1C" />
+                      <stop offset="100%" stopColor="#B91C1C" />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#E5E7EB' }}
+                  />
+                  <YAxis
+                    tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                    tickLine={false}
+                    axisLine={{ stroke: '#E5E7EB' }}
+                    tickFormatter={(value) => {
+                      if (trendChartMode === 'cbm') {
+                        // CBM in thousands with K suffix
+                        return `${(value / 1000).toFixed(1)}K`;
+                      }
+                      // QTY in lakhs with L suffix
+                      return `${(value / 100000).toFixed(1)}L`;
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'rgba(255, 255, 255, 0.95)',
+                      backdropFilter: 'blur(8px)',
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: '12px',
+                      padding: '12px 16px',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                    }}
+                    formatter={(value: number, name: string) => {
+                      const formattedValue = trendChartMode === 'cbm'
+                        ? `${(value / 1000).toFixed(2)}K`
+                        : `${(value / 100000).toFixed(2)}L`;
+                      const labels: Record<string, string> = trendChartMode === 'qty' 
+                        ? { receivedQty: 'Received Qty', inventoryQty: 'Inventory Qty', dnQty: 'DN Qty' }
+                        : { receivedCbm: 'Received CBM', inventoryCbm: 'Inventory CBM', dnCbm: 'DN CBM' };
+                      return [formattedValue, labels[name] || name];
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm'}
+                    stroke="url(#receivedQtyGradient)"
+                    strokeWidth={3}
+                    dot={{ fill: '#22C55E', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
+                    activeDot={{ fill: '#22C55E', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
+                    name={trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm'}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm'}
+                    stroke="url(#inventoryQtyGradient)"
+                    strokeWidth={3}
+                    dot={{ fill: '#FEA418', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
+                    activeDot={{ fill: '#FEA418', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
+                    name={trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm'}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey={trendChartMode === 'qty' ? 'dnQty' : 'dnCbm'}
+                    stroke="url(#dnQtyGradient)"
+                    strokeWidth={3}
+                    dot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 2, r: 5 }}
+                    activeDot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 3, r: 8 }}
+                    name={trendChartMode === 'qty' ? 'dnQty' : 'dnCbm'}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Legend */}
+            <div className="flex justify-center gap-6 mt-4 pl-2">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-200">
+                <div className="w-3 h-3 rounded bg-green-500 shadow-sm" />
+                <span className="text-xs font-semibold text-gray-700">Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-yellowTint rounded-lg border border-enterprise-border">
+                <div className="w-3 h-3 rounded bg-brandYellow shadow-sm" />
+                <span className="text-xs font-semibold text-gray-700">Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-redTint rounded-lg border border-enterprise-border">
+                <div className="w-3 h-3 rounded bg-brandRed shadow-sm" />
+                <span className="text-xs font-semibold text-gray-700">DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</span>
+              </div>
+            </div>
+
+            {/* Table view of trend data */}
+            <div className="mt-6 pl-2 overflow-x-auto">
+              <table className="min-w-full text-sm text-left border border-enterprise-border rounded-xl overflow-hidden shadow-sm">
+                <thead className="bg-enterprise-yellowTint/40 text-enterprise-textSecondary uppercase text-[11px] font-bold tracking-wide">
+                  <tr>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Month</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'}</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Received Δ</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Inventory Δ</th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">DN Δ</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-enterprise-border bg-white">
+                  {monthlyTrendWithChange.map((row) => {
+                    const receivedVal = trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm;
+                    const inventoryVal = trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm;
+                    const dnVal = trendChartMode === 'qty' ? row.dnQty : row.dnCbm;
+
+                    const formatTrendValue = (val: number) => {
+                      if (trendChartMode === 'cbm') {
+                        // CBM in thousands with K suffix
+                        return `${(val / 1000).toFixed(2)}K`;
+                      }
+                      // QTY in lakhs with L suffix
+                      return `${(val / 100000).toFixed(2)}L`;
+                    };
+
+                    const renderChange = (change: number | null) => {
+                      if (change === null) return <span className="text-gray-400">-</span>;
+                      const isUp = change >= 0;
+                      const color = isUp ? 'text-green-600' : 'text-red-600';
+                      const arrow = isUp ? '▲' : '▼';
+                      return (
+                        <span className={`font-semibold ${color}`}>
+                          {arrow} {Math.abs(change).toFixed(1)}%
+                        </span>
+                      );
+                    };
+
+                    return (
+                      <tr key={row.month} className="hover:bg-enterprise-yellowTint/20 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-enterprise-text">{row.label}</td>
+                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(receivedVal)}</td>
+                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(inventoryVal)}</td>
+                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(dnVal)}</td>
+                        <td className="px-4 py-3">{renderChange(row.receivedChange)}</td>
+                        <td className="px-4 py-3">{renderChange(row.inventoryChange)}</td>
+                        <td className="px-4 py-3">{renderChange(row.dnChange)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </motion.div>
       )}
 

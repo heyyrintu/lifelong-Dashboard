@@ -868,9 +868,12 @@ function InventoryPageContent() {
   };
 
   const getDisplayPoints = (): InventoryTimeSeriesPoint[] => {
-    // Use fullChartData so charts always show all months regardless of filter
-    if (!fullChartData || !fullChartData.points) return [];
-    const points = fullChartData.points;
+    // For month view: use fullChartData (show all months regardless of filter)
+    // For week/day view: use chartData (respect date filter to show only selected month)
+    const sourceData = timeGranularity === 'month' ? fullChartData : chartData;
+    
+    if (!sourceData || !sourceData.points) return [];
+    const points = sourceData.points;
 
     if (timeGranularity === 'day') {
       return chartDisplayMode === 'percentage' ? convertToPercentage(points) : points;

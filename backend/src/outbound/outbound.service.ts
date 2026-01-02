@@ -847,16 +847,16 @@ export class OutboundService {
     switch (granularity) {
       case 'day':
         dateFormat = 'YYYY-MM-DD';
-        groupBy = `DATE(delivery_note_date)`;
+        groupBy = `DATE(delivery_note_date + INTERVAL '5 hours 30 minutes')`;
         break;
       case 'week':
         dateFormat = 'IYYY-IW'; // ISO year and week
-        groupBy = `DATE_TRUNC('week', delivery_note_date)`;
+        groupBy = `DATE_TRUNC('week', delivery_note_date + INTERVAL '5 hours 30 minutes')`;
         break;
       case 'month':
       default:
         dateFormat = 'YYYY-MM';
-        groupBy = `DATE_TRUNC('month', delivery_note_date)`;
+        groupBy = `DATE_TRUNC('month', delivery_note_date + INTERVAL '5 hours 30 minutes')`;
         break;
     }
 
@@ -961,15 +961,16 @@ export class OutboundService {
 
     // Convert Date objects to ISO strings for proper timezone handling
     // This ensures the database comparison is done against the correct dates
+    // Add IST offset for date filter conditions to match the grouped dates
     if (dateFilter.gte) {
       const gteDate = formatDateAsISO(dateFilter.gte);
       params.push(gteDate);
-      dateCondition += ` AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') >= $${params.length}`;
+      dateCondition += ` AND TO_CHAR(delivery_note_date + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD') >= $${params.length}`;
     }
     if (dateFilter.lte) {
       const lteDate = formatDateAsISO(dateFilter.lte);
       params.push(lteDate);
-      dateCondition += ` AND TO_CHAR(delivery_note_date, 'YYYY-MM-DD') <= $${params.length}`;
+      dateCondition += ` AND TO_CHAR(delivery_note_date + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD') <= $${params.length}`;
     }
     if (productCategoryFilter && productCategoryFilter.length > 0) {
       const placeholders = productCategoryFilter.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
@@ -982,6 +983,7 @@ export class OutboundService {
     }
 
     // Get day-by-day breakdown
+    // Add IST offset (+5:30) to convert UTC-stored dates back to IST before extracting date
     const dayResults = await this.prisma.$queryRawUnsafe<Array<{
       day_date: Date;
       day_label: string;
@@ -993,8 +995,8 @@ export class OutboundService {
       edel_dn_cbm: number;
     }>>(`
       SELECT 
-        DATE(delivery_note_date) as day_date,
-        TO_CHAR(delivery_note_date, 'YYYY-MM-DD') as day_label,
+        DATE(delivery_note_date + INTERVAL '5 hours 30 minutes') as day_date,
+        TO_CHAR(delivery_note_date + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD') as day_label,
         COALESCE(SUM(sales_order_qty), 0) as so_qty,
         COALESCE(SUM(so_total_cbm), 0) as so_cbm,
         COALESCE(SUM(delivery_note_qty), 0) as dn_qty,
@@ -1005,7 +1007,7 @@ export class OutboundService {
       WHERE upload_id = ANY($1)
         AND delivery_note_date IS NOT NULL
         ${dateCondition}
-      GROUP BY DATE(delivery_note_date), TO_CHAR(delivery_note_date, 'YYYY-MM-DD')
+      GROUP BY DATE(delivery_note_date + INTERVAL '5 hours 30 minutes'), TO_CHAR(delivery_note_date + INTERVAL '5 hours 30 minutes', 'YYYY-MM-DD')
       ORDER BY day_date
     `, ...params);
 

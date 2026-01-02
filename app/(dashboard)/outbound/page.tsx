@@ -199,6 +199,35 @@ export default function OutboundPage() {
     return (data?.categoryTable || []).filter(row => row.categoryLabel !== 'TOTAL');
   }, [data?.categoryTable]);
 
+  const fulfillmentRows = useMemo(() => {
+    const rows = data?.fulfillmentTable ?? [];
+    const dataRows = rows.filter((row) => row.date.toLowerCase() !== 'average');
+
+    if (!dataRows.length) return rows;
+
+    const totals = dataRows.reduce(
+      (acc, row) => {
+        acc.soQty += row.soQty;
+        acc.dnQty += row.dnQty;
+        acc.pending += row.pending;
+        acc.percentage += row.percentage;
+        return acc;
+      },
+      { soQty: 0, dnQty: 0, pending: 0, percentage: 0 }
+    );
+
+    const count = dataRows.length;
+    const averageRow: FulfillmentRow = {
+      date: 'Average',
+      soQty: totals.soQty / count,
+      dnQty: totals.dnQty / count,
+      pending: totals.pending / count,
+      percentage: totals.percentage / count,
+    };
+
+    return [...dataRows, averageRow];
+  }, [data?.fulfillmentTable]);
+
   const categoryTotals = useMemo(() => {
     return categoryRows.reduce(
       (acc, row) => {
@@ -2830,7 +2859,7 @@ export default function OutboundPage() {
             <div className="h-32 flex items-center justify-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brandRed"></div>
             </div>
-          ) : data?.fulfillmentTable && data.fulfillmentTable.length > 0 ? (
+          ) : fulfillmentRows.length > 0 ? (
             <div className="relative pl-2">
               <motion.div
                 className="space-y-1.5"
@@ -2856,7 +2885,7 @@ export default function OutboundPage() {
 
                 {/* Scrollable Data Rows */}
                 <div className="max-h-96 overflow-y-auto overflow-x-hidden space-y-1.5">
-                  {data.fulfillmentTable.map((row, index) => (
+                  {fulfillmentRows.map((row, index) => (
                     <motion.div
                       key={row.date}
                       variants={{

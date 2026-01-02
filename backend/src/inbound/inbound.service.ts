@@ -707,13 +707,14 @@ export class InboundService implements OnModuleInit {
     let dateCondition = '';
     let categoryCondition = '';
 
+    // Add IST offset to date filter conditions to match the grouped dates
     if (fromDate) {
       params.push(this.parseLocalDate(fromDate));
-      dateCondition += ` AND date_of_unload >= $${params.length}`;
+      dateCondition += ` AND DATE(date_of_unload + INTERVAL '5 hours 30 minutes') >= $${params.length}::DATE`;
     }
     if (toDate) {
       params.push(this.parseLocalDate(toDate, true));
-      dateCondition += ` AND date_of_unload <= $${params.length}`;
+      dateCondition += ` AND DATE(date_of_unload + INTERVAL '5 hours 30 minutes') <= $${params.length}::DATE`;
     }
     if (productCategories && productCategories.length > 0) {
       const placeholders = productCategories.map((_, i) => `$${params.length + i + 1}::"ProductCategory"`).join(', ');
@@ -722,22 +723,23 @@ export class InboundService implements OnModuleInit {
     }
 
     // Dynamic SQL based on granularity
+    // Add IST offset (+5:30) to convert UTC-stored dates back to IST before extracting date
     let groupByExpr: string;
     let periodExpr: string;
 
     switch (granularity) {
       case 'day':
-        groupByExpr = `DATE(date_of_unload)`;
-        periodExpr = `TO_CHAR(DATE(date_of_unload), 'YYYY-MM-DD')`;
+        groupByExpr = `DATE(date_of_unload + INTERVAL '5 hours 30 minutes')`;
+        periodExpr = `TO_CHAR(DATE(date_of_unload + INTERVAL '5 hours 30 minutes'), 'YYYY-MM-DD')`;
         break;
       case 'week':
-        groupByExpr = `DATE_TRUNC('week', date_of_unload)`;
-        periodExpr = `TO_CHAR(DATE_TRUNC('week', date_of_unload), 'IYYY-IW')`;
+        groupByExpr = `DATE_TRUNC('week', date_of_unload + INTERVAL '5 hours 30 minutes')`;
+        periodExpr = `TO_CHAR(DATE_TRUNC('week', date_of_unload + INTERVAL '5 hours 30 minutes'), 'IYYY-IW')`;
         break;
       case 'month':
       default:
-        groupByExpr = `DATE_TRUNC('month', date_of_unload)`;
-        periodExpr = `TO_CHAR(DATE_TRUNC('month', date_of_unload), 'YYYY-MM')`;
+        groupByExpr = `DATE_TRUNC('month', date_of_unload + INTERVAL '5 hours 30 minutes')`;
+        periodExpr = `TO_CHAR(DATE_TRUNC('month', date_of_unload + INTERVAL '5 hours 30 minutes'), 'YYYY-MM')`;
         break;
     }
 
@@ -762,7 +764,7 @@ export class InboundService implements OnModuleInit {
         AND date_of_unload IS NOT NULL
         ${dateCondition}
         ${categoryCondition}
-      GROUP BY ${groupByExpr}
+      GROUP BY ${groupByExpr}, ${periodExpr}
       ORDER BY period
     `, ...params);
 
