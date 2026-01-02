@@ -758,88 +758,101 @@ export default function SummaryPage() {
       return;
     }
 
-    // Determine mode labels
-    const metricLabel = trendChartMode === 'qty' ? 'Quantity' : 'CBM';
-    const valueLabel = trendValueMode === 'edel' ? 'EDEL' : 'Total';
-    const unitLabel = trendChartMode === 'qty' ? 'Qty' : 'CBM';
-
-    // Prepare data for Excel
-    const excelData = monthlyTrendWithChange.map(row => {
-      // Get values based on current mode
-      const receivedVal = trendValueMode === 'edel'
-        ? (trendChartMode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
-        : (trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm);
-      const inventoryVal = trendValueMode === 'edel'
-        ? (trendChartMode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
-        : (trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm);
-      const dnVal = trendValueMode === 'edel'
-        ? (trendChartMode === 'qty' ? row.edelDnQty : row.edelDnCbm)
-        : (trendChartMode === 'qty' ? row.dnQty : row.dnCbm);
-
-      return {
-        'Month': row.label,
-        [`Received ${unitLabel}`]: receivedVal,
-        [`Inventory ${unitLabel}`]: inventoryVal,
-        [`DN ${unitLabel}`]: dnVal,
-        'Received Change (%)': row.receivedChange !== null ? row.receivedChange.toFixed(2) : 'N/A',
-        'Inventory Change (%)': row.inventoryChange !== null ? row.inventoryChange.toFixed(2) : 'N/A',
-        'DN Change (%)': row.dnChange !== null ? row.dnChange.toFixed(2) : 'N/A',
-      };
-    });
-
     // Create workbook
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(excelData);
 
-    // Set column widths
-    ws['!cols'] = [
-      { wch: 12 },  // Month
-      { wch: 18 },  // Received
-      { wch: 18 },  // Inventory
-      { wch: 15 },  // DN
-      { wch: 20 },  // Received Change
-      { wch: 20 },  // Inventory Change
-      { wch: 18 },  // DN Change
-    ];
+    // Helper function to create and format a worksheet
+    const createSheet = (mode: 'qty' | 'cbm', valueType: 'total' | 'edel') => {
+      const unitLabel = mode === 'qty' ? 'Qty' : 'CBM';
+      const isEdel = valueType === 'edel';
 
-    // Style the header row
-    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const address = XLSX.utils.encode_col(C) + '1';
-      if (!ws[address]) continue;
-      ws[address].s = {
-        font: { bold: true, sz: 12, color: { rgb: '333333' } },
-        fill: { fgColor: { rgb: 'FEA418' } },
-        alignment: { horizontal: 'center', vertical: 'center' },
-      };
-    }
+      // Prepare data for this sheet
+      const excelData = monthlyTrendWithChange.map(row => {
+        const receivedVal = isEdel
+          ? (mode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
+          : (mode === 'qty' ? row.receivedQty : row.receivedCbm);
+        const inventoryVal = isEdel
+          ? (mode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
+          : (mode === 'qty' ? row.inventoryQty : row.inventoryCbm);
+        const dnVal = isEdel
+          ? (mode === 'qty' ? row.edelDnQty : row.edelDnCbm)
+          : (mode === 'qty' ? row.dnQty : row.dnCbm);
 
-    // Add number formatting to value columns
-    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
-      // Format Received, Inventory, DN columns as numbers with 2 decimals
-      for (let C = 1; C <= 3; ++C) {
-        const address = XLSX.utils.encode_col(C) + (R + 1);
-        if (ws[address] && typeof ws[address].v === 'number') {
-          ws[address].z = '#,##0.00';
+        return {
+          'Month': row.label,
+          [`Received ${unitLabel}`]: receivedVal,
+          [`Inventory ${unitLabel}`]: inventoryVal,
+          [`DN ${unitLabel}`]: dnVal,
+          'Received Change (%)': row.receivedChange !== null ? row.receivedChange.toFixed(2) : 'N/A',
+          'Inventory Change (%)': row.inventoryChange !== null ? row.inventoryChange.toFixed(2) : 'N/A',
+          'DN Change (%)': row.dnChange !== null ? row.dnChange.toFixed(2) : 'N/A',
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(excelData);
+
+      // Set column widths
+      ws['!cols'] = [
+        { wch: 12 },  // Month
+        { wch: 18 },  // Received
+        { wch: 18 },  // Inventory
+        { wch: 15 },  // DN
+        { wch: 20 },  // Received Change
+        { wch: 20 },  // Inventory Change
+        { wch: 18 },  // DN Change
+      ];
+
+      // Style the header row
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const address = XLSX.utils.encode_col(C) + '1';
+        if (!ws[address]) continue;
+        ws[address].s = {
+          font: { bold: true, sz: 12, color: { rgb: 'FFFFFF' } },
+          fill: { fgColor: { rgb: isEdel ? '2563EB' : 'FEA418' } }, // Blue for EDEL, Orange for Total
+          alignment: { horizontal: 'center', vertical: 'center' },
+        };
+      }
+
+      // Add number formatting to value columns
+      for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+        // Format Received, Inventory, DN columns as numbers with 2 decimals
+        for (let C = 1; C <= 3; ++C) {
+          const address = XLSX.utils.encode_col(C) + (R + 1);
+          if (ws[address] && typeof ws[address].v === 'number') {
+            ws[address].z = '#,##0.00';
+          }
+        }
+        // Format change percentage columns
+        for (let C = 4; C <= 6; ++C) {
+          const address = XLSX.utils.encode_col(C) + (R + 1);
+          if (ws[address]) {
+            ws[address].s = {
+              alignment: { horizontal: 'center' },
+            };
+          }
         }
       }
-      // Format change percentage columns
-      for (let C = 4; C <= 6; ++C) {
-        const address = XLSX.utils.encode_col(C) + (R + 1);
-        if (ws[address]) {
-          ws[address].s = {
-            alignment: { horizontal: 'center' },
-          };
-        }
-      }
-    }
 
-    // Add the worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Trend');
+      return ws;
+    };
 
-    // Generate filename with current mode
+    // Create 4 sheets: Total Qty, Total CBM, EDEL Qty, EDEL CBM
+    const sheet1 = createSheet('qty', 'total');
+    XLSX.utils.book_append_sheet(wb, sheet1, 'Total Quantity');
+
+    const sheet2 = createSheet('cbm', 'total');
+    XLSX.utils.book_append_sheet(wb, sheet2, 'Total CBM');
+
+    const sheet3 = createSheet('qty', 'edel');
+    XLSX.utils.book_append_sheet(wb, sheet3, 'EDEL Quantity');
+
+    const sheet4 = createSheet('cbm', 'edel');
+    XLSX.utils.book_append_sheet(wb, sheet4, 'EDEL CBM');
+
+    // Generate filename
     const dateStr = new Date().toISOString().split('T')[0];
-    const filename = `Monthly_${metricLabel}_Trend_${valueLabel}_${dateStr}.xlsx`;
+    const filename = `Monthly_Trend_Complete_${dateStr}.xlsx`;
 
     // Download
     XLSX.writeFile(wb, filename);
