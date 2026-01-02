@@ -751,6 +751,100 @@ export default function SummaryPage() {
     return month;
   };
 
+  // Download Monthly Trend data as Excel
+  const downloadMonthlyTrendExcel = () => {
+    if (!monthlyTrendWithChange || monthlyTrendWithChange.length === 0) {
+      alert('No data available to download');
+      return;
+    }
+
+    // Determine mode labels
+    const metricLabel = trendChartMode === 'qty' ? 'Quantity' : 'CBM';
+    const valueLabel = trendValueMode === 'edel' ? 'EDEL' : 'Total';
+    const unitLabel = trendChartMode === 'qty' ? 'Qty' : 'CBM';
+
+    // Prepare data for Excel
+    const excelData = monthlyTrendWithChange.map(row => {
+      // Get values based on current mode
+      const receivedVal = trendValueMode === 'edel'
+        ? (trendChartMode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
+        : (trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm);
+      const inventoryVal = trendValueMode === 'edel'
+        ? (trendChartMode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
+        : (trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm);
+      const dnVal = trendValueMode === 'edel'
+        ? (trendChartMode === 'qty' ? row.edelDnQty : row.edelDnCbm)
+        : (trendChartMode === 'qty' ? row.dnQty : row.dnCbm);
+
+      return {
+        'Month': row.label,
+        [`Received ${unitLabel}`]: receivedVal,
+        [`Inventory ${unitLabel}`]: inventoryVal,
+        [`DN ${unitLabel}`]: dnVal,
+        'Received Change (%)': row.receivedChange !== null ? row.receivedChange.toFixed(2) : 'N/A',
+        'Inventory Change (%)': row.inventoryChange !== null ? row.inventoryChange.toFixed(2) : 'N/A',
+        'DN Change (%)': row.dnChange !== null ? row.dnChange.toFixed(2) : 'N/A',
+      };
+    });
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 12 },  // Month
+      { wch: 18 },  // Received
+      { wch: 18 },  // Inventory
+      { wch: 15 },  // DN
+      { wch: 20 },  // Received Change
+      { wch: 20 },  // Inventory Change
+      { wch: 18 },  // DN Change
+    ];
+
+    // Style the header row
+    const range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const address = XLSX.utils.encode_col(C) + '1';
+      if (!ws[address]) continue;
+      ws[address].s = {
+        font: { bold: true, sz: 12, color: { rgb: '333333' } },
+        fill: { fgColor: { rgb: 'FEA418' } },
+        alignment: { horizontal: 'center', vertical: 'center' },
+      };
+    }
+
+    // Add number formatting to value columns
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      // Format Received, Inventory, DN columns as numbers with 2 decimals
+      for (let C = 1; C <= 3; ++C) {
+        const address = XLSX.utils.encode_col(C) + (R + 1);
+        if (ws[address] && typeof ws[address].v === 'number') {
+          ws[address].z = '#,##0.00';
+        }
+      }
+      // Format change percentage columns
+      for (let C = 4; C <= 6; ++C) {
+        const address = XLSX.utils.encode_col(C) + (R + 1);
+        if (ws[address]) {
+          ws[address].s = {
+            alignment: { horizontal: 'center' },
+          };
+        }
+      }
+    }
+
+    // Add the worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Monthly Trend');
+
+    // Generate filename with current mode
+    const dateStr = new Date().toISOString().split('T')[0];
+    const filename = `Monthly_${metricLabel}_Trend_${valueLabel}_${dateStr}.xlsx`;
+
+    // Download
+    XLSX.writeFile(wb, filename);
+  };
+
   const averageFulfillment = useMemo(() => {
     const rows = data?.fulfillmentTable || [];
     if (!rows.length) return 0;
@@ -1992,6 +2086,16 @@ export default function SummaryPage() {
                     EDEL
                   </button>
                 </div>
+                {/* Download Button */}
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={downloadMonthlyTrendExcel}
+                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-bold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                >
+                  <Download className="w-4 h-4" />
+                  Excel
+                </motion.button>
               </div>
             </div>
 
