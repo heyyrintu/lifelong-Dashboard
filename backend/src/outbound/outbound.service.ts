@@ -97,6 +97,8 @@ export interface FulfillmentRow {
   dnQty: number;
   pending: number;
   percentage: number;
+  edelSoQty: number;
+  edelDnQty: number;
 }
 
 @Injectable()
@@ -1102,6 +1104,8 @@ export class OutboundService {
       dispatch_date: string;
       so_qty: number;
       dn_qty: number;
+      edel_so_qty: number;
+      edel_dn_qty: number;
     }>>(`
       SELECT 
         TO_CHAR(DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes'), 'YYYY-MM-DD') as dispatch_date,
@@ -1113,7 +1117,23 @@ export class OutboundService {
             THEN delivery_note_qty 
             ELSE 0 
           END
-        ), 0) as dn_qty
+        ), 0) as dn_qty,
+        COALESCE(SUM(
+          CASE 
+            WHEN product_category = 'EDEL'
+            THEN sales_order_qty 
+            ELSE 0 
+          END
+        ), 0) as edel_so_qty,
+        COALESCE(SUM(
+          CASE 
+            WHEN product_category = 'EDEL'
+              AND delivery_note_date IS NOT NULL 
+              AND DATE(delivery_note_date + INTERVAL '5 hours 30 minutes') <= DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes')
+            THEN delivery_note_qty 
+            ELSE 0 
+          END
+        ), 0) as edel_dn_qty
       FROM outbound_rows
       WHERE upload_id = ANY($1)
         AND dispatch_by_date IS NOT NULL
@@ -1134,6 +1154,9 @@ export class OutboundService {
       const pending = soQty - dnQty;
       const percentage = soQty > 0 ? Math.round((dnQty / soQty) * 10000) / 100 : 0;
 
+      const edelSoQty = Math.round(Number(row.edel_so_qty));
+      const edelDnQty = Math.round(Number(row.edel_dn_qty));
+
       // Format date as DD-MM-YYYY from ISO string (dispatch_date is already in correct timezone from DB)
       const [year, month, day] = row.dispatch_date.split('-');
       const formattedDate = `${day}-${month}-${year}`;
@@ -1144,6 +1167,8 @@ export class OutboundService {
         dnQty,
         pending,
         percentage,
+        edelSoQty,
+        edelDnQty,
       };
     });
 

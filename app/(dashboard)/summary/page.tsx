@@ -31,6 +31,8 @@ interface FulfillmentRow {
   dnQty: number;
   pending: number;
   percentage: number;
+  edelSoQty: number;
+  edelDnQty: number;
 }
 
 interface QuickSummaryData {
@@ -201,6 +203,8 @@ export default function SummaryPage() {
   const [monthlyQtyTrendData, setMonthlyQtyTrendData] = useState<MonthlyQtyTrendPoint[]>([]);
   const [trendChartMode, setTrendChartMode] = useState<'qty' | 'cbm'>('qty');
   const [trendValueMode, setTrendValueMode] = useState<'total' | 'edel'>('total');
+  const [fulfillmentValueMode, setFulfillmentValueMode] = useState<'all' | 'edel' | 'without-edel'>('all');
+  const [showAllFulfillment, setShowAllFulfillment] = useState(false);
   
   // Derived array with month-over-month deltas for the active mode
   const monthlyTrendWithChange = useMemo(() => {
@@ -1012,8 +1016,26 @@ export default function SummaryPage() {
         if (!monthlyGroups[monthKey]) {
           monthlyGroups[monthKey] = { soQty: 0, dnQty: 0, count: 0 };
         }
-        monthlyGroups[monthKey].soQty += row.soQty || 0;
-        monthlyGroups[monthKey].dnQty += row.dnQty || 0;
+        // Use appropriate quantities based on fulfillmentValueMode
+        let soQty: number;
+        let dnQty: number;
+        
+        if (fulfillmentValueMode === 'edel') {
+          // EDEL only
+          soQty = row.edelSoQty || 0;
+          dnQty = row.edelDnQty || 0;
+        } else if (fulfillmentValueMode === 'without-edel') {
+          // Total minus EDEL
+          soQty = (row.soQty || 0) - (row.edelSoQty || 0);
+          dnQty = (row.dnQty || 0) - (row.edelDnQty || 0);
+        } else {
+          // All (total)
+          soQty = row.soQty || 0;
+          dnQty = row.dnQty || 0;
+        }
+        
+        monthlyGroups[monthKey].soQty += soQty;
+        monthlyGroups[monthKey].dnQty += dnQty;
         monthlyGroups[monthKey].count += 1;
       }
     });
@@ -1026,6 +1048,68 @@ export default function SummaryPage() {
         fulfillmentRate: soQty > 0 ? Math.min(100, (dnQty / soQty) * 100) : 0,
         soQty,
         dnQty
+      }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    return monthlyData;
+  }, [fullFulfillmentTable, fulfillmentValueMode]);
+
+  // Calculate all three fulfillment datasets for combined view
+  const allFulfillmentData = useMemo(() => {
+    const rows = fullFulfillmentTable || [];
+    if (!rows.length) return [];
+
+    // Group data by month for all three modes
+    const monthlyGroups: Record<string, { allSo: number; allDn: number; edelSo: number; edelDn: number; withoutEdelSo: number; withoutEdelDn: number }> = {};
+
+    rows.forEach((row) => {
+      let monthKey = '';
+      const dateStr = row.date;
+
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const year = ddmmyyyyMatch[3];
+        const month = ddmmyyyyMatch[2].padStart(2, '0');
+        monthKey = `${year}-${month}`;
+      } else {
+        const monthMatch = dateStr.match(/(\d{1,2})\s+(\w{3})\s+(\d{4})/);
+        if (monthMatch) {
+          const monthNames: Record<string, string> = {
+            'Jan': '01', 'Feb': '02', 'Mar': '03', 'Apr': '04',
+            'May': '05', 'Jun': '06', 'Jul': '07', 'Aug': '08',
+            'Sep': '09', 'Oct': '10', 'Nov': '11', 'Dec': '12'
+          };
+          const year = monthMatch[3];
+          const month = monthNames[monthMatch[2]] || '01';
+          monthKey = `${year}-${month}`;
+        } else {
+          const isoMatch = dateStr.match(/(\d{4})-(\d{2})/);
+          if (isoMatch) {
+            monthKey = `${isoMatch[1]}-${isoMatch[2]}`;
+          }
+        }
+      }
+
+      if (monthKey) {
+        if (!monthlyGroups[monthKey]) {
+          monthlyGroups[monthKey] = { allSo: 0, allDn: 0, edelSo: 0, edelDn: 0, withoutEdelSo: 0, withoutEdelDn: 0 };
+        }
+        monthlyGroups[monthKey].allSo += row.soQty || 0;
+        monthlyGroups[monthKey].allDn += row.dnQty || 0;
+        monthlyGroups[monthKey].edelSo += row.edelSoQty || 0;
+        monthlyGroups[monthKey].edelDn += row.edelDnQty || 0;
+        monthlyGroups[monthKey].withoutEdelSo += (row.soQty || 0) - (row.edelSoQty || 0);
+        monthlyGroups[monthKey].withoutEdelDn += (row.dnQty || 0) - (row.edelDnQty || 0);
+      }
+    });
+
+    const monthlyData = Object.entries(monthlyGroups)
+      .map(([month, data]) => ({
+        month,
+        label: formatMonthLabel(month),
+        allRate: data.allSo > 0 ? Math.min(100, (data.allDn / data.allSo) * 100) : 0,
+        edelRate: data.edelSo > 0 ? Math.min(100, (data.edelDn / data.edelSo) * 100) : 0,
+        withoutEdelRate: data.withoutEdelSo > 0 ? Math.min(100, (data.withoutEdelDn / data.withoutEdelSo) * 100) : 0,
       }))
       .sort((a, b) => a.month.localeCompare(b.month));
 
@@ -1914,13 +1998,57 @@ export default function SummaryPage() {
                   <p className="text-xs text-enterprise-textSecondary font-medium">Monthly trend analysis</p>
                 </div>
               </div>
+              {/* All/EDEL/W/O EDEL Toggle */}
+              <div className="flex items-center gap-3">
+                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setFulfillmentValueMode('all')}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${fulfillmentValueMode === 'all'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                    disabled={showAllFulfillment}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setFulfillmentValueMode('edel')}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${fulfillmentValueMode === 'edel'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                    disabled={showAllFulfillment}
+                  >
+                    EDEL
+                  </button>
+                  <button
+                    onClick={() => setFulfillmentValueMode('without-edel')}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${fulfillmentValueMode === 'without-edel'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                    disabled={showAllFulfillment}
+                  >
+                    W/O EDEL
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showAllFulfillment}
+                    onChange={(e) => setShowAllFulfillment(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                  />
+                  <span className="text-xs font-semibold text-gray-700">Show All</span>
+                </label>
+              </div>
             </div>
 
             <div className="h-52 relative pl-2">
-              {monthlyFulfillmentData.length > 0 ? (
+              {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={monthlyFulfillmentData}
+                    data={showAllFulfillment ? allFulfillmentData : monthlyFulfillmentData}
                     margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
                   >
                     <defs>
@@ -1931,6 +2059,14 @@ export default function SummaryPage() {
                       <linearGradient id="fulfillmentAreaGradient" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor="#DE1C1C" stopOpacity={0.3} />
                         <stop offset="100%" stopColor="#FEA418" stopOpacity={0.05} />
+                      </linearGradient>
+                      <linearGradient id="edelLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#60A5FA" stopOpacity={1} />
+                      </linearGradient>
+                      <linearGradient id="withoutEdelLineGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#10B981" stopOpacity={1} />
+                        <stop offset="100%" stopColor="#34D399" stopOpacity={1} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
@@ -1965,41 +2101,73 @@ export default function SummaryPage() {
                       }}
                       labelStyle={{ color: '#f1f5f9', fontSize: '12px', fontWeight: '600', marginBottom: '8px' }}
                       itemStyle={{ color: '#f1f5f9', fontSize: '12px' }}
-                      formatter={(value: number) => [`${value.toFixed(2)}%`, 'Fulfillment Rate']}
+                      formatter={(value: number, name: string) => [`${value.toFixed(2)}%`, name]}
                       cursor={{ stroke: 'rgba(222, 28, 28, 0.3)', strokeWidth: 2 }}
                     />
-                    <Line
-                      type="monotone"
-                      dataKey="fulfillmentRate"
-                      stroke="url(#fulfillmentLineGradient)"
-                      strokeWidth={3}
-                      dot={{
-                        fill: '#DE1C1C',
-                        stroke: '#ffffff',
-                        strokeWidth: 2,
-                        r: 5,
-                      }}
-                      activeDot={{
-                        fill: '#DE1C1C',
-                        stroke: '#ffffff',
-                        strokeWidth: 3,
-                        r: 8,
-                      }}
-                      name="Fulfillment Rate"
-                      label={(props) => {
-                        const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
-                        const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
-                        const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
+                    {showAllFulfillment ? (
+                      <>
+                        <Line
+                          type="monotone"
+                          dataKey="allRate"
+                          stroke="url(#fulfillmentLineGradient)"
+                          strokeWidth={2.5}
+                          dot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 2, r: 4 }}
+                          activeDot={{ fill: '#DE1C1C', stroke: '#ffffff', strokeWidth: 2, r: 6 }}
+                          name="All"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="edelRate"
+                          stroke="url(#edelLineGradient)"
+                          strokeWidth={2.5}
+                          dot={{ fill: '#3B82F6', stroke: '#ffffff', strokeWidth: 2, r: 4 }}
+                          activeDot={{ fill: '#3B82F6', stroke: '#ffffff', strokeWidth: 2, r: 6 }}
+                          name="EDEL"
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="withoutEdelRate"
+                          stroke="url(#withoutEdelLineGradient)"
+                          strokeWidth={2.5}
+                          dot={{ fill: '#10B981', stroke: '#ffffff', strokeWidth: 2, r: 4 }}
+                          activeDot={{ fill: '#10B981', stroke: '#ffffff', strokeWidth: 2, r: 6 }}
+                          name="W/O EDEL"
+                        />
+                      </>
+                    ) : (
+                      <Line
+                        type="monotone"
+                        dataKey="fulfillmentRate"
+                        stroke="url(#fulfillmentLineGradient)"
+                        strokeWidth={3}
+                        dot={{
+                          fill: '#DE1C1C',
+                          stroke: '#ffffff',
+                          strokeWidth: 2,
+                          r: 5,
+                        }}
+                        activeDot={{
+                          fill: '#DE1C1C',
+                          stroke: '#ffffff',
+                          strokeWidth: 3,
+                          r: 8,
+                        }}
+                        name="Fulfillment Rate"
+                        label={(props) => {
+                          const x = typeof props?.x === 'number' ? props.x : Number(props?.x);
+                          const y = typeof props?.y === 'number' ? props.y : Number(props?.y);
+                          const value = typeof props?.value === 'number' ? props.value : Number(props?.value);
 
-                        if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
+                          if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(value)) return null;
 
-                        return (
-                          <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
-                            {value.toFixed(2)}%
-                          </text>
-                        );
-                      }}
-                    />
+                          return (
+                            <text x={x} y={y - 10} fill="#374151" fontSize={10} fontWeight="bold" textAnchor="middle">
+                              {value.toFixed(2)}%
+                            </text>
+                          );
+                        }}
+                      />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               ) : (
@@ -2012,11 +2180,159 @@ export default function SummaryPage() {
               )}
             </div>
 
-            {monthlyFulfillmentData.length > 0 && (
+            {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) && (
               <div className="flex justify-center gap-6 mt-2 pl-2">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow shadow-sm" />
-                  <span className="text-xs text-enterprise-textSecondary font-medium">Fulfillment Rate %</span>
+                {showAllFulfillment ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow shadow-sm" />
+                      <span className="text-xs text-enterprise-textSecondary font-medium">All</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-1 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 shadow-sm" />
+                      <span className="text-xs text-enterprise-textSecondary font-medium">EDEL</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-1 rounded-full bg-gradient-to-r from-green-500 to-green-400 shadow-sm" />
+                      <span className="text-xs text-enterprise-textSecondary font-medium">W/O EDEL</span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-1 rounded-full bg-gradient-to-r from-brandRed to-brandYellow shadow-sm" />
+                      <span className="text-xs text-enterprise-textSecondary font-medium">Fulfillment Rate %</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Monthly Fulfillment Data Table */}
+            {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) && (
+              <div className="mt-6 pl-2">
+                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                          Month
+                        </th>
+                        {showAllFulfillment ? (
+                          <>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              All (%)
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              EDEL (%)
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              W/O EDEL (%)
+                            </th>
+                          </>
+                        ) : (
+                          <>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              SO Qty
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              DN Qty
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Fulfillment (%)
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Improvement
+                            </th>
+                          </>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {showAllFulfillment ? (
+                        allFulfillmentData.map((row, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                              {row.label}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                              {row.allRate.toFixed(2)}%
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-blue-600 font-semibold">
+                              {row.edelRate.toFixed(2)}%
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-green-600 font-semibold">
+                              {row.withoutEdelRate.toFixed(2)}%
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        monthlyFulfillmentData.map((row, idx) => {
+                          const prevMonth = idx > 0 ? monthlyFulfillmentData[idx - 1] : null;
+                          const improvement = prevMonth ? row.fulfillmentRate - prevMonth.fulfillmentRate : 0;
+                          const hasImprovement = improvement > 0;
+                          const noChange = improvement === 0;
+                          
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                              <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                {row.label}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                                {row.soQty.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right text-gray-700">
+                                {row.dnQty.toLocaleString()}
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold" style={{ color: row.fulfillmentRate >= 80 ? '#10B981' : row.fulfillmentRate >= 50 ? '#F59E0B' : '#EF4444' }}>
+                                {row.fulfillmentRate.toFixed(2)}%
+                              </td>
+                              <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-semibold">
+                                {idx === 0 ? (
+                                  <span className="text-gray-400">-</span>
+                                ) : (
+                                  <span className={noChange ? 'text-gray-500' : hasImprovement ? 'text-green-600' : 'text-red-600'}>
+                                    {hasImprovement ? '↑' : noChange ? '→' : '↓'} {Math.abs(improvement).toFixed(2)}%
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                    {!showAllFulfillment && monthlyFulfillmentData.length > 0 && (
+                      <tfoot className="bg-gradient-to-r from-gray-100 to-gray-50">
+                        <tr className="border-t-2 border-gray-300">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                            Average
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {Math.round(monthlyFulfillmentData.reduce((sum, row) => sum + row.soQty, 0) / monthlyFulfillmentData.length).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {Math.round(monthlyFulfillmentData.reduce((sum, row) => sum + row.dnQty, 0) / monthlyFulfillmentData.length).toLocaleString()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {(monthlyFulfillmentData.reduce((sum, row) => sum + row.fulfillmentRate, 0) / monthlyFulfillmentData.length).toFixed(2)}%
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {(() => {
+                              const improvements = monthlyFulfillmentData.slice(1).map((row, idx) => 
+                                row.fulfillmentRate - monthlyFulfillmentData[idx].fulfillmentRate
+                              );
+                              const positiveCount = improvements.filter(i => i > 0).length;
+                              const totalComparisons = improvements.length;
+                              const improvementRate = totalComparisons > 0 ? (positiveCount / totalComparisons) * 100 : 0;
+                              return (
+                                <span className={improvementRate >= 50 ? 'text-green-600' : 'text-red-600'}>
+                                  {improvementRate.toFixed(0)}% improved
+                                </span>
+                              );
+                            })()}
+                          </td>
+                        </tr>
+                      </tfoot>
+                    )}
+                  </table>
                 </div>
               </div>
             )}
