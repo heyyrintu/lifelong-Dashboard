@@ -51,7 +51,7 @@ The database should be accessible at `172.21.0.2:5432` as configured in the `.en
 - **Headers**: Row 1 contains headers
 - **Data**: Starts from row 2
 - **Columns**:
-  - ID: Column B (primary key)
+  - SKU Code: Column A (primary key - must match Received SKU in inbound file)
   - Item Group: Column D
   - CBM: Column H (CBM per unit)
 

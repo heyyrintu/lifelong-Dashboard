@@ -85,6 +85,16 @@ model ItemMaster {
   @@map("item_master")
 }
 
+model ItemMasterUpload {
+  id            String   @id @default(uuid())
+  fileName      String   @map("file_name")
+  uploadedAt    DateTime @default(now()) @map("uploaded_at")
+  status        String   @default("processed") // "processed" | "failed"
+  rowsProcessed Int      @default(0) @map("rows_processed")
+
+  @@map("item_master_uploads")
+}
+
 model InboundUpload {
   id          String   @id @default(uuid())
   fileName    String   @map("file_name")

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import PageHeader from '@/components/common/PageHeader';
 import { AdminRoute } from '@/components/auth/AdminRoute';
-import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye } from 'lucide-react';
+import { Upload as UploadIcon, File, AlertCircle, CheckCircle2, Trash2, Eye, Download } from 'lucide-react';
 import { authenticatedFetch } from '@/lib/api';
 import { getErrorMessage } from '@/lib/formatters';
 
@@ -90,8 +90,64 @@ function UploadPageContent() {
         allUploads = [...allUploads, ...inventoryUploads];
       }
 
-      // Sort by upload date (newest first)
-      allUploads.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+      // Helper function to extract date from filename
+      const extractDateFromFilename = (fileName: string): Date | null => {
+        // Try to extract date patterns like: 2024-12-15, 15-12-2024, Dec-2024, etc.
+        const patterns = [
+          // YYYY-MM-DD or YYYY_MM_DD
+          /(\d{4})[-_](\d{2})[-_](\d{2})/,
+          // DD-MM-YYYY or DD_MM_YYYY
+          /(\d{2})[-_](\d{2})[-_](\d{4})/,
+          // DDMMYYYY
+          /(\d{2})(\d{2})(\d{4})/,
+          // MMM-YYYY or MMM_YYYY (like Dec-2024)
+          /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-_](\d{4})/i,
+        ];
+
+        for (const pattern of patterns) {
+          const match = fileName.match(pattern);
+          if (match) {
+            if (pattern === patterns[0]) {
+              // YYYY-MM-DD format
+              return new Date(`${match[1]}-${match[2]}-${match[3]}`);
+            } else if (pattern === patterns[1] || pattern === patterns[2]) {
+              // DD-MM-YYYY or DDMMYYYY format
+              const day = match[1];
+              const month = match[2];
+              const year = match[3];
+              return new Date(`${year}-${month}-${day}`);
+            } else if (pattern === patterns[3]) {
+              // MMM-YYYY format
+              const monthMap: { [key: string]: string } = {
+                jan: '01', feb: '02', mar: '03', apr: '04',
+                may: '05', jun: '06', jul: '07', aug: '08',
+                sep: '09', oct: '10', nov: '11', dec: '12',
+              };
+              const month = monthMap[match[1].toLowerCase()];
+              return new Date(`${match[2]}-${month}-01`);
+            }
+          }
+        }
+        return null;
+      };
+
+      // Sort by file data date (extracted from filename), then by upload date as fallback
+      allUploads.sort((a, b) => {
+        const dateA = extractDateFromFilename(a.fileName);
+        const dateB = extractDateFromFilename(b.fileName);
+
+        // If both have dates in filename, sort by file date (newest first)
+        if (dateA && dateB) {
+          return dateB.getTime() - dateA.getTime();
+        }
+
+        // If only one has a date, prioritize the one with date
+        if (dateA) return -1;
+        if (dateB) return 1;
+
+        // If neither has date, sort by upload date (newest first)
+        return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+      });
 
       setUploads(allUploads);
     } catch (err: unknown) {
@@ -113,6 +169,8 @@ function UploadPageContent() {
         endpoint = `/inbound/uploads/${uploadId}`;
       } else if (uploadType === 'inventory') {
         endpoint = `/inventory/uploads/${uploadId}`;
+      } else if (uploadType === 'item-master') {
+        endpoint = `/inbound/item-master/uploads/${uploadId}`;
       }
 
       const response = await authenticatedFetch(endpoint, {
@@ -214,8 +272,15 @@ function UploadPageContent() {
     }
   };
 
+  const handleDownloadFile = (fileName: string) => {
+    // Since files are processed and deleted from uploads folder,
+    // we'll show a message that the file was already processed
+    alert(`The original file "${fileName}" has been processed and is no longer available for download. The data is now stored in the database.`);
+  };
+
   return (
-    <div>
+    <div className="space-y-6">
+      {/* Upload Section - Full Width */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upload card */}
         <div className="lg:col-span-2">
@@ -367,7 +432,7 @@ function UploadPageContent() {
         </div>
 
         {/* Instructions card */}
-        <div className="space-y-6">
+        <div>
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -401,104 +466,139 @@ function UploadPageContent() {
               </li>
             </ul>
           </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
-          >
-            {/* Decorative gradient blob */}
-            <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
-
-            <div className="flex items-center justify-between mb-6 relative z-10">
-              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Uploaded Files</h3>
-              <span className="px-3 py-1 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-300 border border-gray-200/50 dark:border-slate-600/50">
-                {uploads.length} file{uploads.length !== 1 ? 's' : ''} uploaded
-              </span>
-            </div>
-
-            {uploadsLoading ? (
-              <div className="text-center py-12 relative z-10">
-                <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-brandRed border-t-transparent mx-auto mb-4"></div>
-                <p className="text-sm text-gray-600 dark:text-slate-400">Loading uploads...</p>
-              </div>
-            ) : uploads.length === 0 ? (
-              <div className="text-center py-12 relative z-10">
-                <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <File className="w-8 h-8 text-gray-400 dark:text-slate-500" />
-                </div>
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-2">No files uploaded yet</h4>
-                <p className="text-xs text-gray-500 dark:text-slate-500">Upload your first file to see it here</p>
-              </div>
-            ) : (
-              <div className="space-y-3 relative z-10">
-                {uploads.map((upload) => (
-                  <motion.div
-                    key={upload.uploadId}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    whileHover={{ scale: 1.01, y: -2 }}
-                    className="group flex items-center justify-between p-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-700/50 rounded-xl hover:bg-white/80 dark:hover:bg-slate-900/60 hover:border-brandRed/50 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2">
-                        <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-brandRed/20 to-brandRed/10 dark:from-brandRed/30 dark:to-brandRed/20 rounded-lg flex items-center justify-center shadow-sm border border-brandRed/20">
-                          <File className="w-5 h-5 text-brandRed dark:text-brandRed" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-slate-200 truncate" title={upload.fileName}>
-                            {upload.fileName}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1 flex-wrap">
-                            <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded-full ${upload.type === 'item-master'
-                              ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400'
-                              : upload.type === 'inbound'
-                                ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                : upload.type === 'inventory'
-                                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400'
-                              }`}>
-                              {upload.type === 'item-master' ? 'Item Master' : upload.type === 'inbound' ? 'Inbound' : upload.type === 'inventory' ? 'Inventory' : 'Outbound'}
-                            </span>
-                            <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
-                              {upload.status}
-                            </span>
-                            <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
-                              <span className="font-medium">{upload.rowsInserted}</span>
-                              <span>rows</span>
-                              <span>•</span>
-                              <span>{new Date(upload.uploadedAt).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <button
-                        onClick={() => handleViewUpload(upload.uploadId, upload.type)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-md transition-colors"
-                        title="View this upload's data"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View
-                      </button>
-                      <button
-                        onClick={() => handleDeleteUpload(upload.uploadId, upload.fileName, upload.type)}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
-                        title="Delete this upload"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Delete
-                      </button>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
-          </motion.div>
         </div>
       </div>
+
+      {/* Uploaded Files Section - Full Width Below */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.3 }}
+        className="relative bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl backdrop-saturate-150 border border-gray-200/50 dark:border-slate-700/50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden"
+      >
+        {/* Decorative gradient blob */}
+        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -z-10 pointer-events-none" />
+
+        <div className="flex items-center justify-between mb-6 relative z-10">
+          <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">Uploaded Files</h3>
+          <span className="px-3 py-1 bg-gray-100/80 dark:bg-slate-700/80 backdrop-blur-sm rounded-lg text-sm font-semibold text-gray-700 dark:text-slate-300 border border-gray-200/50 dark:border-slate-600/50">
+            {uploads.length} file{uploads.length !== 1 ? 's' : ''} uploaded
+          </span>
+        </div>
+
+        {uploadsLoading ? (
+          <div className="text-center py-12 relative z-10">
+            <div className="animate-spin rounded-full h-8 w-8 border-[3px] border-brandRed border-t-transparent mx-auto mb-4"></div>
+            <p className="text-sm text-gray-600 dark:text-slate-400">Loading uploads...</p>
+          </div>
+        ) : uploads.length === 0 ? (
+          <div className="text-center py-12 relative z-10">
+            <div className="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 dark:from-slate-800 dark:to-slate-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+              <File className="w-8 h-8 text-gray-400 dark:text-slate-500" />
+            </div>
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-200 mb-2">No files uploaded yet</h4>
+            <p className="text-xs text-gray-500 dark:text-slate-500">Upload your first file to see it here</p>
+          </div>
+        ) : (
+          <div className="space-y-4 relative z-10">
+                {/* Group uploads by type */}
+                {['item-master', 'inbound', 'outbound', 'inventory'].map(fileType => {
+                  const filesByType = uploads.filter(u => u.type === fileType);
+                  if (filesByType.length === 0) return null;
+
+                  const typeLabels: { [key: string]: { label: string; color: string } } = {
+                    'item-master': { label: 'Item Master Files', color: 'purple' },
+                    'inbound': { label: 'Inbound Files', color: 'blue' },
+                    'outbound': { label: 'Outbound Files', color: 'orange' },
+                    'inventory': { label: 'Inventory Files', color: 'green' },
+                  };
+
+                  return (
+                    <div key={fileType} className="space-y-2">
+                      <h4 className="text-xs font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider px-1">
+                        {typeLabels[fileType]?.label || fileType}
+                      </h4>
+                      <div className="space-y-2">
+                        {filesByType.map((upload) => (
+                          <motion.div
+                            key={upload.uploadId}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            whileHover={{ scale: 1.01, y: -2 }}
+                            className="group flex items-center justify-between p-4 bg-white/60 dark:bg-slate-900/40 backdrop-blur-md border border-gray-200/50 dark:border-slate-700/50 rounded-xl hover:bg-white/80 dark:hover:bg-slate-900/60 hover:border-brandRed/50 dark:hover:border-slate-600 transition-all duration-200 shadow-sm hover:shadow-md"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className={`flex-shrink-0 w-10 h-10 bg-gradient-to-br ${upload.type === 'item-master'
+                                    ? 'from-purple-100 to-purple-200 dark:from-purple-500/20 dark:to-purple-600/20 border-purple-200'
+                                    : upload.type === 'inbound'
+                                      ? 'from-blue-100 to-blue-200 dark:from-blue-500/20 dark:to-blue-600/20 border-blue-200'
+                                      : upload.type === 'inventory'
+                                        ? 'from-green-100 to-green-200 dark:from-green-500/20 dark:to-green-600/20 border-green-200'
+                                        : 'from-orange-100 to-orange-200 dark:from-orange-500/20 dark:to-orange-600/20 border-orange-200'
+                                  } rounded-lg flex items-center justify-center shadow-sm border`}>
+                                  <File className={`w-5 h-5 ${upload.type === 'item-master'
+                                      ? 'text-purple-600 dark:text-purple-400'
+                                      : upload.type === 'inbound'
+                                        ? 'text-blue-600 dark:text-blue-400'
+                                        : upload.type === 'inventory'
+                                          ? 'text-green-600 dark:text-green-400'
+                                          : 'text-orange-600 dark:text-orange-400'
+                                    }`} />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-gray-900 dark:text-slate-200 truncate" title={upload.fileName}>
+                                    {upload.fileName}
+                                  </p>
+                                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                                    <span className="inline-flex items-center px-2 py-0.5 text-xs font-medium bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full">
+                                      {upload.status}
+                                    </span>
+                                    <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-slate-400">
+                                      <span className="font-medium">{upload.rowsInserted}</span>
+                                      <span>rows</span>
+                                      <span>•</span>
+                                      <span>Uploaded: {new Date(upload.uploadedAt).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-4">
+                              <button
+                                onClick={() => handleDownloadFile(upload.fileName)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/20 hover:bg-green-100 dark:hover:bg-green-900/30 rounded-md transition-colors"
+                                title="Download this file"
+                              >
+                                <Download className="w-3.5 h-3.5" />
+                                Download
+                              </button>
+                              <button
+                                onClick={() => handleViewUpload(upload.uploadId, upload.type)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30 rounded-md transition-colors"
+                                title="View this upload's data"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                View
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUpload(upload.uploadId, upload.fileName, upload.type)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
+                                title="Delete this upload"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </button>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+      </motion.div>
 
       {/* Toast notification */}
       {showToast && (

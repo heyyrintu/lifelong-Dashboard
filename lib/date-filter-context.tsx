@@ -23,7 +23,7 @@ interface DateFilterContextValue {
   setSelectedWarehouse: (warehouse: string) => void;
   
   // Helper to set date range with month selection
-  setMonthWithDates: (month: string) => void;
+  setMonthWithDates: (month: string, availableDates?: { minDate: string; maxDate: string } | null) => void;
   
   // Reset filters
   resetFilters: () => void;
@@ -66,9 +66,16 @@ export function DateFilterProvider({ children }: { children: React.ReactNode }) 
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
 
   // Helper function to set month and automatically update date range
-  const setMonthWithDates = useCallback((month: string) => {
+  const setMonthWithDates = useCallback((month: string, availableDates?: { minDate: string; maxDate: string } | null) => {
     setSelectedMonth(month);
-    if (month !== 'ALL') {
+    if (month === 'ALL') {
+      // When "ALL" is selected, set the date range to cover all available data
+      if (availableDates?.minDate && availableDates?.maxDate) {
+        setFromDate(availableDates.minDate);
+        setToDate(availableDates.maxDate);
+      }
+    } else {
+      // When a specific month is selected, set the date range for that month
       const [year, monthNum] = month.split('-').map(Number);
       if (year && monthNum) {
         const startDate = new Date(year, monthNum - 1, 1);

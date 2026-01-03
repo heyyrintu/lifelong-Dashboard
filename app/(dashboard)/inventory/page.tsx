@@ -1083,7 +1083,7 @@ function InventoryPageContent() {
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => setMonthWithDates(e.target.value)}
+                  onChange={(e) => setMonthWithDates(e.target.value, data?.filters?.availableDateRange)}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >

@@ -201,10 +201,17 @@ export default function SummaryPage() {
   const [data, setData] = useState<QuickSummaryData | null>(null);
   const [fullFulfillmentTable, setFullFulfillmentTable] = useState<FulfillmentRow[]>([]);
   const [monthlyQtyTrendData, setMonthlyQtyTrendData] = useState<MonthlyQtyTrendPoint[]>([]);
+  const [inboundDayData, setInboundDayData] = useState<any[]>([]);
+  const [inventoryDayData, setInventoryDayData] = useState<any[]>([]);
+  const [outboundDayData, setOutboundDayData] = useState<any[]>([]);
   const [trendChartMode, setTrendChartMode] = useState<'qty' | 'cbm'>('qty');
-  const [trendValueMode, setTrendValueMode] = useState<'total' | 'edel'>('total');
+  const [trendValueMode, setTrendValueMode] = useState<'total' | 'edel' | 'without-edel'>('total');
   const [fulfillmentValueMode, setFulfillmentValueMode] = useState<'all' | 'edel' | 'without-edel'>('all');
   const [showAllFulfillment, setShowAllFulfillment] = useState(false);
+  const [fulfillmentPeriodView, setFulfillmentPeriodView] = useState<'months' | 'weeks'>('months');
+  const [fulfillmentWeeksMonth, setFulfillmentWeeksMonth] = useState<string>('ALL');
+  const [qtyTrendPeriodView, setQtyTrendPeriodView] = useState<'months' | 'weeks'>('months');
+  const [qtyTrendWeeksMonth, setQtyTrendWeeksMonth] = useState<string>('ALL');
   
   // Derived array with month-over-month deltas for the active mode
   const monthlyTrendWithChange = useMemo(() => {
@@ -233,6 +240,158 @@ export default function SummaryPage() {
       } as MonthlyQtyTrendPoint & { receivedChange: number | null; inventoryChange: number | null; dnChange: number | null };
     });
   }, [monthlyQtyTrendData, trendChartMode]);
+
+  // Calculate weekly quantity trend data for a specific month
+  const weeklyQtyTrendData = useMemo((): MonthlyQtyTrendPoint[] => {
+    if (qtyTrendWeeksMonth === 'ALL' || !inboundDayData.length) return [];
+
+    // Helper to extract month key and date object
+    const parseDate = (dateStr: string): Date | null => {
+      // DD-MM-YYYY format
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const day = parseInt(ddmmyyyyMatch[1]);
+        const month = parseInt(ddmmyyyyMatch[2]) - 1;
+        const year = parseInt(ddmmyyyyMatch[3]);
+        return new Date(year, month, day);
+      }
+      // YYYY-MM-DD format
+      const yyyymmddMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (yyyymmddMatch) {
+        return new Date(dateStr);
+      }
+      return null;
+    };
+
+    const getMonthKey = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = (date.getMonth() + 1).toString().padStart(2, '0');
+      return `${year}-${month}`;
+    };
+
+    const getWeekKey = (date: Date): string => {
+      const tempDate = new Date(date.getTime());
+      tempDate.setHours(0, 0, 0, 0);
+      tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7));
+      const week1 = new Date(tempDate.getFullYear(), 0, 4);
+      const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+      return `${tempDate.getFullYear()}-W${weekNum.toString().padStart(2, '0')}`;
+    };
+
+    const getWeekLabel = (weekKey: string, weekData: any): string => {
+      const monday = weekData.startDate;
+      const sunday = new Date(monday);
+      sunday.setDate(sunday.getDate() + 6);
+      const formatDate = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+      return `${formatDate(monday)}-${formatDate(sunday)}`;
+    };
+
+    // Group data by week
+    const weeklyGroups: Record<string, {
+      receivedQty: number; inventoryQty: number; dnQty: number;
+      receivedCbm: number; inventoryCbm: number; dnCbm: number;
+      edelReceivedQty: number; edelInventoryQty: number; edelDnQty: number;
+      edelReceivedCbm: number; edelInventoryCbm: number; edelDnCbm: number;
+      inventoryDayCount: number;
+      startDate: Date;
+    }> = {};
+
+    // Process inbound day data
+    inboundDayData.forEach((day: any) => {
+      const date = parseDate(day.date);
+      if (!date || getMonthKey(date) !== qtyTrendWeeksMonth) return;
+
+      const weekKey = getWeekKey(date);
+      if (!weeklyGroups[weekKey]) {
+        const monday = new Date(date);
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        weeklyGroups[weekKey] = {
+          receivedQty: 0, inventoryQty: 0, dnQty: 0,
+          receivedCbm: 0, inventoryCbm: 0, dnCbm: 0,
+          edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0,
+          edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0,
+          inventoryDayCount: 0,
+          startDate: monday
+        };
+      }
+      weeklyGroups[weekKey].receivedQty += day.receivedQty || 0;
+      weeklyGroups[weekKey].receivedCbm += day.totalCbm || 0;
+      weeklyGroups[weekKey].edelReceivedQty += day.edelReceivedQty || 0;
+      weeklyGroups[weekKey].edelReceivedCbm += day.edelTotalCbm || 0;
+    });
+
+    // Process inventory day data
+    inventoryDayData.forEach((point: any) => {
+      const date = parseDate(point.date);
+      if (!date || getMonthKey(date) !== qtyTrendWeeksMonth) return;
+
+      const weekKey = getWeekKey(date);
+      if (!weeklyGroups[weekKey]) {
+        const monday = new Date(date);
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        weeklyGroups[weekKey] = {
+          receivedQty: 0, inventoryQty: 0, dnQty: 0,
+          receivedCbm: 0, inventoryCbm: 0, dnCbm: 0,
+          edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0,
+          edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0,
+          inventoryDayCount: 0,
+          startDate: monday
+        };
+      }
+      weeklyGroups[weekKey].inventoryQty += point.inventoryQty || 0;
+      weeklyGroups[weekKey].inventoryCbm += point.totalCbm || 0;
+      weeklyGroups[weekKey].edelInventoryQty += point.edelInventoryQty || 0;
+      weeklyGroups[weekKey].edelInventoryCbm += point.edelTotalCbm || 0;
+      weeklyGroups[weekKey].inventoryDayCount += 1;
+    });
+
+    // Process outbound day data
+    outboundDayData.forEach((day: any) => {
+      const date = parseDate(day.date);
+      if (!date || getMonthKey(date) !== qtyTrendWeeksMonth) return;
+
+      const weekKey = getWeekKey(date);
+      if (!weeklyGroups[weekKey]) {
+        const monday = new Date(date);
+        monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+        weeklyGroups[weekKey] = {
+          receivedQty: 0, inventoryQty: 0, dnQty: 0,
+          receivedCbm: 0, inventoryCbm: 0, dnCbm: 0,
+          edelReceivedQty: 0, edelInventoryQty: 0, edelDnQty: 0,
+          edelReceivedCbm: 0, edelInventoryCbm: 0, edelDnCbm: 0,
+          inventoryDayCount: 0,
+          startDate: monday
+        };
+      }
+      weeklyGroups[weekKey].dnQty += day.dnQty || 0;
+      weeklyGroups[weekKey].dnCbm += day.dnCbm || 0;
+      weeklyGroups[weekKey].edelDnQty += day.edelDnQty || 0;
+      weeklyGroups[weekKey].edelDnCbm += day.edelDnCbm || 0;
+    });
+
+    // Convert to array and calculate averages
+    return Object.entries(weeklyGroups)
+      .map(([week, data]) => {
+        const inventoryDayCount = data.inventoryDayCount || 1;
+        return {
+          month: week,
+          label: getWeekLabel(week, data),
+          receivedQty: data.receivedQty,
+          inventoryQty: data.inventoryQty / inventoryDayCount,
+          dnQty: data.dnQty,
+          receivedCbm: data.receivedCbm,
+          inventoryCbm: data.inventoryCbm / inventoryDayCount,
+          dnCbm: data.dnCbm,
+          edelReceivedQty: data.edelReceivedQty,
+          edelInventoryQty: data.edelInventoryQty / inventoryDayCount,
+          edelDnQty: data.edelDnQty,
+          edelReceivedCbm: data.edelReceivedCbm,
+          edelInventoryCbm: data.edelInventoryCbm / inventoryDayCount,
+          edelDnCbm: data.edelDnCbm,
+        };
+      })
+      .sort((a, b) => a.month.localeCompare(b.month));
+  }, [qtyTrendWeeksMonth, inboundDayData, inventoryDayData, outboundDayData]);
 
   // Use shared filter context
   const { 
@@ -544,6 +703,11 @@ export default function SummaryPage() {
       };
       
       setMonthlyQtyTrendData(buildMonthlyQtyTrend());
+      
+      // Store day-level data for weekly grouping
+      setInboundDayData(inboundFullData?.summaryTotals?.dayData || []);
+      setInventoryDayData(inventoryFullData?.timeSeries?.points || []);
+      setOutboundDayData(outboundFullData?.summaryTotals?.dayData || []);
 
       // Collect product categories, warehouses, and months from all sources
       const categories = new Set<string>();
@@ -863,13 +1027,13 @@ export default function SummaryPage() {
   };
 
   const averageFulfillment = useMemo(() => {
-    const rows = data?.fulfillmentTable || [];
+    const rows = fullFulfillmentTable || [];
     if (!rows.length) return 0;
-    // Calculate overall fulfillment from total quantities (not average of percentages)
+    // Calculate overall fulfillment from total quantities (not average of percentages) - using all months data
     const totalSoQty = rows.reduce((sum, row) => sum + (row.soQty || 0), 0);
     const totalDnQty = rows.reduce((sum, row) => sum + (row.dnQty || 0), 0);
     return totalSoQty > 0 ? (totalDnQty / totalSoQty) * 100 : 0;
-  }, [data?.fulfillmentTable]);
+  }, [fullFulfillmentTable]);
 
   // Calculate last day fulfillment data based on selected day (today/yesterday/7days)
   const lastDayFulfillment = useMemo(() => {
@@ -1054,6 +1218,100 @@ export default function SummaryPage() {
     return monthlyData;
   }, [fullFulfillmentTable, fulfillmentValueMode]);
 
+  // Calculate weekly fulfillment data for a specific month
+  const weeklyFulfillmentData = useMemo((): { week: string; label: string; fulfillmentRate: number; soQty: number; dnQty: number }[] => {
+    const rows = fullFulfillmentTable || [];
+    if (!rows.length || fulfillmentWeeksMonth === 'ALL') return [];
+
+    // Filter rows for the selected month
+    const monthRows = rows.filter((row) => {
+      const dateStr = row.date;
+      // Parse date to get month key
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const year = ddmmyyyyMatch[3];
+        const month = ddmmyyyyMatch[2].padStart(2, '0');
+        const monthKey = `${year}-${month}`;
+        return monthKey === fulfillmentWeeksMonth;
+      }
+      return false;
+    });
+
+    if (!monthRows.length) return [];
+
+    // Group data by ISO week
+    const weeklyGroups: Record<string, { soQty: number; dnQty: number; startDate: Date }> = {};
+
+    monthRows.forEach((row) => {
+      const dateStr = row.date;
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const day = parseInt(ddmmyyyyMatch[1]);
+        const month = parseInt(ddmmyyyyMatch[2]) - 1; // JS months are 0-indexed
+        const year = parseInt(ddmmyyyyMatch[3]);
+        const date = new Date(year, month, day);
+
+        // Calculate ISO week number
+        const getWeekNumber = (d: Date): { year: number; week: number } => {
+          const tempDate = new Date(d.getTime());
+          tempDate.setHours(0, 0, 0, 0);
+          tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7));
+          const week1 = new Date(tempDate.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+          return { year: tempDate.getFullYear(), week: weekNum };
+        };
+
+        const { year: weekYear, week: weekNum } = getWeekNumber(date);
+        const weekKey = `${weekYear}-W${weekNum.toString().padStart(2, '0')}`;
+
+        if (!weeklyGroups[weekKey]) {
+          // Find the Monday of this week for display
+          const monday = new Date(date);
+          monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+          weeklyGroups[weekKey] = { soQty: 0, dnQty: 0, startDate: monday };
+        }
+
+        // Use appropriate quantities based on fulfillmentValueMode
+        let soQty: number;
+        let dnQty: number;
+        
+        if (fulfillmentValueMode === 'edel') {
+          soQty = row.edelSoQty || 0;
+          dnQty = row.edelDnQty || 0;
+        } else if (fulfillmentValueMode === 'without-edel') {
+          soQty = (row.soQty || 0) - (row.edelSoQty || 0);
+          dnQty = (row.dnQty || 0) - (row.edelDnQty || 0);
+        } else {
+          soQty = row.soQty || 0;
+          dnQty = row.dnQty || 0;
+        }
+        
+        weeklyGroups[weekKey].soQty += soQty;
+        weeklyGroups[weekKey].dnQty += dnQty;
+      }
+    });
+
+    // Convert to array and calculate fulfillment rate for each week
+    const weeklyData = Object.entries(weeklyGroups)
+      .map(([week, { soQty, dnQty, startDate }]) => {
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        
+        const formatDate = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+        
+        return {
+          week,
+          label: `${formatDate(startDate)}-${formatDate(endDate)}`,
+          fulfillmentRate: soQty > 0 ? Math.min(100, (dnQty / soQty) * 100) : 0,
+          soQty,
+          dnQty
+        };
+      })
+      .sort((a, b) => a.week.localeCompare(b.week));
+
+    return weeklyData;
+  }, [fullFulfillmentTable, fulfillmentValueMode, fulfillmentWeeksMonth]);
+
   // Calculate all three fulfillment datasets for combined view
   const allFulfillmentData = useMemo(() => {
     const rows = fullFulfillmentTable || [];
@@ -1115,6 +1373,85 @@ export default function SummaryPage() {
 
     return monthlyData;
   }, [fullFulfillmentTable]);
+
+  // Calculate weekly fulfillment data showing all three rates (All, EDEL, W/O EDEL)
+  const allWeeklyFulfillmentData = useMemo(() => {
+    const rows = fullFulfillmentTable || [];
+    if (!rows.length || fulfillmentWeeksMonth === 'ALL') return [];
+
+    // Filter rows for the selected month
+    const monthRows = rows.filter((row) => {
+      const dateStr = row.date;
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const year = ddmmyyyyMatch[3];
+        const month = ddmmyyyyMatch[2].padStart(2, '0');
+        const monthKey = `${year}-${month}`;
+        return monthKey === fulfillmentWeeksMonth;
+      }
+      return false;
+    });
+
+    if (!monthRows.length) return [];
+
+    // Group data by ISO week for all three modes
+    const weeklyGroups: Record<string, { allSo: number; allDn: number; edelSo: number; edelDn: number; withoutEdelSo: number; withoutEdelDn: number; startDate: Date }> = {};
+
+    monthRows.forEach((row) => {
+      const dateStr = row.date;
+      const ddmmyyyyMatch = dateStr.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/);
+      if (ddmmyyyyMatch) {
+        const day = parseInt(ddmmyyyyMatch[1]);
+        const month = parseInt(ddmmyyyyMatch[2]) - 1;
+        const year = parseInt(ddmmyyyyMatch[3]);
+        const date = new Date(year, month, day);
+
+        // Calculate ISO week number
+        const getWeekNumber = (d: Date): { year: number; week: number } => {
+          const tempDate = new Date(d.getTime());
+          tempDate.setHours(0, 0, 0, 0);
+          tempDate.setDate(tempDate.getDate() + 3 - ((tempDate.getDay() + 6) % 7));
+          const week1 = new Date(tempDate.getFullYear(), 0, 4);
+          const weekNum = 1 + Math.round(((tempDate.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7);
+          return { year: tempDate.getFullYear(), week: weekNum };
+        };
+
+        const { year: weekYear, week: weekNum } = getWeekNumber(date);
+        const weekKey = `${weekYear}-W${weekNum.toString().padStart(2, '0')}`;
+
+        if (!weeklyGroups[weekKey]) {
+          const monday = new Date(date);
+          monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+          weeklyGroups[weekKey] = { allSo: 0, allDn: 0, edelSo: 0, edelDn: 0, withoutEdelSo: 0, withoutEdelDn: 0, startDate: monday };
+        }
+
+        weeklyGroups[weekKey].allSo += row.soQty || 0;
+        weeklyGroups[weekKey].allDn += row.dnQty || 0;
+        weeklyGroups[weekKey].edelSo += row.edelSoQty || 0;
+        weeklyGroups[weekKey].edelDn += row.edelDnQty || 0;
+        weeklyGroups[weekKey].withoutEdelSo += (row.soQty || 0) - (row.edelSoQty || 0);
+        weeklyGroups[weekKey].withoutEdelDn += (row.dnQty || 0) - (row.edelDnQty || 0);
+      }
+    });
+
+    const weeklyData = Object.entries(weeklyGroups)
+      .map(([week, data]) => {
+        const endDate = new Date(data.startDate);
+        endDate.setDate(endDate.getDate() + 6);
+        const formatDate = (d: Date) => `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1).toString().padStart(2, '0')}`;
+        
+        return {
+          week,
+          label: `${formatDate(data.startDate)}-${formatDate(endDate)}`,
+          allRate: data.allSo > 0 ? Math.min(100, (data.allDn / data.allSo) * 100) : 0,
+          edelRate: data.edelSo > 0 ? Math.min(100, (data.edelDn / data.edelSo) * 100) : 0,
+          withoutEdelRate: data.withoutEdelSo > 0 ? Math.min(100, (data.withoutEdelDn / data.withoutEdelSo) * 100) : 0,
+        };
+      })
+      .sort((a, b) => a.week.localeCompare(b.week));
+
+    return weeklyData;
+  }, [fullFulfillmentTable, fulfillmentWeeksMonth]);
 
   // Calculate current month fulfillment rate
   const currentMonthFulfillment = useMemo(() => {
@@ -1229,7 +1566,7 @@ export default function SummaryPage() {
               <div className="relative flex-1">
                 <select
                   value={selectedMonth}
-                  onChange={(e) => setMonthWithDates(e.target.value)}
+                  onChange={(e) => setMonthWithDates(e.target.value, availableDates)}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 outline-none appearance-none transition-all cursor-pointer"
                   suppressHydrationWarning={true}
                 >
@@ -1995,11 +2332,56 @@ export default function SummaryPage() {
                 </motion.div>
                 <div>
                   <h3 className="text-lg font-extrabold text-enterprise-text tracking-tight">Fulfillment Rate (All Months)</h3>
-                  <p className="text-xs text-enterprise-textSecondary font-medium">Monthly trend analysis</p>
+                  <p className="text-xs text-enterprise-textSecondary font-medium">
+                    {fulfillmentPeriodView === 'months' ? 'Monthly trend analysis' : `Weekly trend analysis${fulfillmentWeeksMonth !== 'ALL' ? ` - ${formatMonthLabel(fulfillmentWeeksMonth)}` : ''}`}
+                  </p>
                 </div>
               </div>
-              {/* All/EDEL/W/O EDEL Toggle */}
+              {/* Months/Weeks Toggle + Month Selector + All/EDEL/W/O EDEL Toggle */}
               <div className="flex items-center gap-3">
+                {/* Months/Weeks Toggle */}
+                <div className="flex items-center bg-purple-100 rounded-lg p-1">
+                  <button
+                    onClick={() => {
+                      setFulfillmentPeriodView('months');
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${fulfillmentPeriodView === 'months'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-purple-200'
+                      }`}
+                  >
+                    Months
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFulfillmentPeriodView('weeks');
+                      // Set default month if not already set
+                      if (fulfillmentWeeksMonth === 'ALL' && availableMonths.length > 1) {
+                        setFulfillmentWeeksMonth(availableMonths[availableMonths.length - 1]);
+                      }
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${fulfillmentPeriodView === 'weeks'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-purple-200'
+                      }`}
+                  >
+                    Weeks
+                  </button>
+                </div>
+                {/* Month Selector for Weeks View */}
+                {fulfillmentPeriodView === 'weeks' && (
+                  <select
+                    value={fulfillmentWeeksMonth}
+                    onChange={(e) => setFulfillmentWeeksMonth(e.target.value)}
+                    className="px-3 py-2 text-xs font-bold rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+                  >
+                    {availableMonths.filter(m => m !== 'ALL').map((month) => (
+                      <option key={month} value={month}>
+                        {formatMonthLabel(month)}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setFulfillmentValueMode('all')}
@@ -2045,10 +2427,16 @@ export default function SummaryPage() {
             </div>
 
             <div className="h-52 relative pl-2">
-              {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) ? (
+              {(showAllFulfillment 
+                ? (fulfillmentPeriodView === 'weeks' ? allWeeklyFulfillmentData.length > 0 : allFulfillmentData.length > 0)
+                : (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0)
+              ) ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart
-                    data={showAllFulfillment ? allFulfillmentData : monthlyFulfillmentData}
+                    data={showAllFulfillment 
+                      ? (fulfillmentPeriodView === 'weeks' ? allWeeklyFulfillmentData : allFulfillmentData)
+                      : (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData)
+                    }
                     margin={{ top: 20, right: 20, bottom: 20, left: 10 }}
                   >
                     <defs>
@@ -2174,13 +2562,16 @@ export default function SummaryPage() {
                 <div className="h-full flex items-center justify-center text-gray-500 dark:text-slate-400">
                   <div className="text-center">
                     <Calendar className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p className="text-sm">Not enough data for monthly trend</p>
+                    <p className="text-sm">Not enough data for {fulfillmentPeriodView === 'weeks' ? 'weekly' : 'monthly'} trend</p>
                   </div>
                 </div>
               )}
             </div>
 
-            {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) && (
+            {(showAllFulfillment 
+              ? (fulfillmentPeriodView === 'weeks' ? allWeeklyFulfillmentData.length > 0 : allFulfillmentData.length > 0)
+              : (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0)
+            ) && (
               <div className="flex justify-center gap-6 mt-2 pl-2">
                 {showAllFulfillment ? (
                   <>
@@ -2206,15 +2597,18 @@ export default function SummaryPage() {
               </div>
             )}
 
-            {/* Monthly Fulfillment Data Table */}
-            {(showAllFulfillment ? allFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) && (
+            {/* Monthly/Weekly Fulfillment Data Table */}
+            {(showAllFulfillment 
+              ? (fulfillmentPeriodView === 'weeks' ? allWeeklyFulfillmentData.length > 0 : allFulfillmentData.length > 0)
+              : (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0)
+            ) && (
               <div className="mt-6 pl-2">
                 <div className="overflow-x-auto rounded-lg border border-gray-200">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                       <tr>
                         <th className="px-4 py-3 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
-                          Month
+                          {fulfillmentPeriodView === 'weeks' && !showAllFulfillment ? 'Week' : showAllFulfillment && fulfillmentPeriodView === 'weeks' ? 'Week' : 'Month'}
                         </th>
                         {showAllFulfillment ? (
                           <>
@@ -2248,7 +2642,7 @@ export default function SummaryPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {showAllFulfillment ? (
-                        allFulfillmentData.map((row, idx) => (
+                        (fulfillmentPeriodView === 'weeks' ? allWeeklyFulfillmentData : allFulfillmentData).map((row, idx) => (
                           <tr key={idx} className="hover:bg-gray-50 transition-colors">
                             <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
                               {row.label}
@@ -2265,9 +2659,10 @@ export default function SummaryPage() {
                           </tr>
                         ))
                       ) : (
-                        monthlyFulfillmentData.map((row, idx) => {
-                          const prevMonth = idx > 0 ? monthlyFulfillmentData[idx - 1] : null;
-                          const improvement = prevMonth ? row.fulfillmentRate - prevMonth.fulfillmentRate : 0;
+                        (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData).map((row, idx) => {
+                          const dataArray = fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData;
+                          const prevRow = idx > 0 ? dataArray[idx - 1] : null;
+                          const improvement = prevRow ? row.fulfillmentRate - prevRow.fulfillmentRate : 0;
                           const hasImprovement = improvement > 0;
                           const noChange = improvement === 0;
                           
@@ -2299,25 +2694,35 @@ export default function SummaryPage() {
                         })
                       )}
                     </tbody>
-                    {!showAllFulfillment && monthlyFulfillmentData.length > 0 && (
+                    {!showAllFulfillment && (fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData.length > 0 : monthlyFulfillmentData.length > 0) && (
                       <tfoot className="bg-gradient-to-r from-gray-100 to-gray-50">
                         <tr className="border-t-2 border-gray-300">
                           <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
                             Average
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                            {Math.round(monthlyFulfillmentData.reduce((sum, row) => sum + row.soQty, 0) / monthlyFulfillmentData.length).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                            {Math.round(monthlyFulfillmentData.reduce((sum, row) => sum + row.dnQty, 0) / monthlyFulfillmentData.length).toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
-                            {(monthlyFulfillmentData.reduce((sum, row) => sum + row.fulfillmentRate, 0) / monthlyFulfillmentData.length).toFixed(2)}%
+                            {(() => {
+                              const dataArray = fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData;
+                              return Math.round(dataArray.reduce((sum, row) => sum + row.soQty, 0) / dataArray.length).toLocaleString();
+                            })()}
                           </td>
                           <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
                             {(() => {
-                              const improvements = monthlyFulfillmentData.slice(1).map((row, idx) => 
-                                row.fulfillmentRate - monthlyFulfillmentData[idx].fulfillmentRate
+                              const dataArray = fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData;
+                              return Math.round(dataArray.reduce((sum, row) => sum + row.dnQty, 0) / dataArray.length).toLocaleString();
+                            })()}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {(() => {
+                              const dataArray = fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData;
+                              return (dataArray.reduce((sum, row) => sum + row.fulfillmentRate, 0) / dataArray.length).toFixed(2);
+                            })()}%
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                            {(() => {
+                              const dataArray = fulfillmentPeriodView === 'weeks' ? weeklyFulfillmentData : monthlyFulfillmentData;
+                              const improvements = dataArray.slice(1).map((row, idx) => 
+                                row.fulfillmentRate - dataArray[idx].fulfillmentRate
                               );
                               const positiveCount = improvements.filter(i => i > 0).length;
                               const totalComparisons = improvements.length;
@@ -2367,12 +2772,58 @@ export default function SummaryPage() {
                     {trendChartMode === 'qty' ? 'Quantity' : 'CBM'} Trend - Month on Month
                   </h3>
                   <p className="text-xs text-enterprise-textSecondary font-medium">
-                    Received, Inventory & DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} comparison
+                    {qtyTrendPeriodView === 'months' 
+                      ? `Received, Inventory & DN ${trendChartMode === 'qty' ? 'Qty' : 'CBM'} comparison`
+                      : `Weekly ${trendChartMode === 'qty' ? 'Qty' : 'CBM'} comparison${qtyTrendWeeksMonth !== 'ALL' ? ` - ${formatMonthLabel(qtyTrendWeeksMonth)}` : ''}`
+                    }
                   </p>
                 </div>
               </div>
               {/* Toggle Buttons */}
               <div className="flex items-center gap-2">
+                {/* Months/Weeks Toggle */}
+                <div className="flex items-center bg-purple-100 rounded-lg p-1">
+                  <button
+                    onClick={() => {
+                      setQtyTrendPeriodView('months');
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${qtyTrendPeriodView === 'months'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-purple-200'
+                      }`}
+                  >
+                    Months
+                  </button>
+                  <button
+                    onClick={() => {
+                      setQtyTrendPeriodView('weeks');
+                      // Set default month if not already set
+                      if (qtyTrendWeeksMonth === 'ALL' && availableMonths.length > 1) {
+                        setQtyTrendWeeksMonth(availableMonths[availableMonths.length - 1]);
+                      }
+                    }}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${qtyTrendPeriodView === 'weeks'
+                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-purple-200'
+                      }`}
+                  >
+                    Weeks
+                  </button>
+                </div>
+                {/* Month Selector for Weeks View */}
+                {qtyTrendPeriodView === 'weeks' && (
+                  <select
+                    value={qtyTrendWeeksMonth}
+                    onChange={(e) => setQtyTrendWeeksMonth(e.target.value)}
+                    className="px-3 py-2 text-xs font-bold rounded-lg bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+                  >
+                    {availableMonths.filter(m => m !== 'ALL').map((month) => (
+                      <option key={month} value={month}>
+                        {formatMonthLabel(month)}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 {/* QTY/CBM Toggle */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button
@@ -2394,11 +2845,11 @@ export default function SummaryPage() {
                     CBM
                   </button>
                 </div>
-                {/* Total/EDEL Toggle */}
+                {/* Total/EDEL/W/O EDEL Toggle */}
                 <div className="flex items-center bg-gray-100 rounded-lg p-1">
                   <button
                     onClick={() => setTrendValueMode('total')}
-                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'total'
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'total'
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                       }`}
@@ -2407,12 +2858,21 @@ export default function SummaryPage() {
                   </button>
                   <button
                     onClick={() => setTrendValueMode('edel')}
-                    className={`px-4 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'edel'
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'edel'
                       ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
                       }`}
                   >
                     EDEL
+                  </button>
+                  <button
+                    onClick={() => setTrendValueMode('without-edel')}
+                    className={`px-3 py-2 text-xs font-bold rounded-md transition-all duration-200 ${trendValueMode === 'without-edel'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                  >
+                    W/O EDEL
                   </button>
                 </div>
                 {/* Download Button */}
@@ -2443,6 +2903,17 @@ export default function SummaryPage() {
                     } else {
                       return type === 'received' ? latest?.edelReceivedCbm : 
                              type === 'inventory' ? latest?.edelInventoryCbm : latest?.edelDnCbm;
+                    }
+                  } else if (trendValueMode === 'without-edel') {
+                    // Without EDEL = Total - EDEL
+                    if (trendChartMode === 'qty') {
+                      return type === 'received' ? (latest?.receivedQty || 0) - (latest?.edelReceivedQty || 0) : 
+                             type === 'inventory' ? (latest?.inventoryQty || 0) - (latest?.edelInventoryQty || 0) : 
+                             (latest?.dnQty || 0) - (latest?.edelDnQty || 0);
+                    } else {
+                      return type === 'received' ? (latest?.receivedCbm || 0) - (latest?.edelReceivedCbm || 0) : 
+                             type === 'inventory' ? (latest?.inventoryCbm || 0) - (latest?.edelInventoryCbm || 0) : 
+                             (latest?.dnCbm || 0) - (latest?.edelDnCbm || 0);
                     }
                   } else {
                     if (trendChartMode === 'qty') {
@@ -2493,7 +2964,19 @@ export default function SummaryPage() {
 
             <div className="h-80 pl-2">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={monthlyQtyTrendData} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                <LineChart 
+                  data={(qtyTrendPeriodView === 'weeks' ? weeklyQtyTrendData : monthlyQtyTrendData).map(row => ({
+                    ...row,
+                    // Add without-edel calculated fields
+                    withoutEdelReceivedQty: row.receivedQty - row.edelReceivedQty,
+                    withoutEdelInventoryQty: row.inventoryQty - row.edelInventoryQty,
+                    withoutEdelDnQty: row.dnQty - row.edelDnQty,
+                    withoutEdelReceivedCbm: row.receivedCbm - row.edelReceivedCbm,
+                    withoutEdelInventoryCbm: row.inventoryCbm - row.edelInventoryCbm,
+                    withoutEdelDnCbm: row.dnCbm - row.edelDnCbm,
+                  }))} 
+                  margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
+                >
                   <defs>
                     <linearGradient id="receivedQtyGradient" x1="0" y1="0" x2="1" y2="0">
                       <stop offset="0%" stopColor="#22C55E" />
@@ -2548,6 +3031,10 @@ export default function SummaryPage() {
                         labels = trendChartMode === 'qty'
                           ? { edelReceivedQty: 'Received Qty (EDEL)', edelInventoryQty: 'Inventory Qty (EDEL)', edelDnQty: 'DN Qty (EDEL)' }
                           : { edelReceivedCbm: 'Received CBM (EDEL)', edelInventoryCbm: 'Inventory CBM (EDEL)', edelDnCbm: 'DN CBM (EDEL)' };
+                      } else if (trendValueMode === 'without-edel') {
+                        labels = trendChartMode === 'qty'
+                          ? { withoutEdelReceivedQty: 'Received Qty (W/O EDEL)', withoutEdelInventoryQty: 'Inventory Qty (W/O EDEL)', withoutEdelDnQty: 'DN Qty (W/O EDEL)' }
+                          : { withoutEdelReceivedCbm: 'Received CBM (W/O EDEL)', withoutEdelInventoryCbm: 'Inventory CBM (W/O EDEL)', withoutEdelDnCbm: 'DN CBM (W/O EDEL)' };
                       } else {
                         labels = trendChartMode === 'qty' 
                           ? { receivedQty: 'Received Qty', inventoryQty: 'Inventory Qty', dnQty: 'DN Qty' }
@@ -2562,6 +3049,8 @@ export default function SummaryPage() {
                     dataKey={
                       trendValueMode === 'edel' 
                         ? (trendChartMode === 'qty' ? 'edelReceivedQty' : 'edelReceivedCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelReceivedQty' : 'withoutEdelReceivedCbm')
                         : (trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm')
                     }
                     stroke="url(#receivedQtyGradient)"
@@ -2571,6 +3060,8 @@ export default function SummaryPage() {
                     name={
                       trendValueMode === 'edel'
                         ? (trendChartMode === 'qty' ? 'edelReceivedQty' : 'edelReceivedCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelReceivedQty' : 'withoutEdelReceivedCbm')
                         : (trendChartMode === 'qty' ? 'receivedQty' : 'receivedCbm')
                     }
                   />
@@ -2579,6 +3070,8 @@ export default function SummaryPage() {
                     dataKey={
                       trendValueMode === 'edel'
                         ? (trendChartMode === 'qty' ? 'edelInventoryQty' : 'edelInventoryCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelInventoryQty' : 'withoutEdelInventoryCbm')
                         : (trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm')
                     }
                     stroke="url(#inventoryQtyGradient)"
@@ -2588,6 +3081,8 @@ export default function SummaryPage() {
                     name={
                       trendValueMode === 'edel'
                         ? (trendChartMode === 'qty' ? 'edelInventoryQty' : 'edelInventoryCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelInventoryQty' : 'withoutEdelInventoryCbm')
                         : (trendChartMode === 'qty' ? 'inventoryQty' : 'inventoryCbm')
                     }
                   />
@@ -2596,6 +3091,8 @@ export default function SummaryPage() {
                     dataKey={
                       trendValueMode === 'edel'
                         ? (trendChartMode === 'qty' ? 'edelDnQty' : 'edelDnCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelDnQty' : 'withoutEdelDnCbm')
                         : (trendChartMode === 'qty' ? 'dnQty' : 'dnCbm')
                     }
                     stroke="url(#dnQtyGradient)"
@@ -2605,6 +3102,8 @@ export default function SummaryPage() {
                     name={
                       trendValueMode === 'edel'
                         ? (trendChartMode === 'qty' ? 'edelDnQty' : 'edelDnCbm')
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? 'withoutEdelDnQty' : 'withoutEdelDnCbm')
                         : (trendChartMode === 'qty' ? 'dnQty' : 'dnCbm')
                     }
                   />
@@ -2617,19 +3116,19 @@ export default function SummaryPage() {
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-200">
                 <div className="w-3 h-3 rounded bg-green-500 shadow-sm" />
                 <span className="text-xs font-semibold text-gray-700">
-                  Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                  Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-yellowTint rounded-lg border border-enterprise-border">
                 <div className="w-3 h-3 rounded bg-brandYellow shadow-sm" />
                 <span className="text-xs font-semibold text-gray-700">
-                  Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                  Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                 </span>
               </div>
               <div className="flex items-center gap-2 px-3 py-1.5 bg-enterprise-redTint rounded-lg border border-enterprise-border">
                 <div className="w-3 h-3 rounded bg-brandRed shadow-sm" />
                 <span className="text-xs font-semibold text-gray-700">
-                  DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                  DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                 </span>
               </div>
             </div>
@@ -2639,15 +3138,17 @@ export default function SummaryPage() {
               <table className="min-w-full text-sm text-left border border-enterprise-border rounded-xl overflow-hidden shadow-sm">
                 <thead className="bg-enterprise-yellowTint/40 text-enterprise-textSecondary uppercase text-[11px] font-bold tracking-wide">
                   <tr>
-                    <th className="px-4 py-3 border-b border-enterprise-border">Month</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">
-                      Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                      {qtyTrendPeriodView === 'weeks' ? 'Week' : 'Month'}
                     </th>
                     <th className="px-4 py-3 border-b border-enterprise-border">
-                      Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                      Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                     </th>
                     <th className="px-4 py-3 border-b border-enterprise-border">
-                      DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : ''}
+                      Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
+                    </th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">
+                      DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                     </th>
                     <th className="px-4 py-3 border-b border-enterprise-border">Received Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">Inventory Δ</th>
@@ -2655,51 +3156,83 @@ export default function SummaryPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-enterprise-border bg-white">
-                  {monthlyTrendWithChange.map((row) => {
-                    // Get values based on value mode (Total/EDEL)
-                    const receivedVal = trendValueMode === 'edel'
-                      ? (trendChartMode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
-                      : (trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm);
-                    const inventoryVal = trendValueMode === 'edel'
-                      ? (trendChartMode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
-                      : (trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm);
-                    const dnVal = trendValueMode === 'edel'
-                      ? (trendChartMode === 'qty' ? row.edelDnQty : row.edelDnCbm)
-                      : (trendChartMode === 'qty' ? row.dnQty : row.dnCbm);
+                  {(() => {
+                    // Use weekly data if weeks view is selected, otherwise use monthly
+                    const dataArray = qtyTrendPeriodView === 'weeks' ? weeklyQtyTrendData : monthlyQtyTrendData;
+                    
+                    // Calculate changes for the selected data
+                    const dataWithChanges = dataArray.map((row, idx) => {
+                      const keyMap = trendChartMode === 'qty'
+                        ? { received: 'receivedQty' as const, inventory: 'inventoryQty' as const, dn: 'dnQty' as const }
+                        : { received: 'receivedCbm' as const, inventory: 'inventoryCbm' as const, dn: 'dnCbm' as const };
 
-                    const formatTrendValue = (val: number) => {
-                      if (trendChartMode === 'cbm') {
-                        // CBM in thousands with K suffix
-                        return `${(val / 1000).toFixed(2)}K`;
-                      }
-                      // QTY in lakhs with L suffix
-                      return `${(val / 100000).toFixed(2)}L`;
-                    };
+                      const getChangePct = (current: number, prev: number | undefined): number | null => {
+                        if (prev === undefined || prev === null) return null;
+                        if (prev === 0) return null;
+                        const delta = current - prev;
+                        return (delta / Math.abs(prev)) * 100;
+                      };
 
-                    const renderChange = (change: number | null) => {
-                      if (change === null) return <span className="text-gray-400">-</span>;
-                      const isUp = change >= 0;
-                      const color = isUp ? 'text-green-600' : 'text-red-600';
-                      const arrow = isUp ? '▲' : '▼';
+                      const prev = idx > 0 ? dataArray[idx - 1] : undefined;
+                      const receivedChange = prev ? getChangePct(row[keyMap.received], prev[keyMap.received]) : null;
+                      const inventoryChange = prev ? getChangePct(row[keyMap.inventory], prev[keyMap.inventory]) : null;
+                      const dnChange = prev ? getChangePct(row[keyMap.dn], prev[keyMap.dn]) : null;
+
+                      return { ...row, receivedChange, inventoryChange, dnChange };
+                    });
+
+                    return dataWithChanges.map((row) => {
+                      // Get values based on value mode (Total/EDEL/W/O EDEL)
+                      const receivedVal = trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? row.edelReceivedQty : row.edelReceivedCbm)
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? (row.receivedQty - row.edelReceivedQty) : (row.receivedCbm - row.edelReceivedCbm))
+                        : (trendChartMode === 'qty' ? row.receivedQty : row.receivedCbm);
+                      const inventoryVal = trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? row.edelInventoryQty : row.edelInventoryCbm)
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? (row.inventoryQty - row.edelInventoryQty) : (row.inventoryCbm - row.edelInventoryCbm))
+                        : (trendChartMode === 'qty' ? row.inventoryQty : row.inventoryCbm);
+                      const dnVal = trendValueMode === 'edel'
+                        ? (trendChartMode === 'qty' ? row.edelDnQty : row.edelDnCbm)
+                        : trendValueMode === 'without-edel'
+                        ? (trendChartMode === 'qty' ? (row.dnQty - row.edelDnQty) : (row.dnCbm - row.edelDnCbm))
+                        : (trendChartMode === 'qty' ? row.dnQty : row.dnCbm);
+
+                      const formatTrendValue = (val: number) => {
+                        if (trendChartMode === 'cbm') {
+                          // CBM in thousands with K suffix
+                          return `${(val / 1000).toFixed(2)}K`;
+                        }
+                        // QTY in lakhs with L suffix
+                        return `${(val / 100000).toFixed(2)}L`;
+                      };
+
+                      const renderChange = (change: number | null) => {
+                        if (change === null) return <span className="text-gray-400">-</span>;
+                        const isUp = change >= 0;
+                        const color = isUp ? 'text-green-600' : 'text-red-600';
+                        const arrow = isUp ? '▲' : '▼';
+                        return (
+                          <span className={`font-semibold ${color}`}>
+                            {arrow} {Math.abs(change).toFixed(1)}%
+                          </span>
+                        );
+                      };
+
                       return (
-                        <span className={`font-semibold ${color}`}>
-                          {arrow} {Math.abs(change).toFixed(1)}%
-                        </span>
+                        <tr key={row.month} className="hover:bg-enterprise-yellowTint/20 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-enterprise-text">{row.label}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(receivedVal)}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(inventoryVal)}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(dnVal)}</td>
+                          <td className="px-4 py-3">{renderChange(row.receivedChange)}</td>
+                          <td className="px-4 py-3">{renderChange(row.inventoryChange)}</td>
+                          <td className="px-4 py-3">{renderChange(row.dnChange)}</td>
+                        </tr>
                       );
-                    };
-
-                    return (
-                      <tr key={row.month} className="hover:bg-enterprise-yellowTint/20 transition-colors">
-                        <td className="px-4 py-3 font-semibold text-enterprise-text">{row.label}</td>
-                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(receivedVal)}</td>
-                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(inventoryVal)}</td>
-                        <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(dnVal)}</td>
-                        <td className="px-4 py-3">{renderChange(row.receivedChange)}</td>
-                        <td className="px-4 py-3">{renderChange(row.inventoryChange)}</td>
-                        <td className="px-4 py-3">{renderChange(row.dnChange)}</td>
-                      </tr>
-                    );
-                  })}
+                    });
+                  })()}
                 </tbody>
               </table>
             </div>

@@ -634,7 +634,7 @@ export default function InboundPage() {
                   value={selectedMonth}
                   onChange={(e) => {
                     const newMonth = e.target.value;
-                    setMonthWithDates(newMonth);
+                    setMonthWithDates(newMonth, summaryData?.availableDates);
 
                     // If in week or day mode, refresh chart data immediately
                     if (timeGranularity !== 'month') {
