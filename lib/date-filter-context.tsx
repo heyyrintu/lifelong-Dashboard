@@ -23,7 +23,7 @@ interface DateFilterContextValue {
   setSelectedWarehouse: (warehouse: string) => void;
   
   // Helper to set date range with month selection
-  setMonthWithDates: (month: string, availableDates?: { minDate: string; maxDate: string } | null) => void;
+  setMonthWithDates: (month: string, availableDates?: { minDate: string | null; maxDate: string | null } | null) => void;
   
   // Reset filters
   resetFilters: () => void;
