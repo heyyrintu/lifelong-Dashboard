@@ -66,7 +66,7 @@ export function DateFilterProvider({ children }: { children: React.ReactNode }) 
   const [selectedWarehouse, setSelectedWarehouse] = useState<string>('ALL');
 
   // Helper function to set month and automatically update date range
-  const setMonthWithDates = useCallback((month: string, availableDates?: { minDate: string; maxDate: string } | null) => {
+  const setMonthWithDates = useCallback((month: string, availableDates?: { minDate: string | null; maxDate: string | null } | null) => {
     setSelectedMonth(month);
     if (month === 'ALL') {
       // When "ALL" is selected, set the date range to cover all available data

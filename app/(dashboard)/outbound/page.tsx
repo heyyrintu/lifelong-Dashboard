@@ -903,7 +903,7 @@ export default function OutboundPage() {
                 <select
                   value={selectedMonth}
                   onChange={(e) => {
-                    setMonthWithDates(e.target.value, summaryData?.availableDateRange);
+                    setMonthWithDates(e.target.value, availableDateRange);
                     setFiltersDirty(true);
                   }}
                   className="w-full pl-3 pr-8 py-1.5 bg-transparent text-xs font-semibold text-gray-900 dark:text-white outline-none appearance-none transition-all cursor-pointer"

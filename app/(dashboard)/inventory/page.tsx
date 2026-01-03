@@ -13,6 +13,8 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  LineChart,
+  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -1631,6 +1633,278 @@ function InventoryPageContent() {
                 </ResponsiveContainer>
               </div>
             </motion.div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Daily Inventory Data Table */}
+      {chartData && chartData.points && chartData.points.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.25 }}
+          className="mt-8"
+        >
+          {/* Section Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <motion.div
+              whileHover={{ rotate: 5, scale: 1.1 }}
+              transition={{ type: "spring", stiffness: 400 }}
+              className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center shadow-sm"
+            >
+              <Calendar className="w-5 h-5 text-blue-600" />
+            </motion.div>
+            <div>
+              <h2 className="text-xl font-extrabold text-enterprise-text tracking-tight">Daily Inventory Data</h2>
+              <p className="text-xs text-enterprise-textSecondary font-medium">Daily breakdown of inventory quantity, CBM, and SKU count</p>
+            </div>
+          </div>
+
+          {/* Line Chart */}
+          <div className="relative bg-gradient-to-br from-white via-white to-indigo-50/30 rounded-2xl p-6 shadow-lg hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border mb-6">
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-indigo-500 via-indigo-500 to-indigo-500/70 rounded-l-2xl" />
+            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 ml-2">Inventory Trends Over Time</h3>
+            <div className="h-[400px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={chartData.points}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                >
+                  <defs>
+                    <linearGradient id="qtyGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.2} />
+                    </linearGradient>
+                    <linearGradient id="cbmGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.2} />
+                    </linearGradient>
+                    <linearGradient id="edelQtyGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0.2} />
+                    </linearGradient>
+                    <linearGradient id="edelCbmGradientLine" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
+                      <stop offset="95%" stopColor="#f97316" stopOpacity={0.2} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" opacity={0.5} />
+                  <XAxis
+                    dataKey="label"
+                    angle={-45}
+                    textAnchor="end"
+                    height={80}
+                    tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 500 }}
+                    stroke="#9ca3af"
+                  />
+                  <YAxis
+                    yAxisId="left"
+                    tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 600 }}
+                    stroke="#9ca3af"
+                    label={{ value: 'Quantity', angle: -90, position: 'insideLeft', style: { fill: '#6b7280', fontWeight: 600 } }}
+                  />
+                  <YAxis
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fill: '#6b7280', fontSize: 12, fontWeight: 600 }}
+                    stroke="#9ca3af"
+                    label={{ value: 'CBM', angle: 90, position: 'insideRight', style: { fill: '#6b7280', fontWeight: 600 } }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '12px',
+                      padding: '12px',
+                      boxShadow: '0 10px 40px rgba(0, 0, 0, 0.1)',
+                    }}
+                    labelStyle={{ color: '#1f2937', fontSize: '13px', fontWeight: '700', marginBottom: '8px' }}
+                    itemStyle={{ color: '#1f2937', fontSize: '12px', fontWeight: '500' }}
+                    formatter={(value: number, name: string) => [
+                      formatNumber(value, name.includes('CBM') ? 2 : 0),
+                      name === 'inventoryQty' ? 'Inventory Qty' :
+                      name === 'totalCbm' ? 'Inventory CBM' :
+                      name === 'edelInventoryQty' ? 'EDEL Qty' :
+                      name === 'edelTotalCbm' ? 'EDEL CBM' : name
+                    ]}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    height={36}
+                    iconType="line"
+                    formatter={(value) => {
+                      if (value === 'inventoryQty') return 'Inventory Qty';
+                      if (value === 'totalCbm') return 'Inventory CBM';
+                      if (value === 'edelInventoryQty') return 'EDEL Qty';
+                      if (value === 'edelTotalCbm') return 'EDEL CBM';
+                      return value;
+                    }}
+                    wrapperStyle={{ paddingBottom: '10px' }}
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="inventoryQty"
+                    stroke="#3b82f6"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#3b82f6', r: 4 }}
+                    activeDot={{ r: 6, fill: '#3b82f6' }}
+                    name="inventoryQty"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="totalCbm"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    dot={{ fill: '#10b981', r: 4 }}
+                    activeDot={{ r: 6, fill: '#10b981' }}
+                    name="totalCbm"
+                  />
+                  <Line
+                    yAxisId="left"
+                    type="monotone"
+                    dataKey="edelInventoryQty"
+                    stroke="#a855f7"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#a855f7', r: 3 }}
+                    activeDot={{ r: 5, fill: '#a855f7' }}
+                    name="edelInventoryQty"
+                  />
+                  <Line
+                    yAxisId="right"
+                    type="monotone"
+                    dataKey="edelTotalCbm"
+                    stroke="#f97316"
+                    strokeWidth={2}
+                    strokeDasharray="5 5"
+                    dot={{ fill: '#f97316', r: 3 }}
+                    activeDot={{ r: 5, fill: '#f97316' }}
+                    name="edelTotalCbm"
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Table Container */}
+          <div className="relative bg-gradient-to-br from-white via-white to-blue-50/30 rounded-2xl p-4 shadow-lg hover:shadow-xl hover:shadow-blue-500/10 transition-all duration-300 overflow-hidden border border-enterprise-border">
+            {/* Left accent bar */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-blue-500 via-blue-500 to-blue-500/70 rounded-l-2xl" />
+            
+            {/* Table Header with Download Button */}
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white ml-2">Daily Data Table</h3>
+              <button
+                onClick={() => {
+                  // Prepare data for Excel
+                  const excelData = chartData.points.map(point => ({
+                    'Date': point.label,
+                    'ISO Date': point.date,
+                    'Inventory Qty': point.inventoryQty,
+                    'Inventory CBM': Number(point.totalCbm.toFixed(2)),
+                    'EDEL Qty': point.edelInventoryQty,
+                    'EDEL CBM': Number(point.edelTotalCbm.toFixed(2)),
+                  }));
+
+                  // Create worksheet
+                  const ws = XLSX.utils.json_to_sheet(excelData);
+                  
+                  // Set column widths
+                  ws['!cols'] = [
+                    { wch: 12 }, // Date
+                    { wch: 12 }, // ISO Date
+                    { wch: 15 }, // Inventory Qty
+                    { wch: 15 }, // Inventory CBM
+                    { wch: 12 }, // EDEL Qty
+                    { wch: 12 }, // EDEL CBM
+                  ];
+
+                  // Create workbook
+                  const wb = XLSX.utils.book_new();
+                  XLSX.utils.book_append_sheet(wb, ws, 'Daily Inventory Data');
+                  
+                  // Generate filename with current date
+                  const today = new Date().toISOString().split('T')[0];
+                  const filename = `Daily_Inventory_Data_${today}.xlsx`;
+                  
+                  // Download
+                  XLSX.writeFile(wb, filename);
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white text-sm font-semibold rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              >
+                <Download className="w-4 h-4" />
+                Download Excel
+              </button>
+            </div>
+
+            {/* Scrollable Table */}
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-slate-600 scrollbar-track-transparent">
+              <table className="w-full text-sm">
+                <thead className="bg-white/70 dark:bg-slate-900/60 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 border border-gray-200/50 dark:border-slate-700/50 rounded-t-lg sticky top-0 z-10">
+                  <tr>
+                    <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Date</th>
+                    <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Inventory Qty</th>
+                    <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">Inventory CBM</th>
+                    <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">EDEL Qty</th>
+                    <th className="px-4 py-3 text-center text-base font-semibold text-gray-700 dark:text-white uppercase tracking-wider">EDEL CBM</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700/50">
+                  {chartData.points.map((point, idx) => (
+                    <tr key={`${point.date}-${idx}`} className="hover:bg-gray-50/50 dark:hover:bg-slate-700/30 transition-colors">
+                      <td className="px-4 py-3 text-center">
+                        <div className="font-medium text-gray-900 dark:text-white">
+                          {point.label}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">{point.date}</div>
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-blue-600 dark:text-blue-400">
+                        {formatNumber(point.inventoryQty)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-green-600 dark:text-green-400">
+                        {formatNumber(point.totalCbm, 2)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-purple-600 dark:text-purple-400">
+                        {formatNumber(point.edelInventoryQty)}
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-orange-600 dark:text-orange-400">
+                        {formatNumber(point.edelTotalCbm, 2)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Summary Footer */}
+            <div className="mt-4 px-4 py-3 bg-gradient-to-r from-blue-50/50 to-blue-100/30 dark:from-slate-800/50 dark:to-slate-700/30 rounded-lg border border-blue-200/50 dark:border-slate-600/50">
+              <div className="grid grid-cols-4 gap-4 text-center">
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">Total Days</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-white">{chartData.points.length}</div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">Avg Qty/Day</div>
+                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                    {formatNumber(chartData.points.reduce((sum, p) => sum + p.inventoryQty, 0) / chartData.points.length)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">Avg CBM/Day</div>
+                  <div className="text-lg font-bold text-green-600 dark:text-green-400">
+                    {formatNumber(chartData.points.reduce((sum, p) => sum + p.totalCbm, 0) / chartData.points.length, 2)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase mb-1">Date Range</div>
+                  <div className="text-sm font-bold text-gray-900 dark:text-white">
+                    {chartData.points.length > 0 ? `${chartData.points[0].label} - ${chartData.points[chartData.points.length - 1].label}` : 'N/A'}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </motion.div>
       )}
