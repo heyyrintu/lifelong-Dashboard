@@ -46,28 +46,10 @@ export class InboundController {
   @Delete('item-master')
   async deleteAllItemMaster() {
     try {
-      const result = await this.inboundService.deleteAllItemMaster();
-      return result;
+      const count = await this.inboundService.deleteAllItemMaster();
+      return { message: `Deleted ${count} Item Master records successfully` };
     } catch (error) {
       const message = this.getErrorMessage(error, 'Failed to delete Item Master data');
-      throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
-  /**
-   * DELETE /inbound/item-master/uploads/:uploadId
-   * Delete a specific item master upload record
-   */
-  @Delete('item-master/uploads/:uploadId')
-  async deleteItemMasterUpload(@Param('uploadId') uploadId: string) {
-    try {
-      await this.inboundService.deleteItemMasterUpload(uploadId);
-      return { message: 'Item Master upload record deleted successfully' };
-    } catch (error) {
-      if (error instanceof HttpException && error.getStatus() === HttpStatus.NOT_FOUND) {
-        throw error;
-      }
-      const message = this.getErrorMessage(error, 'Failed to delete Item Master upload');
       throw new HttpException(message, HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }

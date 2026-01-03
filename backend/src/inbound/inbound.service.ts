@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CategoryNormalizerService } from '../outbound/category-normalizer.service';
 import { ProductCategory } from '@prisma/client';
@@ -136,9 +136,8 @@ export class InboundService implements OnModuleInit {
    * Internal method to load Item Master (shared by auto-load and upload)
    * @param filePath - Path to the Excel file
    * @param deleteFile - Whether to delete the file after processing
-   * @param fileName - Original file name (for tracking)
    */
-  private async loadItemMasterInternal(filePath: string, deleteFile: boolean, fileName?: string): Promise<ItemMasterUploadResult> {
+  private async loadItemMasterInternal(filePath: string, deleteFile: boolean): Promise<ItemMasterUploadResult> {
     const startTime = Date.now();
 
     // Read Excel file
@@ -206,19 +205,6 @@ export class InboundService implements OnModuleInit {
 
     if (deleteFile) fs.unlinkSync(filePath);
 
-    // Create upload record if fileName provided
-    let uploadId = 'item-master-' + Date.now();
-    if (fileName) {
-      const uploadRecord = await this.prisma.itemMasterUpload.create({
-        data: {
-          fileName,
-          status: 'processed',
-          rowsProcessed: uniqueRecords.length,
-        },
-      });
-      uploadId = uploadRecord.id;
-    }
-
     // Clear cache
     this.cache.clear();
 
@@ -228,7 +214,7 @@ export class InboundService implements OnModuleInit {
     }
 
     return {
-      uploadId,
+      uploadId: 'item-master-' + Date.now(),
       rowsProcessed: uniqueRecords.length,
       message: 'Item Master processed successfully',
     };
@@ -238,17 +224,12 @@ export class InboundService implements OnModuleInit {
    * Get all uploads (both item-master and inbound)
    */
   async getUploads(): Promise<UploadInfo[]> {
-    const [inboundUploads, itemMasterUploads] = await Promise.all([
-      this.prisma.inboundUpload.findMany({
-        orderBy: { uploadedAt: 'desc' },
-        include: { _count: { select: { rows: true } } },
-      }),
-      this.prisma.itemMasterUpload.findMany({
-        orderBy: { uploadedAt: 'desc' },
-      }),
-    ]);
+    const inboundUploads = await this.prisma.inboundUpload.findMany({
+      orderBy: { uploadedAt: 'desc' },
+      include: { _count: { select: { rows: true } } },
+    });
 
-    const inbound = inboundUploads.map(upload => ({
+    return inboundUploads.map(upload => ({
       uploadId: upload.id,
       fileName: upload.fileName,
       uploadedAt: upload.uploadedAt,
@@ -256,19 +237,6 @@ export class InboundService implements OnModuleInit {
       status: upload.status,
       type: 'inbound' as const,
     }));
-
-    const itemMaster = itemMasterUploads.map(upload => ({
-      uploadId: upload.id,
-      fileName: upload.fileName,
-      uploadedAt: upload.uploadedAt,
-      rowsInserted: upload.rowsProcessed,
-      status: upload.status,
-      type: 'item-master' as const,
-    }));
-
-    return [...itemMaster, ...inbound].sort((a, b) => 
-      b.uploadedAt.getTime() - a.uploadedAt.getTime()
-    );
   }
 
   /**
@@ -294,73 +262,32 @@ export class InboundService implements OnModuleInit {
   }
 
   /**
+   * Delete all Item Master records
+   */
+  async deleteAllItemMaster(): Promise<number> {
+    const result = await this.prisma.itemMaster.deleteMany({});
+    
+    // Clear cache
+    this.cache.clear();
+    
+    return result.count;
+  }
+
+  /**
+    this.cache.clear();
+  }
+
+  /**
    * Parse and store Item Master Excel file (manual upload)
    * Delegates to internal method with deleteFile=true
    */
   async uploadItemMaster(filePath: string, fileName?: string): Promise<ItemMasterUploadResult> {
     try {
-      return await this.loadItemMasterInternal(filePath, true, fileName);
+      return await this.loadItemMasterInternal(filePath, true);
     } catch (error) {
       console.error('Error processing Item Master Excel file:', error);
       const message = this.getErrorMessage(error);
       throw new Error(`Failed to process Item Master Excel file: ${message}`);
-    }
-  }
-
-  /**
-   * Delete all item master records
-   */
-  async deleteAllItemMaster(): Promise<{ message: string; deletedCount: number }> {
-    try {
-      const result = await this.prisma.itemMaster.deleteMany({});
-      
-      // Clear cache
-      this.cache.clear();
-      
-      return {
-        message: 'All Item Master records deleted successfully',
-        deletedCount: result.count,
-      };
-    } catch (error) {
-      console.error('Error deleting Item Master records:', error);
-      const message = this.getErrorMessage(error);
-      throw new Error(`Failed to delete Item Master records: ${message}`);
-    }
-  }
-
-  /**
-   * Delete a specific item master upload record
-   * Note: This only deletes the upload tracking record, not the actual item_master data
-   * To delete item master data, use deleteAllItemMaster()
-   */
-  async deleteItemMasterUpload(uploadId: string): Promise<void> {
-    try {
-      // Check if the upload exists
-      const upload = await this.prisma.itemMasterUpload.findUnique({
-        where: { id: uploadId },
-      });
-
-      if (!upload) {
-        throw new HttpException(
-          `Item Master upload with ID ${uploadId} not found`,
-          HttpStatus.NOT_FOUND,
-        );
-      }
-
-      // Delete the upload record
-      await this.prisma.itemMasterUpload.delete({
-        where: { id: uploadId },
-      });
-
-      // Clear cache
-      this.cache.clear();
-    } catch (error) {
-      if (error instanceof HttpException) {
-        throw error;
-      }
-      console.error('Error deleting Item Master upload:', error);
-      const message = this.getErrorMessage(error);
-      throw new Error(`Failed to delete Item Master upload: ${message}`);
     }
   }
 
@@ -426,28 +353,31 @@ export class InboundService implements OnModuleInit {
         if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed):
-        // Sr No.=column A (0), Date of Unload=column B (1), Total CBM=column H (7), Invoice SKU=column I (8), Received SKU=column J (9)
+        // Sr No.=column A (0), Date of Unload=column B (1), Invoice SKU=column I (8), Received SKU=column J (9)
         // Invoice Qty=column K (10), Received Qty=column L (11), Good=column N (13)
         const srNo = this.getCellValue(row[0]); // A
         const dateOfUnload = this.parseExcelDate(row[1]); // B
-        const totalCbm = this.parseNumber(row[7]); // H - Total CBM directly from file
         const invoiceSku = this.getCellValue(row[8]); // I
         const receivedSku = this.getCellValue(row[9]); // J
         const invoiceQty = this.parseNumber(row[10]); // K
         const receivedQty = this.parseNumber(row[11]); // L
         const goodQty = this.parseNumber(row[13]); // N
 
-        // Get Item Group from Item Master by matching receivedSku
+        // CBM and Item Group join logic
         let itemGroup = 'Others';
-        let cbmPerUnit = totalCbm > 0 && receivedQty > 0 ? totalCbm / receivedQty : 0;
+        let cbmPerUnit = 0;
+        let totalCbm = 0;
 
         const receivedSkuTrimmed = receivedSku?.trim();
         if (receivedSkuTrimmed && itemMasterMap.has(receivedSkuTrimmed)) {
           const master = itemMasterMap.get(receivedSkuTrimmed);
           if (master) {
+            cbmPerUnit = master.cbmPerUnit || 0;
             itemGroup = master.itemGroup || 'Others';
           }
         }
+
+        totalCbm = receivedQty * cbmPerUnit;
 
         const productCategory = this.categoryNormalizer.normalizeProductCategory(itemGroup);
 
