@@ -3144,14 +3144,14 @@ export default function SummaryPage() {
                     <th className="px-4 py-3 border-b border-enterprise-border">
                       Received {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                     </th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Received Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">
                       Inventory {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                     </th>
+                    <th className="px-4 py-3 border-b border-enterprise-border">Inventory Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">
                       DN {trendChartMode === 'qty' ? 'Qty' : 'CBM'} {trendValueMode === 'edel' ? '(EDEL)' : trendValueMode === 'without-edel' ? '(W/O EDEL)' : ''}
                     </th>
-                    <th className="px-4 py-3 border-b border-enterprise-border">Received Δ</th>
-                    <th className="px-4 py-3 border-b border-enterprise-border">Inventory Δ</th>
                     <th className="px-4 py-3 border-b border-enterprise-border">DN Δ</th>
                   </tr>
                 </thead>
@@ -3223,12 +3223,12 @@ export default function SummaryPage() {
                       return (
                         <tr key={row.month} className="hover:bg-enterprise-yellowTint/20 transition-colors">
                           <td className="px-4 py-3 font-semibold text-enterprise-text">{row.label}</td>
-                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(receivedVal)}</td>
-                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(inventoryVal)}</td>
-                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono">{formatTrendValue(dnVal)}</td>
-                          <td className="px-4 py-3">{renderChange(row.receivedChange)}</td>
-                          <td className="px-4 py-3">{renderChange(row.inventoryChange)}</td>
-                          <td className="px-4 py-3">{renderChange(row.dnChange)}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono text-base">{formatTrendValue(receivedVal)}</td>
+                          <td className="px-4 py-3 text-base">{renderChange(row.receivedChange)}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono text-base">{formatTrendValue(inventoryVal)}</td>
+                          <td className="px-4 py-3 text-base">{renderChange(row.inventoryChange)}</td>
+                          <td className="px-4 py-3 text-enterprise-textSecondary font-mono text-base">{formatTrendValue(dnVal)}</td>
+                          <td className="px-4 py-3 text-base">{renderChange(row.dnChange)}</td>
                         </tr>
                       );
                     });
