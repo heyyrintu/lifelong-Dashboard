@@ -69,7 +69,7 @@ Generate Prisma Client and create database tables:
 
 ```bash
 npm run prisma:generate
-npm run prisma:migrate
+
 ```
 
 ### 5. Start the Backend Server
@@ -97,7 +97,7 @@ The backend will run on `http://localhost:3001`.
 
 Upload an Excel file with outbound data.
 
-**Request:**
+**npm run prisma:migrateRequest:**
 - Content-Type: `multipart/form-data`
 - Field name: `file`
 - File format: `.xlsx` or `.xls`
