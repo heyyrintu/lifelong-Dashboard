@@ -128,6 +128,11 @@ export class InboundService implements OnModuleInit {
       await this.loadItemMasterInternal(ITEM_MASTER_PATH, false);
     } catch (error) {
       const message = this.getErrorMessage(error);
+      // If table doesn't exist (P2021), log warning and continue
+      if (error?.code === 'P2021') {
+        console.warn('⚠️ item_master table does not exist. Please run migrations or contact database admin.');
+        return;
+      }
       console.error('Failed to auto-load Item Master:', error, message);
     }
   }
@@ -137,7 +142,7 @@ export class InboundService implements OnModuleInit {
    * @param filePath - Path to the Excel file
    * @param deleteFile - Whether to delete the file after processing
    */
-  private async loadItemMasterInternal(filePath: string, deleteFile: boolean): Promise<ItemMasterUploadResult> {
+  private async loadItemMasterInternal(filePath: string, deleteFile: boolean, fileName?: string): Promise<ItemMasterUploadResult> {
     const startTime = Date.now();
 
     // Read Excel file
@@ -203,6 +208,15 @@ export class InboundService implements OnModuleInit {
       `, ...params);
     }
 
+    // Create upload record in item_master_uploads table
+    const uploadRecord = await this.prisma.itemMasterUpload.create({
+      data: {
+        fileName: fileName || 'Item Master',
+        status: 'processed',
+        rowsProcessed: uniqueRecords.length,
+      },
+    });
+
     if (deleteFile) fs.unlinkSync(filePath);
 
     // Clear cache
@@ -214,7 +228,7 @@ export class InboundService implements OnModuleInit {
     }
 
     return {
-      uploadId: 'item-master-' + Date.now(),
+      uploadId: uploadRecord.id,
       rowsProcessed: uniqueRecords.length,
       message: 'Item Master processed successfully',
     };
@@ -224,12 +238,17 @@ export class InboundService implements OnModuleInit {
    * Get all uploads (both item-master and inbound)
    */
   async getUploads(): Promise<UploadInfo[]> {
-    const inboundUploads = await this.prisma.inboundUpload.findMany({
-      orderBy: { uploadedAt: 'desc' },
-      include: { _count: { select: { rows: true } } },
-    });
+    const [inboundUploads, itemMasterUploads] = await Promise.all([
+      this.prisma.inboundUpload.findMany({
+        orderBy: { uploadedAt: 'desc' },
+        include: { _count: { select: { rows: true } } },
+      }),
+      this.prisma.itemMasterUpload.findMany({
+        orderBy: { uploadedAt: 'desc' },
+      }),
+    ]);
 
-    return inboundUploads.map(upload => ({
+    const inboundResults: UploadInfo[] = inboundUploads.map(upload => ({
       uploadId: upload.id,
       fileName: upload.fileName,
       uploadedAt: upload.uploadedAt,
@@ -237,6 +256,20 @@ export class InboundService implements OnModuleInit {
       status: upload.status,
       type: 'inbound' as const,
     }));
+
+    const itemMasterResults: UploadInfo[] = itemMasterUploads.map(upload => ({
+      uploadId: upload.id,
+      fileName: upload.fileName,
+      uploadedAt: upload.uploadedAt,
+      rowsInserted: upload.rowsProcessed,
+      status: upload.status,
+      type: 'item-master' as const,
+    }));
+
+    // Combine and sort by uploadedAt descending
+    return [...inboundResults, ...itemMasterResults].sort(
+      (a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime()
+    );
   }
 
   /**
@@ -283,7 +316,7 @@ export class InboundService implements OnModuleInit {
    */
   async uploadItemMaster(filePath: string, fileName?: string): Promise<ItemMasterUploadResult> {
     try {
-      return await this.loadItemMasterInternal(filePath, true);
+      return await this.loadItemMasterInternal(filePath, true, fileName);
     } catch (error) {
       console.error('Error processing Item Master Excel file:', error);
       const message = this.getErrorMessage(error);
@@ -322,16 +355,26 @@ export class InboundService implements OnModuleInit {
 
       // Build item master map for CBM lookup (before transaction)
       const itemMasterMap = new Map<string, { itemGroup: string; cbmPerUnit: number }>();
-      const itemMasters = await this.prisma.itemMaster.findMany({
-        select: { id: true, itemGroup: true, cbmPerUnit: true },
-      });
-
-      itemMasters.forEach((master) => {
-        itemMasterMap.set(master.id, {
-          itemGroup: master.itemGroup || 'Others',
-          cbmPerUnit: master.cbmPerUnit || 0,
+      
+      try {
+        const itemMasters = await this.prisma.itemMaster.findMany({
+          select: { id: true, itemGroup: true, cbmPerUnit: true },
         });
-      });
+
+        itemMasters.forEach((master) => {
+          itemMasterMap.set(master.id, {
+            itemGroup: master.itemGroup || 'Others',
+            cbmPerUnit: master.cbmPerUnit || 0,
+          });
+        });
+      } catch (error) {
+        // If item_master table doesn't exist, continue with empty map
+        if (error?.code === 'P2021') {
+          console.warn('⚠️ item_master table not found, continuing without CBM data');
+        } else {
+          throw error;
+        }
+      }
 
       // Parse all rows first (before transaction) to catch validation errors early
       const parsedRows: Array<{

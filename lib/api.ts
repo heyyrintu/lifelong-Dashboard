@@ -1,6 +1,9 @@
 import { account } from './appwrite';
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3001';
+// Use proxy route in production (Docker), direct URL in development
+const isServer = typeof window === 'undefined';
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_BASE_URL ||
+  (isServer ? 'http://backend:3001' : '/api/backend');
 
 // Cache JWT token to avoid creating new one for every request
 let cachedToken: { token: string; expiresAt: number } | null = null;

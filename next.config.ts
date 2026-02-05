@@ -1,5 +1,8 @@
 import type { NextConfig } from 'next';
 
+// Backend URL for server-side proxying (Docker internal or external)
+const BACKEND_INTERNAL_URL = process.env.BACKEND_INTERNAL_URL || 'http://backend:3001';
+
 const nextConfig: NextConfig = {
   output: 'standalone',
   serverExternalPackages: ['@prisma/client'],
@@ -17,6 +20,16 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_APPWRITE_ENDPOINT: process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT,
     NEXT_PUBLIC_APPWRITE_PROJECT_ID: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID,
     NEXT_PUBLIC_APPWRITE_PROJECT_NAME: process.env.NEXT_PUBLIC_APPWRITE_PROJECT_NAME,
+  },
+
+  // Proxy API requests to backend (works in Docker without exposing port 3001)
+  async rewrites() {
+    return [
+      {
+        source: '/api/backend/:path*',
+        destination: `${BACKEND_INTERNAL_URL}/:path*`,
+      },
+    ];
   },
 
   // Performance optimizations
