@@ -64,7 +64,7 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
     ['Fulfillment Report'],
     ['Generated on: ' + new Date().toLocaleString()],
     [],
-    ['Date', 'SO Qty', 'DN Qty', 'Pending', 'Fulfillment %'],
+    ['Date', 'SO Count', 'DN Count', 'Pending', 'Fulfillment %'],
     ...data.map(row => [
       row.date,
       row.soQty,
@@ -79,8 +79,8 @@ const downloadFulfillmentExcel = (data: FulfillmentRow[]) => {
   // Set column widths
   ws['!cols'] = [
     { wch: 15 }, // Date
-    { wch: 12 }, // SO Qty
-    { wch: 12 }, // DN Qty
+    { wch: 12 }, // SO Count
+    { wch: 12 }, // DN Count
     { wch: 12 }, // Pending
     { wch: 15 }, // Fulfillment %
   ];
@@ -3284,9 +3284,9 @@ export default function SummaryPage() {
               <div className="sticky top-0 z-20 bg-white/95 dark:bg-slate-800/95 backdrop-blur-md pb-2">
                 <div className="grid grid-cols-5 gap-4 px-4 py-3 bg-enterprise-redTint/30 backdrop-blur-md backdrop-saturate-150 ring-1 ring-black/5 dark:ring-white/10 rounded-lg border border-enterprise-border text-sm font-bold uppercase tracking-wider text-enterprise-textSecondary">
                   <div className="text-center">Date</div>
-                  <div className="text-center">SO Qty</div>
-                  <div className="text-center">DN Qty</div>
-                  <div className="text-center">Pending Qty</div>
+                  <div className="text-center">SO Count</div>
+                  <div className="text-center">DN Count</div>
+                  <div className="text-center">Pending</div>
                   <div className="text-center">Percentage</div>
                 </div>
               </div>

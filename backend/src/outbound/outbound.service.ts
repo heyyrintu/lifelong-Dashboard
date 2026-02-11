@@ -144,6 +144,7 @@ export class OutboundService {
       // Parse all rows first (before transaction) to catch validation errors early
       const parsedRows: Array<{
         customerGroup: string | null;
+        salesOrderNo: string | null;
         sourceWarehouse: string | null;
         soItem: string | null;
         categoryRaw: string | null;
@@ -165,11 +166,12 @@ export class OutboundService {
         if (!row || !Array.isArray(row) || row.length === 0) continue;
 
         // Excel columns (0-indexed) - matching actual MIS file structure:
-        // Customer Group=column C (2), Source Warehouse=column K (10), SO Item=column L (11)
+        // Customer Group=column C (2), Sales Order No=column D (3), Source Warehouse=column K (10), SO Item=column L (11)
         // Category Raw=column M (12), Sales Order Qty=column N (13), SO Date=column F (5), Dispatch By Date=column G (6), SO Total CBM=column P (15)
         // Delivery Note Date=column S (18), Delivery Note Item=column U (20), Delivery Note Qty=column V (21)
         // DN Total CBM=column W (22), Transporter=column X (23)
         const customerGroup = this.getCellValue(row[2]); // C
+        const salesOrderNo = this.getCellValue(row[3]); // D - Sales Order No
         const sourceWarehouse = this.getCellValue(row[10]); // K
         const soItem = this.getCellValue(row[11]); // L
         const categoryRaw = this.getCellValue(row[12]); // M
@@ -190,6 +192,7 @@ export class OutboundService {
 
         parsedRows.push({
           customerGroup,
+          salesOrderNo,
           sourceWarehouse,
           soItem,
           categoryRaw,
@@ -1094,11 +1097,11 @@ export class OutboundService {
       dispatchDateCondition += ` AND DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes') <= $${params.length}::DATE`;
     }
 
-    // Single optimized query that calculates both SO Qty and DN Qty correctly
-    // Matching Excel logic:
-    // 1. Filter by dispatch_by_date = specific date, sum all sales_order_qty -> SO Qty
-    // 2. For DN Qty: additionally filter by delivery_note_date <= dispatch_by_date
-    //    (only count deliveries that happened on or before the dispatch date)
+    // Single optimized query that calculates both SO Count and DN Count correctly
+    // Logic:
+    // 1. SO Count = COUNT of all rows (counting SO items) grouped by dispatch_by_date
+    // 2. DN Count = COUNT DISTINCT of delivery_note_item where delivery happened on time
+    //    (only count unique deliveries that happened on or before the dispatch date)
     // Add IST offset to convert UTC timestamps to IST dates for correct grouping
     const fulfillmentData = await this.prisma.$queryRawUnsafe<Array<{
       dispatch_date: string;
@@ -1107,33 +1110,33 @@ export class OutboundService {
       edel_so_qty: number;
       edel_dn_qty: number;
     }>>(`
-      SELECT 
+      SELECT
         TO_CHAR(DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes'), 'YYYY-MM-DD') as dispatch_date,
-        COALESCE(SUM(sales_order_qty), 0) as so_qty,
-        COALESCE(SUM(
-          CASE 
-            WHEN delivery_note_date IS NOT NULL 
+        COUNT(*) as so_qty,
+        COUNT(DISTINCT
+          CASE
+            WHEN delivery_note_date IS NOT NULL
               AND DATE(delivery_note_date + INTERVAL '5 hours 30 minutes') <= DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes')
-            THEN delivery_note_qty 
-            ELSE 0 
+            THEN delivery_note_item
+            ELSE NULL
           END
-        ), 0) as dn_qty,
-        COALESCE(SUM(
-          CASE 
+        ) as dn_qty,
+        COUNT(
+          CASE
             WHEN product_category = 'EDEL'
-            THEN sales_order_qty 
-            ELSE 0 
+            THEN 1
+            ELSE NULL
           END
-        ), 0) as edel_so_qty,
-        COALESCE(SUM(
-          CASE 
+        ) as edel_so_qty,
+        COUNT(DISTINCT
+          CASE
             WHEN product_category = 'EDEL'
-              AND delivery_note_date IS NOT NULL 
+              AND delivery_note_date IS NOT NULL
               AND DATE(delivery_note_date + INTERVAL '5 hours 30 minutes') <= DATE(dispatch_by_date + INTERVAL '5 hours 30 minutes')
-            THEN delivery_note_qty 
-            ELSE 0 
+            THEN delivery_note_item
+            ELSE NULL
           END
-        ), 0) as edel_dn_qty
+        ) as edel_dn_qty
       FROM outbound_rows
       WHERE upload_id = ANY($1)
         AND dispatch_by_date IS NOT NULL

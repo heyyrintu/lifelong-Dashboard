@@ -2877,8 +2877,8 @@ export default function OutboundPage() {
                 {/* Headers */}
                 <div className="grid grid-cols-5 gap-3 px-3 py-2.5 mb-2 bg-gradient-to-r from-emerald-100/40 to-transparent rounded-lg border border-enterprise-border/50 text-sm font-bold uppercase tracking-widest text-enterprise-textSecondary">
                   <div className="text-center">Date</div>
-                  <div className="text-center">SO Qty</div>
-                  <div className="text-center">DN Qty</div>
+                  <div className="text-center">SO Count</div>
+                  <div className="text-center">DN Count</div>
                   <div className="text-center">Pending</div>
                   <div className="text-center">%</div>
                 </div>

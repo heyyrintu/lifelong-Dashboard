@@ -45,6 +45,7 @@ model OutboundRow {
   uploadId            String             @map("upload_id")
   customerGroup       String?            @map("customer_group")
   sourceWarehouse     String?            @map("source_warehouse")
+  salesOrderNo        String?            @map("sales_order_no")
   soItem              String?            @map("so_item")
   categoryRaw         String?            @map("category_raw")
   salesOrderQty       Float              @default(0) @map("sales_order_qty")
